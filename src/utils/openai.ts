@@ -48,13 +48,25 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
     byYear.set(year, list);
   }
 
-  const input = [...byYear.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([year, texts]) => `【${year}年】\n${texts.join('\n---\n')}`)
-    .join('\n\n');
+  const sortedYears = [...byYear.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-  // トークン制限を考慮して入力を切る
-  const truncated = input.slice(0, 6000);
+  // トークン制限を考慮して、各年の代表エントリ数を均等に制限する
+  const maxTotal = 6000;
+  const yearCount = sortedYears.length;
+  const headerOverhead = yearCount * 20; // 【YYYY年】+ 改行分
+  const budgetPerYear = Math.floor((maxTotal - headerOverhead) / yearCount);
+
+  const truncated = sortedYears
+    .map(([year, texts]) => {
+      let chunk = '';
+      for (const t of texts) {
+        const next = chunk ? `${chunk}\n---\n${t}` : t;
+        if (next.length > budgetPerYear) break;
+        chunk = next;
+      }
+      return `【${year}年】\n${chunk}`;
+    })
+    .join('\n\n');
 
   return callChat([
     {
