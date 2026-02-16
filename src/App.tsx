@@ -6,6 +6,7 @@ import { Random } from './pages/Random';
 import { Fragments } from './pages/Fragments';
 import { Timeline } from './pages/Timeline';
 import { Settings } from './pages/Settings';
+import { Analysis } from './pages/Analysis';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/random" element={<Random />} />
             <Route path="/fragments" element={<Fragments />} />
             <Route path="/timeline" element={<Timeline />} />
+            <Route path="/analysis" element={<Analysis />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
