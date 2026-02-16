@@ -1,0 +1,96 @@
+import type { DiaryEntry, EmotionAnalysis } from '../types';
+
+// 感情ワード辞書（日本語）
+const negativeWords = [
+  '辛い', 'つらい', '苦しい', '悲しい', '寂しい', '怖い',
+  '不安', '孤独', '絶望', '死にたい', '消えたい', '無理',
+  '嫌だ', '嫌い', '最悪', '地獄', '痛い', '泣', '涙',
+  '疲れ', '限界', '逃げたい', 'しんどい', 'だるい', '憂鬱',
+  '鬱', '落ち込', '暗い', '重い', '苦手', '怒り', '腹が立つ',
+  'イライラ', 'ストレス', '後悔', '失敗', '惨め', '情けない',
+];
+
+const selfDenialWords = [
+  '自分が嫌', '自分なんか', '価値がない', 'どうせ', '無価値',
+  '存在意義', '生きてる意味', 'いらない人間', '迷惑',
+  'ダメな', '何もできない', '役に立たない', '自己嫌悪',
+  '自分のせい', '自分が悪い', '能力がない', '才能がない',
+];
+
+const positiveWords = [
+  '嬉しい', '楽しい', '幸せ', '好き', '感謝', 'ありがとう',
+  '笑', '元気', '希望', '安心', '心地よい', '穏やか',
+  '面白い', '素敵', '美しい', '温かい', '優しい', '喜び',
+  '達成', '成功', '前向き', '光', '明るい', '自由',
+];
+
+function countOccurrences(text: string, words: string[]): number {
+  let count = 0;
+  for (const word of words) {
+    const regex = new RegExp(word, 'g');
+    const matches = text.match(regex);
+    if (matches) count += matches.length;
+  }
+  return count;
+}
+
+function getEmotionWordCounts(text: string): { word: string; count: number }[] {
+  const allWords = [...negativeWords, ...positiveWords];
+  const counts: { word: string; count: number }[] = [];
+  for (const word of allWords) {
+    const regex = new RegExp(word, 'g');
+    const matches = text.match(regex);
+    if (matches && matches.length > 0) {
+      counts.push({ word, count: matches.length });
+    }
+  }
+  return counts.sort((a, b) => b.count - a.count);
+}
+
+export function analyzeEntries(entries: DiaryEntry[]): EmotionAnalysis[] {
+  // 月単位でグループ化
+  const byMonth = new Map<string, DiaryEntry[]>();
+
+  for (const entry of entries) {
+    if (!entry.date) continue;
+    const month = entry.date.substring(0, 7); // YYYY-MM
+    const existing = byMonth.get(month) ?? [];
+    existing.push(entry);
+    byMonth.set(month, existing);
+  }
+
+  const results: EmotionAnalysis[] = [];
+
+  for (const [month, monthEntries] of byMonth) {
+    const allText = monthEntries.map(e => e.content).join('\n');
+    const negCount = countOccurrences(allText, negativeWords);
+    const posCount = countOccurrences(allText, positiveWords);
+    const total = negCount + posCount;
+    const negativeRatio = total > 0 ? negCount / total : 0;
+    const selfDenialCount = countOccurrences(allText, selfDenialWords);
+    const topEmotionWords = getEmotionWordCounts(allText).slice(0, 10);
+
+    results.push({
+      month,
+      negativeRatio,
+      selfDenialCount,
+      topEmotionWords,
+    });
+  }
+
+  return results.sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// 名前っぽいパターンを匿名化（他人モード用）
+export function anonymize(text: string): string {
+  // 「〇〇さん」「〇〇くん」「〇〇ちゃん」パターン
+  let result = text.replace(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]{1,4}(?:さん|くん|ちゃん|先生|氏)/g, '***$&'.replace(/.*(?=さん|くん|ちゃん|先生|氏)/, '***'));
+  // 簡易的にカタカナ2-6文字の固有名詞っぽいものを置換
+  result = result.replace(/(?<![ァ-ヶー])([ァ-ヶー]{2,6})(?![ァ-ヶー])/g, (match) => {
+    // 一般的なカタカナ語は除外
+    const commonWords = ['ストレス', 'イライラ', 'パソコン', 'スマホ', 'テレビ', 'コンビニ', 'トイレ', 'バイト', 'メール', 'ネット', 'ゲーム', 'カフェ', 'コーヒー', 'ラーメン', 'カレー', 'ベッド', 'シャワー', 'タクシー', 'バス', 'マスク', 'ノート', 'ペン', 'ダメ', 'クリニック', 'カウンセラー', 'カウンセリング', 'セラピー', 'リハビリ', 'グループ', 'プログラム', 'ボランティア'];
+    if (commonWords.includes(match)) return match;
+    return '***';
+  });
+  return result;
+}
