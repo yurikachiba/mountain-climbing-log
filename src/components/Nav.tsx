@@ -6,6 +6,7 @@ const links = [
   { to: '/random', label: 'ランダム' },
   { to: '/fragments', label: '宝物庫' },
   { to: '/timeline', label: 'タイムライン' },
+  { to: '/analysis', label: 'AI分析' },
   { to: '/settings', label: '設定' },
 ];
 

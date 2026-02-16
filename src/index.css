@@ -508,6 +508,67 @@ body {
   margin-bottom: 8px;
 }
 
+/* ---- API Key Input ---- */
+
+.api-key-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-family: var(--mono);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  margin-top: 8px;
+}
+
+.api-key-input:focus {
+  outline: none;
+  border-color: var(--text-muted);
+}
+
+.api-key-masked {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* ---- Analysis ---- */
+
+.analysis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.analysis-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.analysis-result {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+.analysis-result p {
+  margin-bottom: 4px;
+}
+
 /* ---- Toast ---- */
 
 .toast {
