@@ -1,5 +1,8 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from 'idb';
 import type { DiaryEntry, Fragment } from '../types';
+
+// --- スキーマ定義 ---
+// 最新のスキーマを反映する。マイグレーションで段階的にここへ到達する。
 
 interface ClimbingLogDB extends DBSchema {
   entries: {
@@ -8,6 +11,7 @@ interface ClimbingLogDB extends DBSchema {
     indexes: {
       'by-date': string;
       'by-imported': string;
+      'by-favorite': number;
     };
   };
   fragments: {
@@ -20,19 +24,57 @@ interface ClimbingLogDB extends DBSchema {
   };
 }
 
+// --- マイグレーション ---
+//
+// 新しいバージョンを追加する手順:
+//   1. DB_VERSION を +1
+//   2. runMigrations() 内に if (oldVersion < N) ブロックを追加
+//
+// upgrade() は oldVersion → newVersion まで一度に実行される。
+// 例: v1のユーザーがv3のアプリを開くと oldVersion=1 で呼ばれ、
+//     v2とv3のブロックが順番に両方実行される。
+
+const DB_VERSION = 2;
+
+type UpgradeTx = IDBPTransaction<ClimbingLogDB, ('entries' | 'fragments')[], 'versionchange'>;
+
+function runMigrations(
+  db: IDBPDatabase<ClimbingLogDB>,
+  oldVersion: number,
+  tx: UpgradeTx,
+): void {
+  // v0 → v1: 初期スキーマ作成
+  if (oldVersion < 1) {
+    const entryStore = db.createObjectStore('entries', { keyPath: 'id' });
+    entryStore.createIndex('by-date', 'date');
+    entryStore.createIndex('by-imported', 'importedAt');
+
+    const fragStore = db.createObjectStore('fragments', { keyPath: 'id' });
+    fragStore.createIndex('by-entry', 'entryId');
+    fragStore.createIndex('by-saved', 'savedAt');
+  }
+
+  // v1 → v2: entries に by-favorite インデックスを追加
+  if (oldVersion < 2) {
+    const entryStore = tx.objectStore('entries');
+    entryStore.createIndex('by-favorite', 'isFavorite');
+  }
+
+  // --- 次のマイグレーションはここに追加 ---
+  // if (oldVersion < 3) {
+  //   ...
+  // }
+}
+
+// --- DB接続 ---
+
 let dbInstance: IDBPDatabase<ClimbingLogDB> | null = null;
 
 async function getDB(): Promise<IDBPDatabase<ClimbingLogDB>> {
   if (dbInstance) return dbInstance;
-  dbInstance = await openDB<ClimbingLogDB>('climbing-log', 1, {
-    upgrade(db) {
-      const entryStore = db.createObjectStore('entries', { keyPath: 'id' });
-      entryStore.createIndex('by-date', 'date');
-      entryStore.createIndex('by-imported', 'importedAt');
-
-      const fragStore = db.createObjectStore('fragments', { keyPath: 'id' });
-      fragStore.createIndex('by-entry', 'entryId');
-      fragStore.createIndex('by-saved', 'savedAt');
+  dbInstance = await openDB<ClimbingLogDB>('climbing-log', DB_VERSION, {
+    upgrade(db, oldVersion, _newVersion, tx) {
+      runMigrations(db, oldVersion, tx);
     },
   });
   return dbInstance;
