@@ -6,7 +6,8 @@ import { getAllAiLogs } from '../db';
 type AnalysisType =
   | 'summary' | 'tags' | 'tone'
   | 'turningPoints' | 'themes' | 'questions'
-  | 'seasonal' | 'growth' | 'report';
+  | 'seasonal' | 'growth' | 'report'
+  | 'elevation' | 'strengths' | 'counterfactual';
 
 const typeLabels: Record<AnalysisType, string> = {
   summary: '年代別要約',
@@ -18,12 +19,16 @@ const typeLabels: Record<AnalysisType, string> = {
   seasonal: '季節×感情マップ',
   growth: '成長の軌跡',
   report: '包括レポート',
+  elevation: '標高ナラティブ',
+  strengths: '強みの宣言',
+  counterfactual: '反事実的因果',
 };
 
 const allTypes: AnalysisType[] = [
   'summary', 'tags', 'tone',
   'turningPoints', 'themes', 'questions',
   'seasonal', 'growth', 'report',
+  'elevation', 'strengths', 'counterfactual',
 ];
 
 function formatDate(iso: string): string {
