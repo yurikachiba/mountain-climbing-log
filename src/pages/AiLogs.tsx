@@ -48,6 +48,20 @@ export function AiLogs() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
+  const handleItemCopy = async (log: AiLog) => {
+    const label = typeLabels[log.type as AnalysisType] || log.type;
+    const date = formatDate(log.analyzedAt);
+    const text = `【${label}】${date}（${log.entryCount}件の日記）\n${log.result}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMessage('コピーしました');
+      setTimeout(() => setCopyMessage(null), 2500);
+    } catch {
+      setCopyMessage('コピーに失敗しました');
+      setTimeout(() => setCopyMessage(null), 2500);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       const all = await getAllAiLogs();
@@ -162,6 +176,20 @@ export function AiLogs() {
                   </button>
                   {isExpanded && (
                     <div className="ailogs-item-body">
+                      <div className="ailogs-body-meta">
+                        <span className="ailogs-body-date">
+                          分析日時: {formatDate(log.analyzedAt)}
+                        </span>
+                        <span className="ailogs-body-count">
+                          エントリ数: {log.entryCount}
+                        </span>
+                        <button
+                          className="btn btn-small"
+                          onClick={(e) => { e.stopPropagation(); handleItemCopy(log); }}
+                        >
+                          コピー
+                        </button>
+                      </div>
                       {log.result.split('\n').map((line, i) => (
                         <p key={i}>{line || '\u00A0'}</p>
                       ))}
