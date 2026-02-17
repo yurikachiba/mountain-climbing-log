@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Nav } from './components/Nav';
+import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
 import { Import } from './pages/Import';
 import { Random } from './pages/Random';
@@ -11,6 +12,9 @@ import { OnThisDay } from './pages/OnThisDay';
 import { Search } from './pages/Search';
 import { Calendar } from './pages/Calendar';
 import { WordCloud } from './pages/WordCloud';
+import { Privacy } from './pages/Privacy';
+import { Terms } from './pages/Terms';
+import { Sitemap } from './pages/Sitemap';
 
 export default function App() {
   return (
@@ -30,8 +34,12 @@ export default function App() {
             <Route path="/wordcloud" element={<WordCloud />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/sitemap" element={<Sitemap />} />
           </Routes>
         </main>
+        <Footer />
       </div>
     </BrowserRouter>
   );
