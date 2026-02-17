@@ -16,6 +16,7 @@ import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
 import { Sitemap } from './pages/Sitemap';
 import { Landing } from './pages/Landing';
+import { AiLogs } from './pages/AiLogs';
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/timeline" element={<Timeline />} />
             <Route path="/wordcloud" element={<WordCloud />} />
             <Route path="/analysis" element={<Analysis />} />
+            <Route path="/ai-logs" element={<AiLogs />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />

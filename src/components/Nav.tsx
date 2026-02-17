@@ -12,6 +12,7 @@ const links = [
   { to: '/timeline', label: 'タイムライン' },
   { to: '/wordcloud', label: 'ワード' },
   { to: '/analysis', label: 'AI分析' },
+  { to: '/ai-logs', label: 'AIログ' },
   { to: '/settings', label: '設定' },
 ];
 

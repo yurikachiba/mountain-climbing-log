@@ -709,6 +709,105 @@ body {
   margin-bottom: 4px;
 }
 
+/* ---- AI Logs ---- */
+
+.ailogs-empty {
+  margin-top: 40px;
+}
+
+.ailogs-filter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ailogs-count {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.ailogs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ailogs-item {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ailogs-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--bg);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  text-align: left;
+  gap: 12px;
+  transition: background 0.1s;
+}
+
+.ailogs-item-header:hover {
+  background: var(--card-bg);
+}
+
+.ailogs-item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ailogs-type-badge {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.ailogs-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.ailogs-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.ailogs-entry-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ailogs-expand-icon {
+  font-size: 1rem;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: center;
+}
+
+.ailogs-item-body {
+  padding: 20px;
+  border-top: 1px solid var(--border-light);
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+.ailogs-item-body p {
+  margin-bottom: 4px;
+}
+
 /* ---- Toast ---- */
 
 .toast {

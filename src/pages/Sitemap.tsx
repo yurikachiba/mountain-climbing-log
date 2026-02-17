@@ -25,6 +25,7 @@ const pages = [
       { to: '/timeline', label: 'タイムライン', desc: '時系列グラフによる記録の推移' },
       { to: '/wordcloud', label: 'ワード', desc: '頻出語のワードクラウド表示' },
       { to: '/analysis', label: 'AI分析', desc: 'OpenAI APIによる日記の分析' },
+      { to: '/ai-logs', label: 'AI分析ログ', desc: '過去のAI分析結果の閲覧' },
     ],
   },
   {
