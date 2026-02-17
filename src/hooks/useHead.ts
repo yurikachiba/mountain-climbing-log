@@ -3,15 +3,19 @@ import { useEffect } from 'react';
 interface HeadParams {
   title?: string;
   description?: string;
+  keywords?: string;
   path?: string;
 }
 
 const SITE_NAME = '登山ログ';
 const BASE_URL = 'https://mountain-climbing-log.com';
+const DEFAULT_KEYWORDS = '登山ログ,日記アプリ,日記管理,日記分析,プライバシーファースト,無料';
 
-export function useHead({ title, description, path }: HeadParams) {
+export function useHead({ title, description, keywords, path }: HeadParams) {
   useEffect(() => {
-    const fullTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME;
+    const fullTitle = title
+      ? `${title} | ${SITE_NAME} ― 日記管理・分析・可視化`
+      : `${SITE_NAME} ― 日記を取り込んで過去の自分と再会する無料ウェブアプリ`;
     document.title = fullTitle;
 
     const setMeta = (attr: string, key: string, content: string) => {
@@ -29,6 +33,8 @@ export function useHead({ title, description, path }: HeadParams) {
       setMeta('property', 'og:description', description);
       setMeta('name', 'twitter:description', description);
     }
+
+    setMeta('name', 'keywords', keywords ? `${keywords},${DEFAULT_KEYWORDS}` : DEFAULT_KEYWORDS);
 
     setMeta('property', 'og:title', fullTitle);
     setMeta('name', 'twitter:title', fullTitle);
@@ -49,5 +55,5 @@ export function useHead({ title, description, path }: HeadParams) {
     return () => {
       document.title = SITE_NAME;
     };
-  }, [title, description, path]);
+  }, [title, description, keywords, path]);
 }

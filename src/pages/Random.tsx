@@ -6,8 +6,9 @@ import { useHead } from '../hooks/useHead';
 
 export function Random() {
   useHead({
-    title: 'ランダム過去',
-    description: '過去の日記にランダムで再会。忘れていた日の自分と出会い直す機能。',
+    title: 'ランダム再会',
+    description: '過去の日記にランダムで再会し、忘れていた日の自分と出会い直す機能。「他人モード」で匿名化して新鮮な目線で読み返すことも可能。未来の自分からコメントを残す「未来からの報告」機能付き。',
+    keywords: 'ランダム日記,日記振り返り,他人モード,匿名化,未来からの報告',
     path: '/random',
   });
   const [entry, setEntry] = useState<DiaryEntry | null>(null);

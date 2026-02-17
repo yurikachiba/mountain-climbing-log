@@ -42,7 +42,8 @@ const pages = [
 export function Sitemap() {
   useHead({
     title: 'サイトマップ',
-    description: '登山ログの全ページ一覧。各機能への導線を確認できます。',
+    description: '登山ログの全ページ一覧。インポート、ランダム再会、検索、カレンダー、ワードクラウド、AI分析、タイムラインなど全16ページへの導線を確認できます。',
+    keywords: 'サイトマップ,ページ一覧,機能一覧',
     path: '/sitemap',
   });
 

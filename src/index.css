@@ -1624,6 +1624,128 @@ body {
   margin-bottom: 24px;
 }
 
+/* ---- Landing: 追加セクション ---- */
+
+.landing-sub-lead {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.landing-section-lead {
+  font-size: 0.95rem;
+  color: var(--text-light);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.landing-feature-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.landing-feature-link:hover {
+  border-color: var(--text);
+}
+
+.landing-detail-block {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+}
+
+.landing-detail-block h3 {
+  font-size: 1.05rem;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.landing-detail-block p {
+  font-size: 0.92rem;
+  color: var(--text-light);
+  line-height: 1.85;
+  margin-bottom: 8px;
+}
+
+.landing-detail-block a {
+  color: var(--text);
+  font-size: 0.88rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.landing-spec-list {
+  display: grid;
+  gap: 12px;
+}
+
+.landing-spec-item {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.landing-spec-item:last-child {
+  border-bottom: none;
+}
+
+.landing-spec-item dt {
+  min-width: 140px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.landing-spec-item dd {
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+.landing-faq-list {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.landing-faq-item {
+  border-bottom: 1px solid var(--border-light);
+  padding: 0;
+}
+
+.landing-faq-question {
+  padding: 18px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.landing-faq-question::before {
+  content: 'Q.';
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.landing-faq-question::-webkit-details-marker {
+  display: none;
+}
+
+.landing-faq-answer {
+  padding: 0 0 20px 28px;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  line-height: 1.85;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 600px) {
@@ -1694,5 +1816,18 @@ body {
 
   .landing-privacy-card {
     padding: 32px 20px;
+  }
+
+  .landing-detail-block {
+    padding: 20px 16px;
+  }
+
+  .landing-spec-item {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .landing-spec-item dt {
+    min-width: unset;
   }
 }

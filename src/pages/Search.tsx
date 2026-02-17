@@ -6,8 +6,9 @@ export function Search() {
   const { entries, loading } = useEntries();
 
   useHead({
-    title: '検索',
-    description: '日記のキーワード全文検索。日付範囲やソート順での絞り込みに対応。',
+    title: '日記キーワード検索',
+    description: '日記の全文キーワード検索機能。日付範囲の絞り込み、新しい順・古い順のソート切り替え、検索結果のハイライト表示に対応。コメント内の検索も可能。',
+    keywords: '日記検索,全文検索,キーワード検索,日付絞り込み,日記全文検索',
     path: '/search',
   });
   const [keyword, setKeyword] = useState('');

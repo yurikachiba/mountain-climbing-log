@@ -1,44 +1,100 @@
 import { Link } from 'react-router-dom';
 import { useHead } from '../hooks/useHead';
-import { WebSiteJsonLd, WebAppJsonLd, FAQJsonLd } from '../components/JsonLd';
+import { WebSiteJsonLd, WebAppJsonLd, FAQJsonLd, HowToJsonLd, SoftwareAppJsonLd } from '../components/JsonLd';
 
 const features = [
   {
     title: 'ランダム再会',
-    desc: '過去の日記にランダムで再会。忘れていた日の自分と出会い直す。',
+    desc: '過去の日記にランダムで再会。忘れていた日の自分と出会い直す。「他人モード」で匿名化し、新鮮な目線で読み返すことも可能。',
     icon: '🎲',
+    link: '/random',
   },
   {
     title: 'この日の記録',
-    desc: '1年前、3年前、5年前の同じ日。時間を縦に貫いて振り返る。',
+    desc: '1年前、3年前、5年前の同じ日を振り返る。時間を縦に貫いて、自分の変化や成長を感じられる機能。',
     icon: '📅',
+    link: '/onthisday',
   },
   {
     title: 'キーワード検索',
-    desc: 'あの日のあの言葉を探す。日付範囲の絞り込みにも対応。',
+    desc: 'あの日のあの言葉を探す全文検索。日付範囲の絞り込みやソート順の切り替えにも対応。',
     icon: '🔍',
+    link: '/search',
   },
   {
     title: 'カレンダー表示',
-    desc: '書いた日、書かなかった日。記録の密度を一望する。',
+    desc: '書いた日、書かなかった日。記録の密度をヒートマップカレンダーで一望。年ごとの俯瞰も可能。',
     icon: '📆',
+    link: '/calendar',
   },
   {
     title: 'ワードクラウド',
-    desc: 'よく使う言葉を可視化。自分の語彙の癖に気づく。',
+    desc: 'よく使う言葉を可視化して語彙の傾向を把握。全期間・年別の切り替え、出現回数のフィルタリングに対応。',
     icon: '☁️',
+    link: '/wordcloud',
   },
   {
-    title: 'AI分析',
-    desc: 'OpenAI APIで日記を分析。感情の推移やトーンを客観的に。',
+    title: 'AI分析（12種類）',
+    desc: 'OpenAI APIで日記を客観的に分析。年代別要約、感情タグ抽出、トーン分析、転機検出、成長分析、標高ナラティブなど12種類。',
     icon: '🤖',
+    link: '/analysis',
+  },
+];
+
+const useCases = [
+  {
+    title: '日記を書き続けている方',
+    desc: '何年分もの日記をインポートして、過去の自分と再会。書き続けてきた記録が「資産」になります。',
+  },
+  {
+    title: '自己分析・内省をしたい方',
+    desc: 'AI分析で感情の推移やトーンの変化を客観的に把握。自分では気づけなかったパターンが見えてきます。',
+  },
+  {
+    title: '登山・アウトドアの記録を残す方',
+    desc: '登山日誌や山行記録を取り込んで、標高ナラティブやカレンダーで活動履歴を可視化。',
+  },
+  {
+    title: 'プライバシーを重視する方',
+    desc: 'データは一切外部に送信されません。ブラウザ内のみで完結する、安心の設計です。',
+  },
+];
+
+const faqs = [
+  {
+    q: '登山ログとは何ですか？',
+    a: '登山ログは、個人の日記・登山記録を管理するためのウェブアプリケーションです。テキストやMarkdownファイルをインポートし、検索・分析・可視化など様々な方法で過去の記録を振り返ることができます。無料で利用でき、アカウント登録も不要です。',
+  },
+  {
+    q: 'データはどこに保存されますか？',
+    a: 'すべてのデータはお使いの端末のブラウザ内（IndexedDB）に保存されます。外部サーバーへの送信はありません。AI分析機能を使用する場合のみ、ユーザー自身のAPIキーでOpenAI APIと通信します。',
+  },
+  {
+    q: '無料で使えますか？',
+    a: 'はい、登山ログは完全無料でご利用いただけます。アカウント登録も不要です。AI分析機能を利用する場合のみ、ユーザー自身でOpenAI APIキーを取得する必要があり、APIの利用料金が別途発生します。',
+  },
+  {
+    q: 'オフラインでも使えますか？',
+    a: 'はい、PWA（Progressive Web App）に対応しているため、一度アクセスした後はオフラインでもご利用いただけます。日記の閲覧・検索・ワードクラウドなどすべての基本機能がオフラインで動作します。AI分析機能のみインターネット接続が必要です。',
+  },
+  {
+    q: 'どのようなファイル形式に対応していますか？',
+    a: 'テキストファイル（.txt）、Markdownファイル（.md）、JSONファイル（.json）に対応しています。日付は「2024年3月15日」「2024-03-15」「2024/03/15」などの形式を自動認識します。直接入力でブラウザ上から日記を書くこともできます。',
+  },
+  {
+    q: 'AI分析ではどのような分析ができますか？',
+    a: '年代別要約、頻出感情タグ抽出、文章トーン分析、転機検出、反復テーマ抽出、内省質問の生成、季節別感情マップ、成長分析、包括レポート、標高ナラティブ、強みの宣言、反事実的因果分析の12種類の分析に対応しています。',
+  },
+  {
+    q: 'スマートフォンでも使えますか？',
+    a: 'はい、レスポンシブデザインに対応しており、スマートフォン・タブレット・PCなどあらゆるデバイスでご利用いただけます。PWAとしてホーム画面に追加することも可能です。',
   },
 ];
 
 export function Landing() {
   useHead({
     title: undefined,
-    description: '日記を取り込んで、過去の自分と再会する。検索、分析、可視化。プライバシーファーストな日記管理ウェブアプリ。',
+    description: '登山ログは日記・登山記録を取り込んで、ランダム再会・キーワード検索・カレンダー表示・ワードクラウド・AI感情分析で過去の自分と再会できる無料ウェブアプリです。データは端末内に保存。PWA対応でオフラインでも利用可能。',
     path: '/',
   });
 
@@ -46,38 +102,94 @@ export function Landing() {
     <div className="landing">
       <WebSiteJsonLd />
       <WebAppJsonLd />
+      <SoftwareAppJsonLd />
+      <HowToJsonLd />
       <FAQJsonLd />
+
       {/* Hero */}
       <section className="landing-hero">
         <h1 className="landing-title">登山ログ</h1>
         <p className="landing-tagline">未来から過去へロープを垂らす装置</p>
         <p className="landing-lead">
           日記を取り込んで、過去の自分と再会する。<br />
-          検索、分析、可視化。静かに振り返るためのツール。
+          検索・分析・可視化。静かに振り返るための無料ウェブアプリ。
+        </p>
+        <p className="landing-sub-lead">
+          アカウント登録不要・データは端末内のみ保存・オフライン対応
         </p>
         <div className="landing-cta">
-          <Link to="/import" className="btn btn-primary">はじめる</Link>
+          <Link to="/import" className="btn btn-primary">はじめる（無料）</Link>
           <Link to="/home" className="btn">ダッシュボードへ</Link>
         </div>
       </section>
 
       {/* Features */}
-      <section className="landing-section">
-        <h2 className="landing-section-title">できること</h2>
+      <section className="landing-section" id="features">
+        <h2 className="landing-section-title">登山ログでできること ― 6つの主要機能</h2>
+        <p className="landing-section-lead">
+          日記をインポートするだけで、検索・分析・可視化のすべてが使えます。
+        </p>
         <div className="landing-features" role="list">
           {features.map(f => (
             <article key={f.title} className="landing-feature" role="listitem">
               <span className="landing-feature-icon" aria-hidden="true">{f.icon}</span>
-              <h3 className="landing-feature-title">{f.title}</h3>
+              <h3 className="landing-feature-title">
+                <Link to={f.link} className="landing-feature-link">{f.title}</Link>
+              </h3>
               <p className="landing-feature-desc">{f.desc}</p>
             </article>
           ))}
         </div>
       </section>
 
+      {/* Detailed Features */}
+      <section className="landing-section" id="details">
+        <h2 className="landing-section-title">機能の詳細</h2>
+
+        <div className="landing-detail-block">
+          <h3>日記インポート ― 対応フォーマットと自動日付認識</h3>
+          <p>
+            テキストファイル（.txt）、Markdownファイル（.md）、JSONファイル（.json）をドラッグ＆ドロップまたはファイル選択で取り込めます。
+            「2024年3月15日」「2024-03-15」「2024/03/15」などの日付形式を自動認識し、日記エントリとして整理します。
+            ブラウザ上から直接入力で日記を書くことも可能です。
+          </p>
+          <p><Link to="/import">日記のインポートを試す</Link></p>
+        </div>
+
+        <div className="landing-detail-block">
+          <h3>ローカル感情分析 ― タイムライン・安定指数・標高メタファー</h3>
+          <p>
+            AIを使わずに端末内で完結する感情分析機能です。
+            ネガティブ比率の推移、自己否定語の出現頻度、年ごとの安定指数をグラフで可視化。
+            「どれだけ登ったか」を標高メタファーで表現する独自の成長指標も搭載しています。
+          </p>
+          <p><Link to="/timeline">成長タイムラインを見る</Link></p>
+        </div>
+
+        <div className="landing-detail-block">
+          <h3>AI分析 ― 12種類の客観的分析</h3>
+          <p>
+            OpenAI APIを使って日記を客観的に分析。年代別要約、頻出感情タグ、文章トーン分析、
+            転機検出、反復テーマ抽出、内省質問、季節別感情マップ、成長の軌跡、
+            包括レポート、標高ナラティブ、強みの宣言、反事実的因果分析の12種類を搭載。
+            ユーザー自身のAPIキーを使用するため、データがサービス提供者に渡ることはありません。
+          </p>
+          <p><Link to="/analysis">AI分析について詳しく見る</Link></p>
+        </div>
+
+        <div className="landing-detail-block">
+          <h3>宝物庫 ― お気に入りの一文を収集</h3>
+          <p>
+            日記を読み返す中で見つけた、光っている一文を「宝物庫」に保存できます。
+            テキストを選択して保存すれば、お気に入りの断片をいつでも読み返せます。
+          </p>
+          <p><Link to="/fragments">宝物庫を見る</Link></p>
+        </div>
+      </section>
+
       {/* How it works */}
-      <section className="landing-section">
-        <h2 className="landing-section-title">使い方</h2>
+      <section className="landing-section" id="howto">
+        <h2 className="landing-section-title">使い方 ― 3ステップで始められます</h2>
         <ol className="landing-steps">
           <li className="landing-step">
             <span className="landing-step-num" aria-hidden="true">1</span>
@@ -85,49 +197,121 @@ export function Landing() {
               <h3 className="landing-step-title">日記をインポート</h3>
               <p className="landing-step-desc">
                 テキストファイルやMarkdownファイルをドラッグ＆ドロップ。日付を自動で認識します。
+                直接入力でブラウザ上から書くことも可能です。アカウント登録は不要です。
               </p>
             </div>
           </li>
           <li className="landing-step">
             <span className="landing-step-num" aria-hidden="true">2</span>
             <div>
-              <h3 className="landing-step-title">読み返す</h3>
+              <h3 className="landing-step-title">好きな方法で読み返す</h3>
               <p className="landing-step-desc">
-                ランダム表示、「この日」の振り返り、キーワード検索。好きな方法で過去に触れる。
+                ランダム表示で偶然の再会を楽しむ。「この日」で年をまたいだ振り返りをする。
+                キーワード検索であの日の言葉を探す。カレンダーで記録の密度を一望する。
               </p>
             </div>
           </li>
           <li className="landing-step">
             <span className="landing-step-num" aria-hidden="true">3</span>
             <div>
-              <h3 className="landing-step-title">可視化・分析する</h3>
+              <h3 className="landing-step-title">可視化・分析で新たな気づきを得る</h3>
               <p className="landing-step-desc">
-                タイムライン、ワードクラウド、AI分析で日記を別の角度から眺める。
+                タイムラインで感情の推移を追う。ワードクラウドで語彙の傾向を把握する。
+                AI分析で客観的な視点を得る。日記が「自己分析ツール」になります。
               </p>
             </div>
           </li>
         </ol>
       </section>
 
+      {/* Use Cases */}
+      <section className="landing-section" id="usecases">
+        <h2 className="landing-section-title">こんな方におすすめ</h2>
+        <div className="landing-features" role="list">
+          {useCases.map(u => (
+            <article key={u.title} className="landing-feature" role="listitem">
+              <h3 className="landing-feature-title">{u.title}</h3>
+              <p className="landing-feature-desc">{u.desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* Technical Highlights */}
+      <section className="landing-section" id="tech">
+        <h2 className="landing-section-title">技術的特徴</h2>
+        <div className="landing-detail-block">
+          <dl className="landing-spec-list">
+            <div className="landing-spec-item">
+              <dt>フレームワーク</dt>
+              <dd>React + TypeScript + Vite</dd>
+            </div>
+            <div className="landing-spec-item">
+              <dt>データ保存</dt>
+              <dd>IndexedDB（ブラウザ内完結・サーバー不要）</dd>
+            </div>
+            <div className="landing-spec-item">
+              <dt>オフライン対応</dt>
+              <dd>PWA（Progressive Web App）で完全オフライン動作</dd>
+            </div>
+            <div className="landing-spec-item">
+              <dt>AI分析</dt>
+              <dd>OpenAI API連携（ユーザー自身のAPIキー使用）</dd>
+            </div>
+            <div className="landing-spec-item">
+              <dt>対応ファイル形式</dt>
+              <dd>テキスト（.txt）・Markdown（.md）・JSON（.json）</dd>
+            </div>
+            <div className="landing-spec-item">
+              <dt>料金</dt>
+              <dd>完全無料（AI分析利用時のみOpenAI API利用料が別途発生）</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
       {/* Privacy */}
-      <section className="landing-section">
+      <section className="landing-section" id="privacy">
         <div className="landing-privacy-card">
           <h2 className="landing-privacy-title">あなたのデータは、あなたの手元に</h2>
           <p className="landing-privacy-desc">
-            すべてのデータはブラウザ内に保存されます。外部サーバーへの送信はありません。
+            すべてのデータはブラウザ内（IndexedDB）に保存されます。外部サーバーへの送信はありません。
+            Cookie・トラッキングは一切使用しません。
             AI分析を使う場合のみ、あなた自身のAPIキーでOpenAIと通信します。
+            いつでも設定ページからデータを完全に削除できます。
           </p>
           <div className="landing-privacy-badges">
             <span className="landing-badge">ローカル保存</span>
             <span className="landing-badge">サーバー不要</span>
             <span className="landing-badge">オフライン対応</span>
+            <span className="landing-badge">Cookie不使用</span>
+            <span className="landing-badge">アカウント登録不要</span>
           </div>
+          <p style={{ marginTop: 12, fontSize: '0.9em' }}>
+            <Link to="/privacy">プライバシーポリシー</Link> ／ <Link to="/terms">利用規約</Link>
+          </p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="landing-section" id="faq">
+        <h2 className="landing-section-title">よくある質問（FAQ）</h2>
+        <div className="landing-faq-list">
+          {faqs.map(faq => (
+            <details key={faq.q} className="landing-faq-item">
+              <summary className="landing-faq-question">{faq.q}</summary>
+              <p className="landing-faq-answer">{faq.a}</p>
+            </details>
+          ))}
         </div>
       </section>
 
       {/* Bottom CTA */}
       <section className="landing-bottom-cta">
         <p className="landing-bottom-text">過去の自分に、ロープを垂らそう。</p>
+        <p style={{ marginBottom: 16, color: 'var(--text-muted, #888)' }}>
+          無料・登録不要・データは端末内のみ保存
+        </p>
         <Link to="/import" className="btn btn-primary">日記をインポートする</Link>
       </section>
     </div>

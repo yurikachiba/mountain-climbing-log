@@ -5,8 +5,9 @@ import { useHead } from '../hooks/useHead';
 
 export function Settings() {
   useHead({
-    title: '設定',
-    description: 'データ管理・バックアップ・OpenAI APIキーの設定。',
+    title: '設定・データ管理',
+    description: '登山ログの設定ページ。データのエクスポート・バックアップ復元・一括削除、OpenAI APIキーの管理が行えます。すべてのデータはブラウザ内に保存。',
+    keywords: 'データ管理,バックアップ,エクスポート,APIキー設定,データ削除',
     path: '/settings',
   });
   const [confirmDelete, setConfirmDelete] = useState(false);

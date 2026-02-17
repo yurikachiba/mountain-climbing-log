@@ -130,8 +130,9 @@ function formatDate(iso: string): string {
 
 export function Analysis() {
   useHead({
-    title: 'AI分析',
-    description: 'OpenAI APIを使って日記を客観的に分析。感情タグ、トーン分析、成長の軌跡など12種類の分析機能。',
+    title: 'AI分析（12種類）',
+    description: 'OpenAI APIを使って日記を客観的に分析する12種類の機能。年代別要約、頻出感情タグ、文章トーン分析、転機検出、反復テーマ、内省質問、季節別感情、成長分析、包括レポート、標高ナラティブ、強みの宣言、反事実的因果。ユーザー自身のAPIキー使用でプライバシー保護。',
+    keywords: 'AI日記分析,感情タグ,トーン分析,転機検出,成長分析,OpenAI,日記AI,標高ナラティブ,自己分析',
     path: '/analysis',
   });
 

@@ -5,8 +5,9 @@ import { useHead } from '../hooks/useHead';
 
 export function Fragments() {
   useHead({
-    title: '宝物庫',
-    description: '光っている文だけ集めたページ。お気に入りの日記の断片を保存・閲覧。',
+    title: '宝物庫（お気に入り）',
+    description: '日記の中で光っている一文だけを集めたページ。お気に入りの文章断片を保存・管理・閲覧。テキストを選択して保存すれば、心に響いた言葉をいつでも読み返せます。',
+    keywords: 'お気に入り日記,日記断片,名文保存,宝物庫,日記ブックマーク',
     path: '/fragments',
   });
   const [fragments, setFragments] = useState<Fragment[]>([]);
