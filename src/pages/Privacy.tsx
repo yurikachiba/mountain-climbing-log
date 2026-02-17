@@ -4,7 +4,8 @@ import { useHead } from '../hooks/useHead';
 export function Privacy() {
   useHead({
     title: 'プライバシーポリシー',
-    description: '登山ログのプライバシーポリシー。データの保存場所、外部サービスとの通信、Cookieの取り扱いについて。',
+    description: '登山ログのプライバシーポリシー。データはブラウザ内（IndexedDB）にのみ保存、外部サーバーへの送信なし、Cookie・トラッキング不使用。AI分析時のみユーザー自身のAPIキーでOpenAI APIと通信。',
+    keywords: 'プライバシーポリシー,データ保護,IndexedDB,ローカル保存,Cookie不使用',
     path: '/privacy',
   });
 

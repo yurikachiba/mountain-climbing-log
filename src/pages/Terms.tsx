@@ -4,7 +4,8 @@ import { useHead } from '../hooks/useHead';
 export function Terms() {
   useHead({
     title: '利用規約',
-    description: '登山ログの利用規約。サービスの概要、データの管理、免責事項について。',
+    description: '登山ログの利用規約。サービスの概要、ブラウザ内データ管理の責任、AI分析機能（OpenAI API）の利用条件、免責事項、知的財産権について。',
+    keywords: '利用規約,サービス規約,免責事項',
     path: '/terms',
   });
 

@@ -44,8 +44,9 @@ function formatDate(iso: string): string {
 
 export function AiLogs() {
   useHead({
-    title: 'AI分析ログ',
-    description: '過去のAI分析結果を一覧・閲覧。分析の履歴を蓄積して比較できます。',
+    title: 'AI分析ログ ― 分析履歴',
+    description: '過去のAI分析結果を一覧・閲覧・コピーできるログページ。分析タイプ別のフィルタリング、一括コピー機能搭載。分析の履歴を蓄積して変化を比較追跡。',
+    keywords: 'AI分析ログ,分析履歴,日記分析結果,分析比較',
     path: '/ai-logs',
   });
 

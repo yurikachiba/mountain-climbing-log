@@ -15,7 +15,8 @@ export function OnThisDay() {
 
   useHead({
     title: 'この日の記録',
-    description: '1年前、3年前、5年前の同じ日の日記を振り返る。時間を縦に貫く振り返り機能。',
+    description: '1年前、3年前、5年前 ― 同じ月日の日記を年をまたいで読み返す機能。時間を縦に貫いて、自分の変化や成長を感じられます。月日を自由に選んで過去のどの日でも振り返り可能。',
+    keywords: 'この日の日記,過去の同じ日,年またぎ振り返り,日記比較,成長記録',
     path: '/onthisday',
   });
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1);

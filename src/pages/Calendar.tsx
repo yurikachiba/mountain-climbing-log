@@ -9,8 +9,9 @@ export function Calendar() {
   const { entries, loading } = useEntries();
 
   useHead({
-    title: 'カレンダー',
-    description: '日記の記録密度をカレンダーヒートマップで一望。月別・年別の閲覧に対応。',
+    title: 'カレンダーヒートマップ',
+    description: '日記の記録密度をカレンダーヒートマップで一望。月別カレンダーと年間の記録密度概要を表示。日付をクリックしてその日の日記を直接閲覧。複数年にまたがる記録の俯瞰にも対応。',
+    keywords: 'カレンダー日記,ヒートマップ,記録密度,日記カレンダー,月別表示,年別表示',
     path: '/calendar',
   });
   const [currentDate, setCurrentDate] = useState(() => new Date());

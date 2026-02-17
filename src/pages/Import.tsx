@@ -5,8 +5,9 @@ import { useHead } from '../hooks/useHead';
 
 export function Import() {
   useHead({
-    title: 'インポート',
-    description: 'テキスト・Markdown・JSONファイルから日記をインポート。日付を自動認識して取り込みます。',
+    title: '日記インポート',
+    description: 'テキスト（.txt）・Markdown（.md）・JSONファイルから日記をインポート。「2024年3月15日」「2024-03-15」など複数の日付形式を自動認識。ドラッグ＆ドロップまたはブラウザから直接入力にも対応。',
+    keywords: '日記インポート,テキスト取り込み,Markdown日記,JSON日記,日付自動認識,ドラッグ＆ドロップ',
     path: '/import',
   });
   const fileRef = useRef<HTMLInputElement>(null);

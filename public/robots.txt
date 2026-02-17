@@ -1,41 +1,69 @@
+# ===================================
+# 登山ログ ― robots.txt
+# https://mountain-climbing-log.com
+# ===================================
+
 # 検索エンジンクローラー
 User-agent: *
 Allow: /
 Disallow: /settings
-Disallow: /ai-logs
+Crawl-delay: 1
 
-Sitemap: https://mountain-climbing-log.com/sitemap.xml
-
-# AI クローラー（AIO対策）
-User-agent: GPTBot
+# Google（AIO / AI Overview 対応）
+User-agent: Googlebot
 Allow: /
 Disallow: /settings
-Disallow: /ai-logs
-
-User-agent: ChatGPT-User
-Allow: /
-Disallow: /settings
-Disallow: /ai-logs
 
 User-agent: Google-Extended
 Allow: /
 
+# Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /settings
+
+# AI クローラー（AIO / AI検索対策 ― 積極的に許可）
+User-agent: GPTBot
+Allow: /
+Disallow: /settings
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /settings
+
 User-agent: PerplexityBot
 Allow: /
 Disallow: /settings
-Disallow: /ai-logs
 
 User-agent: ClaudeBot
 Allow: /
 Disallow: /settings
-Disallow: /ai-logs
+
+User-agent: Anthropic-ai
+Allow: /
+Disallow: /settings
+
+User-agent: cohere-ai
+Allow: /
+Disallow: /settings
 
 User-agent: Bytespider
 Allow: /
 Disallow: /settings
-Disallow: /ai-logs
 
 User-agent: CCBot
 Allow: /
 Disallow: /settings
-Disallow: /ai-logs
+
+User-agent: Meta-ExternalAgent
+Allow: /
+Disallow: /settings
+
+User-agent: Applebot-Extended
+Allow: /
+
+# サイトマップ
+Sitemap: https://mountain-climbing-log.com/sitemap.xml
+
+# AI向け構造化情報
+# llms.txt: https://mountain-climbing-log.com/llms.txt

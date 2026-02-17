@@ -1,67 +1,78 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://mountain-climbing-log.com/</loc>
     <lastmod>2026-02-17</lastmod>
-    <changefreq>monthly</changefreq>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://mountain-climbing-log.com/ogp.png</image:loc>
+      <image:title>登山ログ ― 日記管理・分析・可視化ウェブアプリ</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/home</loc>
     <lastmod>2026-02-17</lastmod>
-    <changefreq>monthly</changefreq>
+    <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/import</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/random</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/onthisday</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/search</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/calendar</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/fragments</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/timeline</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/wordcloud</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/analysis</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://mountain-climbing-log.com/ai-logs</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -82,6 +93,6 @@
     <loc>https://mountain-climbing-log.com/sitemap</loc>
     <lastmod>2026-02-17</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.4</priority>
   </url>
 </urlset>

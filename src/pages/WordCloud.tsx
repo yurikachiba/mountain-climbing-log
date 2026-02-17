@@ -70,8 +70,9 @@ export function WordCloud() {
   const { entries, loading } = useEntries();
 
   useHead({
-    title: 'ワードクラウド',
-    description: '日記でよく使う言葉を可視化。語彙の傾向や変化を把握できるワードクラウド。',
+    title: 'ワードクラウド ― 語彙の可視化',
+    description: '日記でよく使う言葉をワードクラウドで可視化。全期間・年別の切り替え、出現回数フィルタリングに対応。漢字・カタカナ・ひらがな・英語を自動抽出し、語彙の傾向や変化をランキング表で確認。',
+    keywords: 'ワードクラウド,語彙分析,頻出語,言葉の可視化,テキストマイニング,日記分析',
     path: '/wordcloud',
   });
   const [period, setPeriod] = useState<'all' | 'year'>('all');
