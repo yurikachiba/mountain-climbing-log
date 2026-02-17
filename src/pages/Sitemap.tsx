@@ -4,7 +4,8 @@ const pages = [
   {
     category: 'メイン',
     items: [
-      { to: '/', label: 'ホーム', desc: 'ダッシュボード・記録数の表示' },
+      { to: '/', label: 'トップ', desc: 'ランディングページ・アプリの紹介' },
+      { to: '/home', label: 'ホーム', desc: 'ダッシュボード・記録数の表示' },
       { to: '/import', label: 'インポート', desc: '日記ファイルの取り込み' },
     ],
   },

@@ -15,6 +15,7 @@ import { WordCloud } from './pages/WordCloud';
 import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
 import { Sitemap } from './pages/Sitemap';
+import { Landing } from './pages/Landing';
 
 export default function App() {
   return (
@@ -23,7 +24,8 @@ export default function App() {
         <Nav />
         <main className="main">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="/home" element={<Home />} />
             <Route path="/import" element={<Import />} />
             <Route path="/random" element={<Random />} />
             <Route path="/onthisday" element={<OnThisDay />} />
