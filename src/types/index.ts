@@ -28,6 +28,15 @@ export interface EmotionAnalysis {
   topEmotionWords: { word: string; count: number }[];
 }
 
+// 年単位の安定指数（0-100）
+export interface StabilityIndex {
+  year: string; // YYYY
+  score: number; // 0-100
+  positiveRatio: number; // ポジティブ比率
+  volatility: number; // 感情のばらつき（低いほど安定）
+  selfDenialAvg: number; // 月平均自己否定語数
+}
+
 // AI分析キャッシュ: 各分析タイプの最新結果を保持
 export interface AiCache {
   type: string; // AnalysisType のキー

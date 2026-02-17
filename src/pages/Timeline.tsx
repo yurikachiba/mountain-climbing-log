@@ -4,12 +4,18 @@ import {
   ResponsiveContainer, BarChart, Bar,
 } from 'recharts';
 import { useEntries } from '../hooks/useEntries';
-import { analyzeEntries } from '../utils/emotionAnalyzer';
+import { analyzeEntries, calcStabilityByYear } from '../utils/emotionAnalyzer';
 
 export function Timeline() {
   const { entries, loading } = useEntries();
 
   const analysis = useMemo(() => analyzeEntries(entries), [entries]);
+  const stability = useMemo(() => calcStabilityByYear(analysis), [analysis]);
+
+  const stabilityData = stability.map(s => ({
+    year: s.year,
+    '安定指数': s.score,
+  }));
 
   const ratioData = analysis.map(a => ({
     month: a.month,
@@ -56,6 +62,24 @@ export function Timeline() {
   return (
     <div className="page">
       <h1 className="page-title">成長タイムライン</h1>
+
+      {stabilityData.length > 1 && (
+        <section className="chart-section">
+          <h2>安定指数の推移（年単位 0-100）</h2>
+          <p style={{ fontSize: '0.85em', color: 'var(--text-muted, #888)', marginBottom: 12 }}>
+            ポジティブ比率・感情の安定性・自己否定語の少なさから算出
+          </p>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={stabilityData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="year" fontSize={12} />
+              <YAxis domain={[0, 100]} fontSize={12} />
+              <Tooltip />
+              <Bar dataKey="安定指数" fill="#666" name="安定指数" />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+      )}
 
       <section className="chart-section">
         <h2>ネガティブ比率の推移（月単位 %）</h2>

@@ -49,7 +49,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   turningPoints: {
     title: '転機検出',
-    desc: '感情・生活に大きな変化が起きた時期を特定',
+    desc: '変化の時期を特定し、標高変動と「未来からの一行」を付与',
     fn: detectTurningPoints,
   },
   themes: {
