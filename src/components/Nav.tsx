@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom';
 
 const links = [
-  { to: '/', label: 'ホーム' },
+  { to: '/', label: 'トップ' },
+  { to: '/home', label: 'ホーム' },
   { to: '/import', label: 'インポート' },
   { to: '/random', label: 'ランダム' },
   { to: '/onthisday', label: 'この日' },
