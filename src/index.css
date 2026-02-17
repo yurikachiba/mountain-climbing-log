@@ -674,7 +674,7 @@ body {
   color: var(--text-light);
 }
 
-.onthisday-input {
+.onthisday-select {
   padding: 8px 12px;
   font-size: 0.875rem;
   font-family: var(--font);
@@ -684,7 +684,7 @@ body {
   color: var(--text);
 }
 
-.onthisday-input:focus {
+.onthisday-select:focus {
   outline: none;
   border-color: var(--text-muted);
 }
