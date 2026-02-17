@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { importFile, parseTextFile } from '../utils/importer';
-import { addEntries } from '../db';
+import { addEntries, markAllAiCacheStale } from '../db';
 
 export function Import() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -34,6 +34,7 @@ export function Import() {
       }
 
       await addEntries(allEntries);
+      await markAllAiCacheStale();
       setResult({ count: allEntries.length, files: fileNames });
     } catch (err) {
       setError(err instanceof Error ? err.message : '読み込みに失敗しました');
@@ -54,6 +55,7 @@ export function Import() {
     try {
       const entries = parseTextFile(trimmed, '直接入力');
       await addEntries(entries);
+      await markAllAiCacheStale();
       setDirectResult(entries.length);
       setDirectText('');
     } catch (err) {
