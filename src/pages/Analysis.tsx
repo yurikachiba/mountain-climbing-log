@@ -12,13 +12,17 @@ import {
   analyzeSeasonalEmotions,
   analyzeGrowth,
   generateComprehensiveReport,
+  analyzeElevationNarrative,
+  declareStrengths,
+  analyzeCounterfactual,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 
 type AnalysisType =
   | 'summary' | 'tags' | 'tone'
   | 'turningPoints' | 'themes' | 'questions'
-  | 'seasonal' | 'growth' | 'report';
+  | 'seasonal' | 'growth' | 'report'
+  | 'elevation' | 'strengths' | 'counterfactual';
 
 interface AnalysisItem {
   title: string;
@@ -77,6 +81,21 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '日記全体を俯瞰した統合分析レポート',
     fn: generateComprehensiveReport,
   },
+  elevation: {
+    title: '標高ナラティブ',
+    desc: '各年を登山の標高として表現 — どれだけ登ったかの物語',
+    fn: analyzeElevationNarrative,
+  },
+  strengths: {
+    title: '強みの宣言',
+    desc: 'データに基づく客観的な強みの明文化。遠慮なし',
+    fn: declareStrengths,
+  },
+  counterfactual: {
+    title: '反事実的因果',
+    desc: '「もしこの転機がなかったら？」— 因果のロープを可視化',
+    fn: analyzeCounterfactual,
+  },
 };
 
 const categories: AnalysisCategory[] = [
@@ -91,6 +110,10 @@ const categories: AnalysisCategory[] = [
   {
     label: '俯瞰分析',
     items: ['seasonal', 'growth', 'report'],
+  },
+  {
+    label: '物語分析',
+    items: ['elevation', 'strengths', 'counterfactual'],
   },
 ];
 

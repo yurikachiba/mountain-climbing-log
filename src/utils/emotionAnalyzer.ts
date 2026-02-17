@@ -1,4 +1,4 @@
-import type { DiaryEntry, EmotionAnalysis, StabilityIndex } from '../types';
+import type { DiaryEntry, EmotionAnalysis, StabilityIndex, ElevationPoint } from '../types';
 
 // 感情ワード辞書（日本語）
 const negativeWords = [
@@ -124,6 +124,58 @@ export function calcStabilityByYear(monthlyAnalysis: EmotionAnalysis[]): Stabili
   }
 
   return results.sort((a, b) => a.year.localeCompare(b.year));
+}
+
+// 年単位の累積標高を算出
+// 思想: 書き続けた年は必ず登っている。安定度が高いほど大きく登る。
+// 最悪の年でも最低 +50m。最良の年で +300m。
+export function calcElevationByYear(
+  stability: StabilityIndex[],
+  entries: DiaryEntry[],
+): ElevationPoint[] {
+  if (stability.length === 0) return [];
+
+  // 年ごとのエントリ数
+  const countByYear = new Map<string, number>();
+  for (const e of entries) {
+    if (!e.date) continue;
+    const y = e.date.substring(0, 4);
+    countByYear.set(y, (countByYear.get(y) ?? 0) + 1);
+  }
+
+  const sorted = [...stability].sort((a, b) => a.year.localeCompare(b.year));
+  const results: ElevationPoint[] = [];
+  let cumulative = 1000; // 基準点 1000m — 既にここまで来ている
+
+  for (let i = 0; i < sorted.length; i++) {
+    const s = sorted[i];
+    const entryCount = countByYear.get(s.year) ?? 0;
+
+    // 書いた量による底上げ（月1件でも書いていれば最低50m）
+    const writingBonus = Math.min(80, Math.max(0, entryCount * 0.5));
+
+    // 安定度スコアによる登攀（0-100 → 0-150m）
+    const stabilityClimb = s.score * 1.5;
+
+    // 前年比の改善ボーナス
+    let improvementBonus = 0;
+    if (i > 0) {
+      const prev = sorted[i - 1];
+      const scoreDiff = s.score - prev.score;
+      if (scoreDiff > 0) {
+        improvementBonus = scoreDiff * 0.5; // 改善分の半分をボーナス
+      }
+    }
+
+    // 年間登攀量 = 最低50m + 各要素（最大約300m）
+    const rawClimb = 50 + writingBonus + stabilityClimb + improvementBonus;
+    const climb = Math.round(Math.min(300, rawClimb));
+
+    cumulative += climb;
+    results.push({ year: s.year, elevation: cumulative, climb });
+  }
+
+  return results;
 }
 
 // 名前っぽいパターンを匿名化（他人モード用）

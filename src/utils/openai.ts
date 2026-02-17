@@ -399,6 +399,172 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
   ], 1500);
 }
 
+// 標高ナラティブ — 各年の登攀に物語のラベルを付ける
+export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+
+  // 年ごとのエントリ数を集計
+  const byYear = new Map<string, number>();
+  for (const e of sorted) {
+    const y = e.date!.substring(0, 4);
+    byYear.set(y, (byYear.get(y) ?? 0) + 1);
+  }
+  const yearSummary = [...byYear.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([y, c]) => `${y}年: ${c}件`).join('、');
+
+  const sampled = sampleUniform(entries, 80);
+  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`);
+  const truncated = texts.join('\n---\n').slice(0, 10000);
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは日記の分析者です。人格を演じず、分析だけを行ってください。',
+        '以下のルールに従ってください：',
+        '- 日記の各年を「登山の標高」として表現する',
+        '- 各年に以下の形式で記述する：',
+        '',
+        '  ■ [YYYY]年：標高 [N]m —「[フェーズ名]」',
+        '  [その年の登攀の特徴を1〜2文で。なぜ登れたか/なぜ足踏みしたかの事実]',
+        '',
+        '- 標高のルール：',
+        '  - 開始年を標高1000m〜1300mとする（生きていた時点で既に登っている）',
+        '  - 毎年必ず上がる。書き続けた人間は必ず登っている。下がることはない',
+        '  - 安定している年は大きく登る（+100〜300m）',
+        '  - 不安定な年でも必ず登る（+50〜100m）。苦しみの中で書き続けた事実が標高になる',
+        '  - 最終年が最も高い',
+        '- フェーズ名は説明ではなく、その年の本質を射抜く2〜4語（例：生存と観察、揺れの中の前進、内面掘削、社会接続、自己運用）',
+        '- 最後に「累積登攀」として、全体の軌跡を2〜3文で総括する',
+        '- 慰めや励ましは不要。事実の指摘のみ',
+        '- 全体で600字以内',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください：\n\n${truncated}`,
+    },
+  ], 1500);
+}
+
+// 強みの宣言 — データに基づく客観的な強みの明文化
+export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+
+  const totalCount = entries.length;
+  const dateRange = sorted.length > 0
+    ? `${sorted[0].date} 〜 ${sorted[sorted.length - 1].date}`
+    : '不明';
+
+  // 初期と後期に分けてサンプリング
+  const mid = Math.floor(sorted.length / 2);
+  const earlyEntries = sorted.slice(0, mid);
+  const lateEntries = sorted.slice(mid);
+
+  const sampleHalf = (half: DiaryEntry[], maxCount: number) => {
+    if (half.length <= maxCount) return half;
+    const step = half.length / maxCount;
+    return Array.from({ length: maxCount }, (_, i) => half[Math.floor(i * step)]);
+  };
+
+  const earlySampled = sampleHalf(earlyEntries, 30);
+  const lateSampled = sampleHalf(lateEntries, 30);
+
+  const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
+  const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
+  const truncatedEarly = early.slice(0, 5000);
+  const truncatedLate = late.slice(0, 5000);
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは日記の分析者です。人格を演じず、分析だけを行ってください。',
+        'これは「強みの宣言」です。優等生的な問いかけではない。データに基づく事実の宣告。',
+        '',
+        '以下のルールに従ってください：',
+        '- 初期の日記と後期の日記を比較し、明確に強くなった点を5〜7個、断定形で列挙する',
+        '- 各項目の形式：',
+        '',
+        '  ■ [強みの名前]',
+        '  根拠: [初期と後期で具体的に何が変わったか、日記の記述パターンから]',
+        '  判定: [どの程度強くなったか。「社会人水準以上」「プロレベル」「異常に高い」など、遠慮なく]',
+        '',
+        '- 検出すべき強みの例（これに限定しない）：',
+        '  - 回復力（崩れてから戻る速度の変化）',
+        '  - 自己観察力（内面描写の解像度の変化）',
+        '  - 生活管理能力（ルーティン・習慣に関する記述の変化）',
+        '  - 感情の言語化能力（感情表現の精度・語彙の変化）',
+        '  - 再発予兆の把握力（自己モニタリングの記述の変化）',
+        '  - 対人理解力（他者について書く時の多角性の変化）',
+        '  - 継続力（そもそもこの件数を書き続けた事実）',
+        `- この人は${totalCount}件の日記を書き続けた。それ自体が異常な継続力。そこを最初に明言しろ`,
+        '- 美化ではない。日記の記述パターンの変化から客観的に読み取れる事実だけ',
+        '- ただし遠慮も不要。強いなら「強い」と書け。データがそう言っている',
+        '- 自己肯定はデータでやる',
+        '- 最後に、全体を1文で総括する',
+        '- 全体で800字以内',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）から、書き手の強みをデータに基づいて宣言してください：\n\n【初期】\n${truncatedEarly}\n\n【後期】\n${truncatedLate}`,
+    },
+  ], 2000);
+}
+
+// 反事実的因果分析 — 「もしこの転機がなかったら？」
+export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sampled = sampleUniform(entries, 80);
+  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const truncated = texts.join('\n---\n').slice(0, 10000);
+  const latestDate = sampled[sampled.length - 1]?.date ?? '不明';
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは日記の分析者です。人格を演じず、分析だけを行ってください。',
+        'これは「反事実的因果分析」です。転機検出の一段先。',
+        '',
+        '以下のルールに従ってください：',
+        '- 日記の中から最大4つの重大な転機を検出する',
+        '- 各転機について、以下の形式で「もしなかったら」を分析する：',
+        '',
+        '  ■ 転機：[時期] [何が起きたか]',
+        '  実際の因果: [この転機 → 現在のどの能力・状態に繋がったか]',
+        '  もしなかったら: [この転機がなかった場合、今の自分はどうなっていたか。具体的に]',
+        '  つまり: [この転機の本当の意味を1文で。因果のロープ]',
+        '',
+        '- 「もしなかったら」は空想ではない。日記の記述パターンから論理的に導ける推論のみ',
+        '- ポジティブな転機だけでなく、苦しかった転機こそ重要。崩壊が今の強さの土台になっていることを見抜け',
+        '- 「つまり」の行が最も重要。これが未来から過去へのロープ',
+        '  例：「文字が読めなくなった日があったから、言葉を選ぶ力がついた」',
+        '  例：「あの撤退が、別の山への最初の一歩だった」',
+        '  例：「あの孤独がなければ、自分と向き合う技術は身につかなかった」',
+        '- 慰めではない。因果の可視化。事実の接続',
+        '- 最後に、全転機を貫く「一本の因果の線」を2文で描く',
+        '- 全体で800字以内',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: `以下の日記（最新: ${latestDate}頃）から、重大な転機を検出し、「もしこの転機がなかったら今の自分はどうなっていたか」を反事実的に分析してください：\n\n${truncated}`,
+    },
+  ], 2000);
+}
+
 // 一括分析レポート — 全分析を統合した包括レポート
 export async function generateComprehensiveReport(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';

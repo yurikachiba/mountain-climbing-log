@@ -1,16 +1,23 @@
 import { useMemo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar,
+  ResponsiveContainer, BarChart, Bar, AreaChart, Area,
 } from 'recharts';
 import { useEntries } from '../hooks/useEntries';
-import { analyzeEntries, calcStabilityByYear } from '../utils/emotionAnalyzer';
+import { analyzeEntries, calcStabilityByYear, calcElevationByYear } from '../utils/emotionAnalyzer';
 
 export function Timeline() {
   const { entries, loading } = useEntries();
 
   const analysis = useMemo(() => analyzeEntries(entries), [entries]);
   const stability = useMemo(() => calcStabilityByYear(analysis), [analysis]);
+  const elevation = useMemo(() => calcElevationByYear(stability, entries), [stability, entries]);
+
+  const elevationData = elevation.map(e => ({
+    year: e.year,
+    '標高': e.elevation,
+    '年間登攀': e.climb,
+  }));
 
   const stabilityData = stability.map(s => ({
     year: s.year,
@@ -62,6 +69,32 @@ export function Timeline() {
   return (
     <div className="page">
       <h1 className="page-title">成長タイムライン</h1>
+
+      {elevationData.length > 1 && (
+        <section className="chart-section">
+          <h2>標高 — どれだけ登ったか</h2>
+          <p style={{ fontSize: '0.85em', color: 'var(--text-muted, #888)', marginBottom: 12 }}>
+            書き続けた年は必ず登っている。安定度・記述量・改善度から算出
+          </p>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={elevationData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="year" fontSize={12} />
+              <YAxis fontSize={12} unit="m" />
+              <Tooltip
+                formatter={(value) => value != null ? `${value}m` : '-'}
+              />
+              <Area
+                type="monotone"
+                dataKey="標高"
+                stroke="#444"
+                fill="#d0d0d0"
+                strokeWidth={2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </section>
+      )}
 
       {stabilityData.length > 1 && (
         <section className="chart-section">
