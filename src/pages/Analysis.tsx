@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEntries } from '../hooks/useEntries';
+import { useAiCache } from '../hooks/useAiCache';
 import { hasApiKey } from '../utils/apiKey';
 import {
   summarizeByPeriod,
@@ -93,13 +94,32 @@ const categories: AnalysisCategory[] = [
   },
 ];
 
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}/${m}/${day} ${h}:${min}`;
+}
+
 export function Analysis() {
-  const { entries, loading } = useEntries();
-  const [results, setResults] = useState<Record<string, string>>({});
+  const { entries, count, loading } = useEntries();
+  const { cache, loading: cacheLoading, save } = useAiCache();
   const [running, setRunning] = useState<AnalysisType | null>(null);
   const [runningAll, setRunningAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [allProgress, setAllProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // キャッシュから結果を取得（表示用）
+  function getResult(type: AnalysisType): string | undefined {
+    return cache[type]?.result;
+  }
+
+  function isStale(type: AnalysisType): boolean {
+    return cache[type]?.isStale ?? false;
+  }
 
   async function run(type: AnalysisType) {
     if (!hasApiKey()) {
@@ -110,7 +130,7 @@ export function Analysis() {
     setError(null);
     try {
       const result = await analysisMap[type].fn(entries);
-      setResults(prev => ({ ...prev, [type]: result }));
+      await save(type, result, count);
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析に失敗しました');
     } finally {
@@ -133,7 +153,7 @@ export function Analysis() {
       setRunning(type);
       try {
         const result = await analysisMap[type].fn(entries);
-        setResults(prev => ({ ...prev, [type]: result }));
+        await save(type, result, count);
       } catch (err) {
         setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
         break;
@@ -145,7 +165,7 @@ export function Analysis() {
     setAllProgress(null);
   }
 
-  if (loading) return <div className="page"><p className="loading-text">読み込み中...</p></div>;
+  if (loading || cacheLoading) return <div className="page"><p className="loading-text">読み込み中...</p></div>;
 
   if (entries.length === 0) {
     return (
@@ -157,7 +177,8 @@ export function Analysis() {
   }
 
   const isRunning = running !== null;
-  const completedCount = Object.keys(results).length;
+  const completedCount = Object.keys(cache).filter(k => cache[k]?.result).length;
+  const staleCount = Object.values(cache).filter(c => c.isStale).length;
 
   return (
     <div className="page">
@@ -178,11 +199,12 @@ export function Analysis() {
           disabled={isRunning}
           className="btn btn-primary"
         >
-          {runningAll ? '一括分析中...' : 'すべて実行'}
+          {runningAll ? '一括分析中...' : staleCount > 0 ? 'すべて再分析' : 'すべて実行'}
         </button>
         {completedCount > 0 && (
           <span className="analysis-completed-count">
             {completedCount}/{Object.keys(analysisMap).length} 完了
+            {staleCount > 0 && ` (${staleCount}件 更新あり)`}
           </span>
         )}
         {allProgress && (
@@ -204,39 +226,59 @@ export function Analysis() {
         <div key={cat.label} className="analysis-category">
           <h2 className="analysis-category-title">{cat.label}</h2>
           <div className="analysis-list">
-            {cat.items.map(type => (
-              <section key={type} className="analysis-section">
-                <div className="analysis-header">
-                  <div>
-                    <h3>{analysisMap[type].title}</h3>
-                    <p className="settings-desc">{analysisMap[type].desc}</p>
+            {cat.items.map(type => {
+              const result = getResult(type);
+              const stale = isStale(type);
+              const cachedAt = cache[type]?.analyzedAt;
+              const cachedCount = cache[type]?.entryCount;
+              return (
+                <section key={type} className="analysis-section">
+                  <div className="analysis-header">
+                    <div>
+                      <h3>{analysisMap[type].title}</h3>
+                      <p className="settings-desc">{analysisMap[type].desc}</p>
+                    </div>
+                    <div className="analysis-header-actions">
+                      {result && !stale && <span className="analysis-done-badge">完了</span>}
+                      {result && stale && <span className="analysis-done-badge" style={{ background: 'var(--warning, #b8860b)', color: '#fff' }}>更新あり</span>}
+                      <button
+                        onClick={() => run(type)}
+                        disabled={isRunning}
+                        className="btn btn-small"
+                      >
+                        {running === type ? '分析中...' : result ? '再実行' : '実行'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="analysis-header-actions">
-                    {results[type] && <span className="analysis-done-badge">完了</span>}
-                    <button
-                      onClick={() => run(type)}
-                      disabled={isRunning}
-                      className="btn btn-small"
-                    >
-                      {running === type ? '分析中...' : results[type] ? '再実行' : '実行'}
-                    </button>
-                  </div>
-                </div>
-                {results[type] && (
-                  <div className="analysis-result">
-                    {results[type].split('\n').map((line, i) => (
-                      <p key={i}>{line || '\u00A0'}</p>
-                    ))}
-                  </div>
-                )}
-              </section>
-            ))}
+                  {result && (
+                    <div className="analysis-result">
+                      {stale && (
+                        <p className="analysis-stale-notice" style={{ fontSize: '0.8em', color: 'var(--warning, #b8860b)', marginBottom: 8 }}>
+                          データが更新されています。再実行で最新の分析結果を取得できます。
+                        </p>
+                      )}
+                      {result.split('\n').map((line, i) => (
+                        <p key={i}>{line || '\u00A0'}</p>
+                      ))}
+                      {cachedAt && (
+                        <p className="analysis-meta" style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)', marginTop: 8 }}>
+                          分析日時: {formatDate(cachedAt)} / エントリ数: {cachedCount}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
           </div>
         </div>
       ))}
 
       <p className="hint" style={{ marginTop: 48 }}>
         日記の一部がOpenAI APIに送信されます。ローカル分析はタイムラインページで確認できます。
+      </p>
+      <p className="hint">
+        分析結果はこの端末のブラウザに保存されます。過去の分析ログも蓄積されています。
       </p>
     </div>
   );

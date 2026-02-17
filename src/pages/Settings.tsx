@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { deleteAllEntries, exportAllData, importAllData } from '../db';
+import { deleteAllEntries, exportAllData, importAllData, clearAllAiCache, markAllAiCacheStale } from '../db';
 import { getApiKey, setApiKey } from '../utils/apiKey';
 
 export function Settings() {
@@ -63,6 +63,7 @@ export function Settings() {
         return;
       }
       await importAllData(data);
+      await markAllAiCacheStale();
       setMessage('バックアップを復元しました');
     } catch {
       setMessage('復元に失敗しました');
@@ -75,6 +76,7 @@ export function Settings() {
       return;
     }
     await deleteAllEntries();
+    await clearAllAiCache();
     setConfirmDelete(false);
     setMessage('すべてのデータを削除しました');
   }

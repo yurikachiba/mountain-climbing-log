@@ -27,3 +27,21 @@ export interface EmotionAnalysis {
   selfDenialCount: number;
   topEmotionWords: { word: string; count: number }[];
 }
+
+// AI分析キャッシュ: 各分析タイプの最新結果を保持
+export interface AiCache {
+  type: string; // AnalysisType のキー
+  result: string;
+  analyzedAt: string; // ISO timestamp
+  entryCount: number; // 分析時のエントリ数
+  isStale: boolean; // データ更新があれば true になる
+}
+
+// AIログ: 過去の分析結果をすべて蓄積
+export interface AiLog {
+  id: string; // UUID
+  type: string; // AnalysisType のキー
+  result: string;
+  analyzedAt: string; // ISO timestamp
+  entryCount: number; // 分析時のエントリ数
+}

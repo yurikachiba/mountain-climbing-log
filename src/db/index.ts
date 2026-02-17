@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from 'idb';
-import type { DiaryEntry, Fragment } from '../types';
+import type { DiaryEntry, Fragment, AiCache, AiLog } from '../types';
 
 // --- スキーマ定義 ---
 // 最新のスキーマを反映する。マイグレーションで段階的にここへ到達する。
@@ -22,6 +22,18 @@ interface ClimbingLogDB extends DBSchema {
       'by-saved': string;
     };
   };
+  aiCache: {
+    key: string; // AnalysisType
+    value: AiCache;
+  };
+  aiLogs: {
+    key: string; // UUID
+    value: AiLog;
+    indexes: {
+      'by-type': string;
+      'by-analyzed': string;
+    };
+  };
 }
 
 // --- マイグレーション ---
@@ -34,9 +46,9 @@ interface ClimbingLogDB extends DBSchema {
 // 例: v1のユーザーがv3のアプリを開くと oldVersion=1 で呼ばれ、
 //     v2とv3のブロックが順番に両方実行される。
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
-type UpgradeTx = IDBPTransaction<ClimbingLogDB, ('entries' | 'fragments')[], 'versionchange'>;
+type UpgradeTx = IDBPTransaction<ClimbingLogDB, ('entries' | 'fragments' | 'aiCache' | 'aiLogs')[], 'versionchange'>;
 
 function runMigrations(
   db: IDBPDatabase<ClimbingLogDB>,
@@ -60,10 +72,16 @@ function runMigrations(
     entryStore.createIndex('by-favorite', 'isFavorite');
   }
 
+  // v2 → v3: AIキャッシュとAIログのストアを追加
+  if (oldVersion < 3) {
+    db.createObjectStore('aiCache', { keyPath: 'type' });
+
+    const logStore = db.createObjectStore('aiLogs', { keyPath: 'id' });
+    logStore.createIndex('by-type', 'type');
+    logStore.createIndex('by-analyzed', 'analyzedAt');
+  }
+
   // --- 次のマイグレーションはここに追加 ---
-  // if (oldVersion < 3) {
-  //   ...
-  // }
 }
 
 // --- DB接続 ---
@@ -162,4 +180,54 @@ export async function importAllData(data: {
     await tx2.store.put(frag);
   }
   await tx2.done;
+}
+
+// --- AIキャッシュ操作 ---
+
+export async function getAiCache(type: string): Promise<AiCache | undefined> {
+  const db = await getDB();
+  return db.get('aiCache', type);
+}
+
+export async function getAllAiCache(): Promise<AiCache[]> {
+  const db = await getDB();
+  return db.getAll('aiCache');
+}
+
+export async function putAiCache(cache: AiCache): Promise<void> {
+  const db = await getDB();
+  await db.put('aiCache', cache);
+}
+
+export async function markAllAiCacheStale(): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('aiCache', 'readwrite');
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    await cursor.update({ ...cursor.value, isStale: true });
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+}
+
+export async function clearAllAiCache(): Promise<void> {
+  const db = await getDB();
+  await db.clear('aiCache');
+}
+
+// --- AIログ操作 ---
+
+export async function addAiLog(log: AiLog): Promise<void> {
+  const db = await getDB();
+  await db.put('aiLogs', log);
+}
+
+export async function getAllAiLogs(): Promise<AiLog[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('aiLogs', 'by-analyzed');
+}
+
+export async function getAiLogsByType(type: string): Promise<AiLog[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('aiLogs', 'by-type', type);
 }
