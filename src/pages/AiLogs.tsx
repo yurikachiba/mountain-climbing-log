@@ -41,6 +41,7 @@ export function AiLogs() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AnalysisType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -63,6 +64,23 @@ export function AiLogs() {
   const filtered = filter === 'all'
     ? logs
     : logs.filter(l => l.type === filter);
+
+  const handleBulkCopy = async () => {
+    if (filtered.length === 0) return;
+    const text = filtered.map(log => {
+      const label = typeLabels[log.type as AnalysisType] || log.type;
+      const date = formatDate(log.analyzedAt);
+      return `【${label}】${date}（${log.entryCount}件の日記）\n${log.result}`;
+    }).join('\n\n---\n\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMessage(`${filtered.length}件のログをコピーしました`);
+      setTimeout(() => setCopyMessage(null), 2500);
+    } catch {
+      setCopyMessage('コピーに失敗しました');
+      setTimeout(() => setCopyMessage(null), 2500);
+    }
+  };
 
   // タイプ別の件数を集計
   const typeCounts: Record<string, number> = {};
@@ -102,6 +120,13 @@ export function AiLogs() {
             <span className="ailogs-count">
               {filtered.length}件表示
             </span>
+            <button
+              className="btn btn-small"
+              onClick={handleBulkCopy}
+              disabled={filtered.length === 0}
+            >
+              一括コピー
+            </button>
           </div>
 
           <div className="ailogs-list">
@@ -147,6 +172,12 @@ export function AiLogs() {
       <p className="hint" style={{ marginTop: 48 }}>
         分析ログは端末のブラウザに保存されています。データを消去しない限り消えません。
       </p>
+
+      {copyMessage && (
+        <div className="toast" onClick={() => setCopyMessage(null)}>
+          {copyMessage}
+        </div>
+      )}
     </div>
   );
 }
