@@ -1,22 +1,23 @@
 import { useState, useMemo } from 'react';
 import { useEntries } from '../hooks/useEntries';
 import type { DiaryEntry } from '../types';
-import { format, parse } from 'date-fns';
-import { ja } from 'date-fns/locale';
 
 interface YearGroup {
   year: string;
   entries: DiaryEntry[];
 }
 
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
 export function OnThisDay() {
   const { entries, loading } = useEntries();
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1);
+  const [selectedDay, setSelectedDay] = useState(() => new Date().getDate());
 
-  const monthDay = selectedDate; // MM-DD
+  const maxDay = DAYS_IN_MONTH[selectedMonth - 1] ?? 31;
+  const day = Math.min(selectedDay, maxDay);
+
+  const monthDay = `${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
   const yearGroups = useMemo(() => {
     if (!monthDay) return [];
@@ -40,14 +41,7 @@ export function OnThisDay() {
     return result.sort((a, b) => b.year.localeCompare(a.year));
   }, [entries, monthDay]);
 
-  const displayLabel = useMemo(() => {
-    try {
-      const date = parse(monthDay, 'MM-dd', new Date());
-      return format(date, 'M月d日', { locale: ja });
-    } catch {
-      return monthDay;
-    }
-  }, [monthDay]);
+  const displayLabel = `${selectedMonth}月${day}日`;
 
   const yearsAgo = (year: string) => {
     const diff = new Date().getFullYear() - parseInt(year);
@@ -63,16 +57,25 @@ export function OnThisDay() {
       <p className="subtitle">同じ月日の日記を、年をまたいで読む</p>
 
       <div className="onthisday-picker">
-        <label className="onthisday-label">日付を選ぶ:</label>
-        <input
-          type="date"
-          value={`${new Date().getFullYear()}-${monthDay}`}
-          onChange={e => {
-            const val = e.target.value;
-            if (val) setSelectedDate(val.substring(5, 10));
-          }}
-          className="onthisday-input"
-        />
+        <label className="onthisday-label">月日を選ぶ:</label>
+        <select
+          value={selectedMonth}
+          onChange={e => setSelectedMonth(Number(e.target.value))}
+          className="onthisday-select"
+        >
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>{i + 1}月</option>
+          ))}
+        </select>
+        <select
+          value={day}
+          onChange={e => setSelectedDay(Number(e.target.value))}
+          className="onthisday-select"
+        >
+          {Array.from({ length: maxDay }, (_, i) => (
+            <option key={i + 1} value={i + 1}>{i + 1}日</option>
+          ))}
+        </select>
         <span className="onthisday-display">{displayLabel}</span>
       </div>
 
