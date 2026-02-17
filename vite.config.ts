@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['vite.svg'],
+      includeAssets: ['favicon.svg'],
       manifest: {
         name: '登山ログ',
         short_name: '登山ログ',
@@ -18,9 +18,10 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'vite.svg',
-            sizes: '192x192',
+            src: 'favicon.svg',
+            sizes: 'any',
             type: 'image/svg+xml',
+            purpose: 'any',
           },
         ],
       },
