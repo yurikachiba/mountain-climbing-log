@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { importFile } from '../utils/importer';
+import { importFile, parseTextFile } from '../utils/importer';
 import { addEntries } from '../db';
 
 export function Import() {
@@ -7,6 +7,12 @@ export function Import() {
   const [result, setResult] = useState<{ count: number; files: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+
+  // 直接入力
+  const [directText, setDirectText] = useState('');
+  const [directResult, setDirectResult] = useState<number | null>(null);
+  const [directError, setDirectError] = useState<string | null>(null);
+  const [directSaving, setDirectSaving] = useState(false);
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -37,12 +43,64 @@ export function Import() {
     }
   }
 
+  async function handleDirectSave() {
+    const trimmed = directText.trim();
+    if (!trimmed) return;
+
+    setDirectSaving(true);
+    setDirectError(null);
+    setDirectResult(null);
+
+    try {
+      const entries = parseTextFile(trimmed, '直接入力');
+      await addEntries(entries);
+      setDirectResult(entries.length);
+      setDirectText('');
+    } catch (err) {
+      setDirectError(err instanceof Error ? err.message : '保存に失敗しました');
+    } finally {
+      setDirectSaving(false);
+    }
+  }
+
   return (
     <div className="page">
       <h1 className="page-title">インポート</h1>
-      <p className="hint">txt / md / json ファイルを選択</p>
+
+      <div className="direct-input-section">
+        <h2>直接入力</h2>
+        <p className="hint">日記をそのまま書いて保存できます。日付行で区切ると複数エントリになります。</p>
+        <textarea
+          className="direct-input"
+          value={directText}
+          onChange={e => setDirectText(e.target.value)}
+          placeholder={'2024年3月15日\n今日は外に出た。\n久しぶりの太陽だった。'}
+          rows={8}
+        />
+        <div className="direct-input-footer">
+          <button
+            className="btn btn-primary"
+            onClick={handleDirectSave}
+            disabled={directSaving || !directText.trim()}
+          >
+            {directSaving ? '保存中...' : '保存'}
+          </button>
+        </div>
+        {directError && <p className="error-text">{directError}</p>}
+        {directResult !== null && (
+          <div className="result-card">
+            <p>{directResult} 件のエントリを保存しました</p>
+          </div>
+        )}
+      </div>
+
+      <div className="import-divider">
+        <span className="import-divider-text">または</span>
+      </div>
 
       <div className="import-area">
+        <h2>ファイルから読み込み</h2>
+        <p className="hint">txt / md / json ファイルを選択</p>
         <input
           ref={fileRef}
           type="file"
