@@ -1,4 +1,4 @@
-import type { DiaryEntry, EmotionAnalysis } from '../types';
+import type { DiaryEntry, EmotionAnalysis, StabilityIndex } from '../types';
 
 // 感情ワード辞書（日本語）
 const negativeWords = [
@@ -79,6 +79,51 @@ export function analyzeEntries(entries: DiaryEntry[]): EmotionAnalysis[] {
   }
 
   return results.sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// 年単位の安定指数を算出（0-100）
+export function calcStabilityByYear(monthlyAnalysis: EmotionAnalysis[]): StabilityIndex[] {
+  // 年ごとにグループ化
+  const byYear = new Map<string, EmotionAnalysis[]>();
+  for (const a of monthlyAnalysis) {
+    const year = a.month.substring(0, 4);
+    const list = byYear.get(year) ?? [];
+    list.push(a);
+    byYear.set(year, list);
+  }
+
+  const results: StabilityIndex[] = [];
+
+  for (const [year, months] of byYear) {
+    if (months.length === 0) continue;
+
+    // 1. ポジティブ比率（ネガティブ比率の反転）の平均
+    const avgNegRatio = months.reduce((s, m) => s + m.negativeRatio, 0) / months.length;
+    const positiveRatio = 1 - avgNegRatio;
+
+    // 2. 感情のばらつき（ネガティブ比率の標準偏差）
+    const variance = months.length > 1
+      ? months.reduce((s, m) => s + (m.negativeRatio - avgNegRatio) ** 2, 0) / months.length
+      : 0;
+    const volatility = Math.sqrt(variance);
+
+    // 3. 月平均自己否定語数
+    const selfDenialAvg = months.reduce((s, m) => s + m.selfDenialCount, 0) / months.length;
+
+    // スコア算出:
+    // - ポジティブ比率が高い → +（最大40点）
+    // - ばらつきが小さい → +（最大30点）
+    // - 自己否定語が少ない → +（最大30点）
+    const positiveScore = positiveRatio * 40;
+    const stabilityScore = Math.max(0, 30 - volatility * 150); // σ=0.2で0点
+    const denialScore = Math.max(0, 30 - selfDenialAvg * 3); // 月10回で0点
+
+    const score = Math.round(Math.min(100, Math.max(0, positiveScore + stabilityScore + denialScore)));
+
+    results.push({ year, score, positiveRatio, volatility, selfDenialAvg });
+  }
+
+  return results.sort((a, b) => a.year.localeCompare(b.year));
 }
 
 // 名前っぽいパターンを匿名化（他人モード用）
