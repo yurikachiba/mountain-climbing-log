@@ -104,7 +104,7 @@ export function Search() {
             <select
               value={sortOrder}
               onChange={e => setSortOrder(e.target.value as 'new' | 'old')}
-              className="search-sort"
+              className="custom-select"
             >
               <option value="new">新しい順</option>
               <option value="old">古い順</option>

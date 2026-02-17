@@ -136,7 +136,7 @@ export function WordCloud() {
                 <select
                   value={selectedYear}
                   onChange={e => setSelectedYear(e.target.value)}
-                  className="search-sort"
+                  className="custom-select"
                 >
                   {availableYears.map(y => (
                     <option key={y} value={y}>{y}年</option>
@@ -151,7 +151,7 @@ export function WordCloud() {
                 <select
                   value={minCount}
                   onChange={e => setMinCount(Number(e.target.value))}
-                  className="search-sort"
+                  className="custom-select"
                 >
                   <option value={2}>2回</option>
                   <option value={3}>3回</option>

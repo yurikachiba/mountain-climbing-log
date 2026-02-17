@@ -61,7 +61,7 @@ export function OnThisDay() {
         <select
           value={selectedMonth}
           onChange={e => setSelectedMonth(Number(e.target.value))}
-          className="onthisday-select"
+          className="custom-select"
         >
           {Array.from({ length: 12 }, (_, i) => (
             <option key={i + 1} value={i + 1}>{i + 1}月</option>
@@ -70,7 +70,7 @@ export function OnThisDay() {
         <select
           value={day}
           onChange={e => setSelectedDay(Number(e.target.value))}
-          className="onthisday-select"
+          className="custom-select"
         >
           {Array.from({ length: maxDay }, (_, i) => (
             <option key={i + 1} value={i + 1}>{i + 1}日</option>
