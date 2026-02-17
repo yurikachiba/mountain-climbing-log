@@ -66,7 +66,7 @@ export function OnThisDay() {
         <label className="onthisday-label">日付を選ぶ:</label>
         <input
           type="date"
-          value={`2000-${monthDay}`}
+          value={`${new Date().getFullYear()}-${monthDay}`}
           onChange={e => {
             const val = e.target.value;
             if (val) setSelectedDate(val.substring(5, 10));
