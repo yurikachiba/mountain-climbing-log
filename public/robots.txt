@@ -1,0 +1,41 @@
+# 検索エンジンクローラー
+User-agent: *
+Allow: /
+Disallow: /settings
+Disallow: /ai-logs
+
+Sitemap: https://mountain-climbing-log.com/sitemap.xml
+
+# AI クローラー（AIO対策）
+User-agent: GPTBot
+Allow: /
+Disallow: /settings
+Disallow: /ai-logs
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /settings
+Disallow: /ai-logs
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /settings
+Disallow: /ai-logs
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /settings
+Disallow: /ai-logs
+
+User-agent: Bytespider
+Allow: /
+Disallow: /settings
+Disallow: /ai-logs
+
+User-agent: CCBot
+Allow: /
+Disallow: /settings
+Disallow: /ai-logs

@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
 import { deleteAllEntries, exportAllData, importAllData, clearAllAiCache, markAllAiCacheStale } from '../db';
 import { getApiKey, setApiKey } from '../utils/apiKey';
+import { useHead } from '../hooks/useHead';
 
 export function Settings() {
+  useHead({
+    title: '設定',
+    description: 'データ管理・バックアップ・OpenAI APIキーの設定。',
+    path: '/settings',
+  });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState('');

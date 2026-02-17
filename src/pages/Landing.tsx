@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { useHead } from '../hooks/useHead';
+import { WebSiteJsonLd, WebAppJsonLd, FAQJsonLd } from '../components/JsonLd';
 
 const features = [
   {
@@ -34,8 +36,17 @@ const features = [
 ];
 
 export function Landing() {
+  useHead({
+    title: undefined,
+    description: '日記を取り込んで、過去の自分と再会する。検索、分析、可視化。プライバシーファーストな日記管理ウェブアプリ。',
+    path: '/',
+  });
+
   return (
     <div className="landing">
+      <WebSiteJsonLd />
+      <WebAppJsonLd />
+      <FAQJsonLd />
       {/* Hero */}
       <section className="landing-hero">
         <h1 className="landing-title">登山ログ</h1>
@@ -53,13 +64,13 @@ export function Landing() {
       {/* Features */}
       <section className="landing-section">
         <h2 className="landing-section-title">できること</h2>
-        <div className="landing-features">
+        <div className="landing-features" role="list">
           {features.map(f => (
-            <div key={f.title} className="landing-feature">
-              <span className="landing-feature-icon">{f.icon}</span>
+            <article key={f.title} className="landing-feature" role="listitem">
+              <span className="landing-feature-icon" aria-hidden="true">{f.icon}</span>
               <h3 className="landing-feature-title">{f.title}</h3>
               <p className="landing-feature-desc">{f.desc}</p>
-            </div>
+            </article>
           ))}
         </div>
       </section>
@@ -67,35 +78,35 @@ export function Landing() {
       {/* How it works */}
       <section className="landing-section">
         <h2 className="landing-section-title">使い方</h2>
-        <div className="landing-steps">
-          <div className="landing-step">
-            <span className="landing-step-num">1</span>
+        <ol className="landing-steps">
+          <li className="landing-step">
+            <span className="landing-step-num" aria-hidden="true">1</span>
             <div>
               <h3 className="landing-step-title">日記をインポート</h3>
               <p className="landing-step-desc">
                 テキストファイルやMarkdownファイルをドラッグ＆ドロップ。日付を自動で認識します。
               </p>
             </div>
-          </div>
-          <div className="landing-step">
-            <span className="landing-step-num">2</span>
+          </li>
+          <li className="landing-step">
+            <span className="landing-step-num" aria-hidden="true">2</span>
             <div>
               <h3 className="landing-step-title">読み返す</h3>
               <p className="landing-step-desc">
                 ランダム表示、「この日」の振り返り、キーワード検索。好きな方法で過去に触れる。
               </p>
             </div>
-          </div>
-          <div className="landing-step">
-            <span className="landing-step-num">3</span>
+          </li>
+          <li className="landing-step">
+            <span className="landing-step-num" aria-hidden="true">3</span>
             <div>
               <h3 className="landing-step-title">可視化・分析する</h3>
               <p className="landing-step-desc">
                 タイムライン、ワードクラウド、AI分析で日記を別の角度から眺める。
               </p>
             </div>
-          </div>
-        </div>
+          </li>
+        </ol>
       </section>
 
       {/* Privacy */}

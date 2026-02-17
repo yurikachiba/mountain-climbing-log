@@ -4,10 +4,17 @@ import {
   ResponsiveContainer, BarChart, Bar, AreaChart, Area,
 } from 'recharts';
 import { useEntries } from '../hooks/useEntries';
+import { useHead } from '../hooks/useHead';
 import { analyzeEntries, calcStabilityByYear, calcElevationByYear } from '../utils/emotionAnalyzer';
 
 export function Timeline() {
   const { entries, loading } = useEntries();
+
+  useHead({
+    title: '成長タイムライン',
+    description: '標高・安定指数・感情推移をグラフで可視化。日記データから成長の軌跡を追跡。',
+    path: '/timeline',
+  });
 
   const analysis = useMemo(() => analyzeEntries(entries), [entries]);
   const stability = useMemo(() => calcStabilityByYear(analysis), [analysis]);

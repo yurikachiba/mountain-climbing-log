@@ -18,7 +18,7 @@ const links = [
 
 export function Nav() {
   return (
-    <nav className="nav">
+    <nav className="nav" aria-label="メインナビゲーション">
       {links.map(link => (
         <NavLink
           key={link.to}

@@ -1,8 +1,15 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useEntries } from '../hooks/useEntries';
+import { useHead } from '../hooks/useHead';
 
 export function Search() {
   const { entries, loading } = useEntries();
+
+  useHead({
+    title: '検索',
+    description: '日記のキーワード全文検索。日付範囲やソート順での絞り込みに対応。',
+    path: '/search',
+  });
   const [keyword, setKeyword] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');

@@ -2,8 +2,14 @@ import { useState, useCallback } from 'react';
 import type { DiaryEntry, FutureComment } from '../types';
 import { getRandomEntry, updateEntry, addFragment } from '../db';
 import { anonymize } from '../utils/emotionAnalyzer';
+import { useHead } from '../hooks/useHead';
 
 export function Random() {
+  useHead({
+    title: 'ランダム過去',
+    description: '過去の日記にランダムで再会。忘れていた日の自分と出会い直す機能。',
+    path: '/random',
+  });
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [showDate, setShowDate] = useState(false);
   const [strangerMode, setStrangerMode] = useState(true);

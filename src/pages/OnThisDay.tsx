@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useEntries } from '../hooks/useEntries';
+import { useHead } from '../hooks/useHead';
 import type { DiaryEntry } from '../types';
 
 interface YearGroup {
@@ -11,6 +12,12 @@ const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 export function OnThisDay() {
   const { entries, loading } = useEntries();
+
+  useHead({
+    title: 'この日の記録',
+    description: '1年前、3年前、5年前の同じ日の日記を振り返る。時間を縦に貫く振り返り機能。',
+    path: '/onthisday',
+  });
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1);
   const [selectedDay, setSelectedDay] = useState(() => new Date().getDate());
 

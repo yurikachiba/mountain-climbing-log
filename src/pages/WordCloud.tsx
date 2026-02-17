@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useEntries } from '../hooks/useEntries';
+import { useHead } from '../hooks/useHead';
 
 // 日本語のストップワード（助詞・助動詞・一般的すぎる語）
 const STOP_WORDS = new Set([
@@ -67,6 +68,12 @@ const COLORS = [
 
 export function WordCloud() {
   const { entries, loading } = useEntries();
+
+  useHead({
+    title: 'ワードクラウド',
+    description: '日記でよく使う言葉を可視化。語彙の傾向や変化を把握できるワードクラウド。',
+    path: '/wordcloud',
+  });
   const [period, setPeriod] = useState<'all' | 'year'>('all');
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   const [minCount, setMinCount] = useState(3);

@@ -1,11 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useEntries } from '../hooks/useEntries';
+import { useHead } from '../hooks/useHead';
 import type { DiaryEntry } from '../types';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 export function Calendar() {
   const { entries, loading } = useEntries();
+
+  useHead({
+    title: 'カレンダー',
+    description: '日記の記録密度をカレンダーヒートマップで一望。月別・年別の閲覧に対応。',
+    path: '/calendar',
+  });
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedEntries, setSelectedEntries] = useState<DiaryEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
