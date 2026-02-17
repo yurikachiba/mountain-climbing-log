@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
 import type { Fragment } from '../types';
 import { getAllFragments, deleteFragment } from '../db';
+import { useHead } from '../hooks/useHead';
 
 export function Fragments() {
+  useHead({
+    title: '宝物庫',
+    description: '光っている文だけ集めたページ。お気に入りの日記の断片を保存・閲覧。',
+    path: '/fragments',
+  });
   const [fragments, setFragments] = useState<Fragment[]>([]);
   const [loading, setLoading] = useState(true);
 

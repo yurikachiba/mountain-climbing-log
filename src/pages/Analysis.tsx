@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEntries } from '../hooks/useEntries';
+import { useHead } from '../hooks/useHead';
 import { useAiCache } from '../hooks/useAiCache';
 import { hasApiKey } from '../utils/apiKey';
 import {
@@ -128,6 +129,12 @@ function formatDate(iso: string): string {
 }
 
 export function Analysis() {
+  useHead({
+    title: 'AI分析',
+    description: 'OpenAI APIを使って日記を客観的に分析。感情タグ、トーン分析、成長の軌跡など12種類の分析機能。',
+    path: '/analysis',
+  });
+
   const { entries, count, loading } = useEntries();
   const { cache, loading: cacheLoading, save } = useAiCache();
   const [running, setRunning] = useState<AnalysisType | null>(null);

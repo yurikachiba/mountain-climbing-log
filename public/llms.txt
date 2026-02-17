@@ -1,0 +1,44 @@
+# 登山ログ
+
+> 未来から過去へロープを垂らす装置 ― 日記を取り込んで、過去の自分と再会するためのウェブアプリケーション
+
+登山ログは、個人の日記・登山記録を管理するためのプライバシーファーストなウェブアプリです。すべてのデータはブラウザ内（IndexedDB）に保存され、外部サーバーへの送信はありません。
+
+## 主な機能
+
+- **日記インポート**: テキストファイルやMarkdownファイルをドラッグ＆ドロップで取り込み。日付を自動認識。
+- **ランダム再会**: 過去の日記にランダムで再会。忘れていた日の自分と出会い直す。
+- **この日の記録**: 1年前、3年前、5年前の同じ日を振り返る。
+- **キーワード検索**: 日記の全文検索。日付範囲の絞り込みに対応。
+- **カレンダー表示**: 記録の密度をカレンダーヒートマップで一望。
+- **ワードクラウド**: よく使う言葉を可視化し、語彙の傾向を把握。
+- **タイムライン**: 感情分析やトーンの推移をグラフで表示。
+- **AI分析**: OpenAI APIを使った日記の客観的分析（ユーザー自身のAPIキーを使用）。
+
+## 技術的特徴
+
+- React + TypeScript + Vite で構築
+- PWA対応（オフラインでも利用可能）
+- データはすべてブラウザ内に保存（IndexedDB）
+- サーバー不要・完全クライアントサイド
+- AI分析時のみユーザーのAPIキーでOpenAIと通信
+
+## ページ一覧
+
+- [トップ](https://mountain-climbing-log.com/): ランディングページ
+- [ホーム](https://mountain-climbing-log.com/home): ダッシュボード
+- [インポート](https://mountain-climbing-log.com/import): 日記のインポート
+- [ランダム](https://mountain-climbing-log.com/random): ランダム日記表示
+- [この日](https://mountain-climbing-log.com/onthisday): 過去の同じ日の記録
+- [検索](https://mountain-climbing-log.com/search): キーワード検索
+- [カレンダー](https://mountain-climbing-log.com/calendar): カレンダーヒートマップ
+- [宝物庫](https://mountain-climbing-log.com/fragments): お気に入りの日記
+- [タイムライン](https://mountain-climbing-log.com/timeline): 感情・トーン推移グラフ
+- [ワードクラウド](https://mountain-climbing-log.com/wordcloud): 語彙の可視化
+- [AI分析](https://mountain-climbing-log.com/analysis): AI による日記分析
+- [プライバシーポリシー](https://mountain-climbing-log.com/privacy)
+- [利用規約](https://mountain-climbing-log.com/terms)
+
+## プライバシー
+
+すべてのデータはユーザーの端末内に保存されます。Cookie・トラッキングは使用しません。AI分析機能使用時のみ、ユーザー自身のOpenAI APIキーを使ってOpenAI APIと通信します。

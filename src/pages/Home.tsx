@@ -1,7 +1,14 @@
 import { useEntries } from '../hooks/useEntries';
+import { useHead } from '../hooks/useHead';
 
 export function Home() {
   const { count, loading } = useEntries();
+
+  useHead({
+    title: 'ダッシュボード',
+    description: '登山ログのダッシュボード。登録した日記の件数を確認できます。',
+    path: '/home',
+  });
 
   return (
     <div className="page">

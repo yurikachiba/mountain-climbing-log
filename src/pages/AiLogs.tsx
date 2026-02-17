@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { AiLog } from '../types';
 import { getAllAiLogs } from '../db';
+import { useHead } from '../hooks/useHead';
 
 type AnalysisType =
   | 'summary' | 'tags' | 'tone'
@@ -42,6 +43,12 @@ function formatDate(iso: string): string {
 }
 
 export function AiLogs() {
+  useHead({
+    title: 'AI分析ログ',
+    description: '過去のAI分析結果を一覧・閲覧。分析の履歴を蓄積して比較できます。',
+    path: '/ai-logs',
+  });
+
   const [logs, setLogs] = useState<AiLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AnalysisType | 'all'>('all');

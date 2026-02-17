@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useHead } from '../hooks/useHead';
 
 const pages = [
   {
@@ -39,6 +40,12 @@ const pages = [
 ];
 
 export function Sitemap() {
+  useHead({
+    title: 'サイトマップ',
+    description: '登山ログの全ページ一覧。各機能への導線を確認できます。',
+    path: '/sitemap',
+  });
+
   return (
     <div className="page">
       <h1 className="page-title">サイトマップ</h1>

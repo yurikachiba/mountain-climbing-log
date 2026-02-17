@@ -1,8 +1,14 @@
 import { useRef, useState } from 'react';
 import { importFile, parseTextFile } from '../utils/importer';
 import { addEntries, markAllAiCacheStale } from '../db';
+import { useHead } from '../hooks/useHead';
 
 export function Import() {
+  useHead({
+    title: 'インポート',
+    description: 'テキスト・Markdown・JSONファイルから日記をインポート。日付を自動認識して取り込みます。',
+    path: '/import',
+  });
   const fileRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<{ count: number; files: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);

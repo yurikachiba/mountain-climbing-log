@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useHead } from '../hooks/useHead';
 
 export function Terms() {
+  useHead({
+    title: '利用規約',
+    description: '登山ログの利用規約。サービスの概要、データの管理、免責事項について。',
+    path: '/terms',
+  });
+
   return (
     <div className="page">
       <h1 className="page-title">利用規約</h1>

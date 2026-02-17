@@ -2,62 +2,86 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://mountain-climbing-log.com/</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/home</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/import</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/random</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/onthisday</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/search</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/calendar</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/fragments</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/timeline</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/wordcloud</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/analysis</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://mountain-climbing-log.com/settings</loc>
-    <priority>0.4</priority>
-  </url>
-  <url>
     <loc>https://mountain-climbing-log.com/privacy</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/terms</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://mountain-climbing-log.com/sitemap</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
 </urlset>

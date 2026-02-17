@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useHead } from '../hooks/useHead';
 
 export function Privacy() {
+  useHead({
+    title: 'プライバシーポリシー',
+    description: '登山ログのプライバシーポリシー。データの保存場所、外部サービスとの通信、Cookieの取り扱いについて。',
+    path: '/privacy',
+  });
+
   return (
     <div className="page">
       <h1 className="page-title">プライバシーポリシー</h1>
