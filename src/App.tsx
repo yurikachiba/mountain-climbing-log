@@ -7,6 +7,10 @@ import { Fragments } from './pages/Fragments';
 import { Timeline } from './pages/Timeline';
 import { Settings } from './pages/Settings';
 import { Analysis } from './pages/Analysis';
+import { OnThisDay } from './pages/OnThisDay';
+import { Search } from './pages/Search';
+import { Calendar } from './pages/Calendar';
+import { WordCloud } from './pages/WordCloud';
 
 export default function App() {
   return (
@@ -18,8 +22,12 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/import" element={<Import />} />
             <Route path="/random" element={<Random />} />
+            <Route path="/onthisday" element={<OnThisDay />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/calendar" element={<Calendar />} />
             <Route path="/fragments" element={<Fragments />} />
             <Route path="/timeline" element={<Timeline />} />
+            <Route path="/wordcloud" element={<WordCloud />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

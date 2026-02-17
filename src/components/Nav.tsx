@@ -4,8 +4,12 @@ const links = [
   { to: '/', label: 'ホーム' },
   { to: '/import', label: 'インポート' },
   { to: '/random', label: 'ランダム' },
+  { to: '/onthisday', label: 'この日' },
+  { to: '/search', label: '検索' },
+  { to: '/calendar', label: 'カレンダー' },
   { to: '/fragments', label: '宝物庫' },
   { to: '/timeline', label: 'タイムライン' },
+  { to: '/wordcloud', label: 'ワード' },
   { to: '/analysis', label: 'AI分析' },
   { to: '/settings', label: '設定' },
 ];
