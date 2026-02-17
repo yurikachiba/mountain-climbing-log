@@ -5,9 +5,9 @@ export function WebSiteJsonLd() {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: '登山ログ',
-    alternateName: 'Mountain Climbing Log',
+    alternateName: 'Tozan Log',
     url: BASE_URL,
-    description: '登山ログは日記・登山記録を取り込んで、ランダム再会・キーワード検索・カレンダー表示・ワードクラウド・AI感情分析で過去の自分と再会できる無料ウェブアプリです。データは端末内に保存、プライバシーファースト設計。',
+    description: '登山ログは日記やメモを取り込んで、ランダム再会・キーワード検索・カレンダー表示・ワードクラウド・AI感情分析で過去の自分と再会できる無料ウェブアプリです。データは端末内に保存、プライバシーファースト設計。',
     inLanguage: 'ja',
     potentialAction: {
       '@type': 'SearchAction',
@@ -33,9 +33,9 @@ export function WebAppJsonLd() {
     '@type': 'WebApplication',
     name: '登山ログ',
     url: BASE_URL,
-    description: '日記・登山記録を取り込んで、ランダム再会・検索・カレンダー・ワードクラウド・AI分析で過去の自分と再会するウェブアプリ。データは端末内のみ保存。',
+    description: '日記やメモを取り込んで、ランダム再会・検索・カレンダー・ワードクラウド・AI分析で過去の自分と再会するウェブアプリ。データは端末内のみ保存。',
     applicationCategory: 'LifestyleApplication',
-    applicationSubCategory: '日記管理・自己分析ツール',
+    applicationSubCategory: '日記管理・ナレッジ分析ツール',
     operatingSystem: 'All',
     offers: {
       '@type': 'Offer',
@@ -84,7 +84,7 @@ export function SoftwareAppJsonLd() {
     '@type': 'SoftwareApplication',
     name: '登山ログ',
     url: BASE_URL,
-    description: '日記・登山記録の管理・分析・可視化ができるプライバシーファーストな無料ウェブアプリ。アカウント登録不要、データは端末内のみ保存。PWAでオフライン対応。',
+    description: '日記やメモの管理・分析・可視化ができるプライバシーファーストな無料ウェブアプリ。アカウント登録不要、データは端末内のみ保存。PWAでオフライン対応。',
     applicationCategory: 'LifestyleApplication',
     operatingSystem: 'Web Browser (Chrome, Firefox, Safari, Edge)',
     offers: {
@@ -95,7 +95,7 @@ export function SoftwareAppJsonLd() {
     softwareVersion: '1.0',
     inLanguage: 'ja',
     isAccessibleForFree: true,
-    keywords: '日記管理,登山記録,AI分析,感情分析,ワードクラウド,カレンダー,PWA,オフライン',
+    keywords: '日記管理,ナレッジ分析,AI分析,感情分析,ワードクラウド,カレンダー,PWA,オフライン',
   };
 
   return (
@@ -190,7 +190,7 @@ export function FAQJsonLd() {
         name: '登山ログとは何ですか？',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: '登山ログは、個人の日記・登山記録を管理するためのウェブアプリケーションです。テキストやMarkdownファイルをインポートし、検索・分析・可視化など様々な方法で過去の記録を振り返ることができます。無料で利用でき、アカウント登録も不要です。',
+          text: '登山ログは、個人の日記やメモを管理・分析するためのウェブアプリケーションです。「登山」は自分を高めるという意味の比喩で、実際の登山記録アプリではありません。テキストやMarkdownファイルをインポートし、検索・分析・可視化など様々な方法で過去の記録を振り返ることができます。無料で利用でき、アカウント登録も不要です。',
         },
       },
       {
