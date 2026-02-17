@@ -6,7 +6,7 @@ interface ChatMessage {
   content: string;
 }
 
-async function callChat(messages: ChatMessage[]): Promise<string> {
+async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<string> {
   const key = getApiKey();
   if (!key) throw new Error('APIキーが設定されていません。設定ページで入力してください。');
 
@@ -19,7 +19,7 @@ async function callChat(messages: ChatMessage[]): Promise<string> {
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       messages,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       temperature: 0.3,
     }),
   });
@@ -35,6 +35,16 @@ async function callChat(messages: ChatMessage[]): Promise<string> {
   return data.choices?.[0]?.message?.content ?? '';
 }
 
+// 時系列で均等にサンプリングする
+function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length <= maxCount) return sorted;
+  const step = sorted.length / maxCount;
+  return Array.from({ length: maxCount }, (_, i) => sorted[Math.floor(i * step)]);
+}
+
 // 年代別要約（500字以内）
 export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
@@ -44,27 +54,34 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
   for (const e of entries) {
     const year = e.date?.substring(0, 4) ?? '不明';
     const list = byYear.get(year) ?? [];
-    list.push(e.content.slice(0, 200)); // 各エントリ200文字まで
+    list.push(e.content.slice(0, 300)); // 各エントリ300文字まで
     byYear.set(year, list);
   }
 
   const sortedYears = [...byYear.entries()].sort(([a], [b]) => a.localeCompare(b));
 
   // トークン制限を考慮して、各年の代表エントリ数を均等に制限する
-  const maxTotal = 6000;
+  const maxTotal = 12000;
   const yearCount = sortedYears.length;
   const headerOverhead = yearCount * 20; // 【YYYY年】+ 改行分
   const budgetPerYear = Math.floor((maxTotal - headerOverhead) / yearCount);
 
   const truncated = sortedYears
     .map(([year, texts]) => {
+      // 年内でも均等にサンプリング
+      const maxEntries = Math.max(1, Math.floor(budgetPerYear / 200));
+      let sampled = texts;
+      if (texts.length > maxEntries) {
+        const step = texts.length / maxEntries;
+        sampled = Array.from({ length: maxEntries }, (_, i) => texts[Math.floor(i * step)]);
+      }
       let chunk = '';
-      for (const t of texts) {
+      for (const t of sampled) {
         const next = chunk ? `${chunk}\n---\n${t}` : t;
         if (next.length > budgetPerYear) break;
         chunk = next;
       }
-      return `【${year}年】\n${chunk}`;
+      return `【${year}年】（${texts.length}件）\n${chunk}`;
     })
     .join('\n\n');
 
@@ -88,8 +105,9 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
 export async function extractEmotionTags(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  const allText = entries.map(e => e.content.slice(0, 150)).join('\n---\n');
-  const truncated = allText.slice(0, 6000);
+  const sampled = sampleUniform(entries, 80);
+  const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n---\n');
+  const truncated = allText.slice(0, 10000);
 
   return callChat([
     {
@@ -116,10 +134,31 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
     (a.date ?? '').localeCompare(b.date ?? '')
   );
   const mid = Math.floor(sorted.length / 2);
-  const early = sorted.slice(0, mid).map(e => e.content.slice(0, 100)).join('\n');
-  const late = sorted.slice(mid).map(e => e.content.slice(0, 100)).join('\n');
-  const truncatedEarly = early.slice(0, 3000);
-  const truncatedLate = late.slice(0, 3000);
+  const earlyEntries = sorted.slice(0, mid);
+  const lateEntries = sorted.slice(mid);
+
+  // 前期・後期の日付範囲を算出
+  const earlyRange = earlyEntries.length > 0
+    ? `${earlyEntries[0].date} 〜 ${earlyEntries[earlyEntries.length - 1].date}`
+    : '不明';
+  const lateRange = lateEntries.length > 0
+    ? `${lateEntries[0].date} 〜 ${lateEntries[lateEntries.length - 1].date}`
+    : '不明';
+
+  // 各半期から均等にサンプリング
+  const sampleHalf = (half: DiaryEntry[], maxCount: number) => {
+    if (half.length <= maxCount) return half;
+    const step = half.length / maxCount;
+    return Array.from({ length: maxCount }, (_, i) => half[Math.floor(i * step)]);
+  };
+
+  const earlySampled = sampleHalf(earlyEntries, 40);
+  const lateSampled = sampleHalf(lateEntries, 40);
+
+  const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
+  const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
+  const truncatedEarly = early.slice(0, 5000);
+  const truncatedLate = late.slice(0, 5000);
 
   return callChat([
     {
@@ -135,7 +174,7 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記の前期・後期でトーンの変化を分析してください：\n\n【前期】\n${truncatedEarly}\n\n【後期】\n${truncatedLate}`,
+      content: `以下の日記の前期・後期でトーンの変化を分析してください：\n\n【前期：${earlyRange}】\n${truncatedEarly}\n\n【後期：${lateRange}】\n${truncatedLate}`,
     },
   ]);
 }
@@ -144,13 +183,12 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
 export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
-  );
+  // 全期間から均等にサンプリング
+  const sampled = sampleUniform(entries, 80);
 
   // 時系列順に日付付きで送る
-  const texts = sorted.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
-  const truncated = texts.join('\n---\n').slice(0, 6000);
+  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const truncated = texts.join('\n---\n').slice(0, 10000);
 
   return callChat([
     {
@@ -160,6 +198,7 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '以下のルールに従ってください：',
         '- 日記の時系列を読み、感情・生活・思考に大きな変化が起きた「転機」を最大5つ検出する',
         '- 各転機について：おおよその時期、変化の内容、変化の前後の違いを簡潔に記述する',
+        '- 日記は全期間から均等に抽出されたサンプルである。全期間を対象に転機を探すこと',
         '- 慰めや励ましは不要。事実の指摘のみ',
         '- 400字以内で出力する',
       ].join('\n'),
@@ -175,8 +214,9 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
 export async function extractRecurringThemes(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  const allText = entries.map(e => e.content.slice(0, 120)).join('\n---\n');
-  const truncated = allText.slice(0, 6000);
+  const sampled = sampleUniform(entries, 80);
+  const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n---\n');
+  const truncated = allText.slice(0, 10000);
 
   return callChat([
     {
@@ -202,8 +242,9 @@ export async function extractRecurringThemes(entries: DiaryEntry[]): Promise<str
 export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  const allText = entries.map(e => e.content.slice(0, 120)).join('\n---\n');
-  const truncated = allText.slice(0, 6000);
+  const sampled = sampleUniform(entries, 80);
+  const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n---\n');
+  const truncated = allText.slice(0, 10000);
 
   return callChat([
     {
@@ -234,7 +275,7 @@ export async function analyzeSeasonalEmotions(entries: DiaryEntry[]): Promise<st
   );
 
   // 季節ごとにグループ化
-  const seasons: Record<string, string[]> = { '春(3-5月)': [], '夏(6-8月)': [], '秋(9-11月)': [], '冬(12-2月)': [] };
+  const seasons: Record<string, DiaryEntry[]> = { '春(3-5月)': [], '夏(6-8月)': [], '秋(9-11月)': [], '冬(12-2月)': [] };
   for (const e of sorted) {
     const month = parseInt(e.date!.substring(5, 7), 10);
     let season: string;
@@ -242,14 +283,21 @@ export async function analyzeSeasonalEmotions(entries: DiaryEntry[]): Promise<st
     else if (month >= 6 && month <= 8) season = '夏(6-8月)';
     else if (month >= 9 && month <= 11) season = '秋(9-11月)';
     else season = '冬(12-2月)';
-    seasons[season].push(e.content.slice(0, 100));
+    seasons[season].push(e);
   }
 
-  const budgetPerSeason = 1500;
+  const budgetPerSeason = 2500;
   const grouped = Object.entries(seasons)
-    .map(([season, texts]) => {
-      const joined = texts.join('\n').slice(0, budgetPerSeason);
-      return `【${season}】（${texts.length}件）\n${joined}`;
+    .map(([season, seasonEntries]) => {
+      // 季節内でも均等にサンプリング
+      const maxEntries = Math.max(1, Math.floor(budgetPerSeason / 120));
+      let sampled = seasonEntries;
+      if (seasonEntries.length > maxEntries) {
+        const step = seasonEntries.length / maxEntries;
+        sampled = Array.from({ length: maxEntries }, (_, i) => seasonEntries[Math.floor(i * step)]);
+      }
+      const joined = sampled.map(e => `[${e.date}] ${e.content.slice(0, 100)}`).join('\n').slice(0, budgetPerSeason);
+      return `【${season}】（${seasonEntries.length}件）\n${joined}`;
     })
     .join('\n\n');
 
@@ -283,11 +331,28 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
 
   // 3期に分けて比較
   const third = Math.floor(sorted.length / 3);
-  const earlyTexts = sorted.slice(0, third).map(e => `[${e.date}] ${e.content.slice(0, 100)}`);
-  const midTexts = sorted.slice(third, third * 2).map(e => `[${e.date}] ${e.content.slice(0, 100)}`);
-  const lateTexts = sorted.slice(third * 2).map(e => `[${e.date}] ${e.content.slice(0, 100)}`);
+  const periods = [
+    sorted.slice(0, third),
+    sorted.slice(third, third * 2),
+    sorted.slice(third * 2),
+  ];
 
-  const truncate = (texts: string[]) => texts.join('\n').slice(0, 2000);
+  // 各期間の日付範囲を算出
+  const periodLabels = periods.map(p => {
+    if (p.length === 0) return '不明';
+    return `${p[0].date} 〜 ${p[p.length - 1].date}`;
+  });
+
+  const budgetPerPeriod = 3500;
+  const samplePeriod = (period: DiaryEntry[]) => {
+    const maxEntries = Math.max(1, Math.floor(budgetPerPeriod / 120));
+    let sampled = period;
+    if (period.length > maxEntries) {
+      const step = period.length / maxEntries;
+      sampled = Array.from({ length: maxEntries }, (_, i) => period[Math.floor(i * step)]);
+    }
+    return sampled.map(e => `[${e.date}] ${e.content.slice(0, 100)}`).join('\n').slice(0, budgetPerPeriod);
+  };
 
   return callChat([
     {
@@ -304,9 +369,9 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n【初期】\n${truncate(earlyTexts)}\n\n【中期】\n${truncate(midTexts)}\n\n【後期】\n${truncate(lateTexts)}`,
+      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
     },
-  ]);
+  ], 1500);
 }
 
 // 一括分析レポート — 全分析を統合した包括レポート
@@ -322,11 +387,11 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
     ? `${sorted[0].date} 〜 ${sorted[sorted.length - 1].date}`
     : '不明';
 
-  // 全体からサンプリング
-  const step = Math.max(1, Math.floor(sorted.length / 30));
+  // 全体からサンプリング（30→50件に増加）
+  const step = Math.max(1, Math.floor(sorted.length / 50));
   const sampled = sorted.filter((_, i) => i % step === 0);
-  const sampledTexts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`);
-  const truncated = sampledTexts.join('\n---\n').slice(0, 6000);
+  const sampledTexts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const truncated = sampledTexts.join('\n---\n').slice(0, 10000);
 
   return callChat([
     {
@@ -349,5 +414,5 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
       role: 'user',
       content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${truncated}`,
     },
-  ]);
+  ], 1500);
 }
