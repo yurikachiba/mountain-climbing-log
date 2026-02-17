@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4a90d9"/>
+      <stop offset="100%" stop-color="#a8d4f0"/>
+    </linearGradient>
+    <linearGradient id="mountain1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5b7553"/>
+      <stop offset="100%" stop-color="#3d5a3c"/>
+    </linearGradient>
+    <linearGradient id="mountain2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b8f71"/>
+      <stop offset="100%" stop-color="#4a6e4a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="64" height="64" rx="12" fill="url(#sky)"/>
+  <!-- Back mountain -->
+  <polygon points="6,52 28,16 50,52" fill="url(#mountain1)"/>
+  <!-- Snow cap (back) -->
+  <polygon points="28,16 23,26 28,23 33,26" fill="#f0f4f8" opacity="0.9"/>
+  <!-- Front mountain -->
+  <polygon points="24,52 46,22 58,42 64,52" fill="url(#mountain2)"/>
+  <!-- Snow cap (front) -->
+  <polygon points="46,22 42,30 46,27.5 50,30" fill="#ffffff" opacity="0.9"/>
+  <!-- Ground -->
+  <rect x="0" y="50" width="64" height="14" rx="0" fill="#3a5a3a"/>
+  <rect x="0" y="50" width="64" height="14" rx="0" ry="0" fill="#3a5a3a"/>
+  <!-- Bottom rounded corners match -->
+  <path d="M0,52 L0,52 Q0,64 12,64 L52,64 Q64,64 64,52 L64,52 Z" fill="#3a5a3a"/>
+</svg>
