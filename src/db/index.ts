@@ -98,13 +98,52 @@ async function getDB(): Promise<IDBPDatabase<ClimbingLogDB>> {
   return dbInstance;
 }
 
-export async function addEntries(entries: DiaryEntry[]): Promise<void> {
+// コンテンツの簡易ハッシュ（重複検出用）
+async function contentHash(text: string): Promise<string> {
+  const encoded = new TextEncoder().encode(text);
+  const buffer = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// 重複検出キーを生成: sourceFile + date + content hash
+async function deduplicationKey(entry: DiaryEntry): Promise<string> {
+  const hash = await contentHash(entry.content);
+  return `${entry.sourceFile ?? ''}|${entry.date ?? ''}|${hash}`;
+}
+
+/**
+ * エントリを追加する。重複チェックを行い、同一 sourceFile+date+contentHash のエントリはスキップする。
+ * @returns 実際に追加された件数
+ */
+export async function addEntries(entries: DiaryEntry[]): Promise<number> {
   const db = await getDB();
-  const tx = db.transaction('entries', 'readwrite');
-  for (const entry of entries) {
-    await tx.store.put(entry);
+
+  // 既存エントリの重複キーセットを構築
+  const existing = await db.getAll('entries');
+  const existingKeys = new Set<string>();
+  for (const e of existing) {
+    existingKeys.add(await deduplicationKey(e));
   }
-  await tx.done;
+
+  // 新規エントリから重複を除外
+  const toAdd: DiaryEntry[] = [];
+  for (const entry of entries) {
+    const key = await deduplicationKey(entry);
+    if (!existingKeys.has(key)) {
+      toAdd.push(entry);
+      existingKeys.add(key); // バッチ内重複も防止
+    }
+  }
+
+  if (toAdd.length > 0) {
+    const tx = db.transaction('entries', 'readwrite');
+    for (const entry of toAdd) {
+      await tx.store.put(entry);
+    }
+    await tx.done;
+  }
+
+  return toAdd.length;
 }
 
 export async function getAllEntries(): Promise<DiaryEntry[]> {

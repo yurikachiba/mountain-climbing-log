@@ -99,6 +99,22 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
 };
 
+// 各分析タイプのサンプリング上限（分析対象として使われる最大件数）
+const sampleLimits: Record<AnalysisType, number> = {
+  summary: 80,     // 年ごとに均等分配、全体で概ね80件程度
+  tags: 80,
+  tone: 80,        // 前半40 + 後半40
+  turningPoints: 80,
+  themes: 80,
+  questions: 80,
+  seasonal: 80,    // 季節ごとに均等分配
+  growth: 90,      // 3期×各30件程度
+  report: 50,
+  elevation: 80,
+  strengths: 60,   // 前半30 + 後半30
+  counterfactual: 80,
+};
+
 const categories: AnalysisCategory[] = [
   {
     label: '基本分析',
@@ -293,7 +309,10 @@ export function Analysis() {
                       ))}
                       {cachedAt && (
                         <p className="analysis-meta" style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)', marginTop: 8 }}>
-                          分析日時: {formatDate(cachedAt)} / エントリ数: {cachedCount}
+                          分析日時: {formatDate(cachedAt)}
+                          {cachedCount != null && cachedCount > sampleLimits[type]
+                            ? ` / 全${cachedCount}件中、代表${sampleLimits[type]}件を分析`
+                            : ` / ${cachedCount}件を分析`}
                         </p>
                       )}
                     </div>
