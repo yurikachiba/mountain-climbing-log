@@ -75,7 +75,14 @@ export function AiLogs() {
       const all = await getAllAiLogs();
       // 新しい順に並べる
       all.reverse();
-      setLogs(all);
+      // 各タイプごとに最新の1件だけを保持
+      const latestByType = new Map<string, AiLog>();
+      for (const log of all) {
+        if (!latestByType.has(log.type)) {
+          latestByType.set(log.type, log);
+        }
+      }
+      setLogs(Array.from(latestByType.values()));
       setLoading(false);
     })();
   }, []);
@@ -109,16 +116,13 @@ export function AiLogs() {
     }
   };
 
-  // タイプ別の件数を集計
-  const typeCounts: Record<string, number> = {};
-  for (const log of logs) {
-    typeCounts[log.type] = (typeCounts[log.type] || 0) + 1;
-  }
+  // 存在するタイプを収集
+  const existingTypes = new Set(logs.map(l => l.type));
 
   return (
     <div className="page">
       <h1 className="page-title">AI分析ログ</h1>
-      <p className="subtitle">過去の分析結果をすべて閲覧できます</p>
+      <p className="subtitle">各分析タイプの最新結果を表示しています</p>
 
       {logs.length === 0 ? (
         <div className="ailogs-empty">
@@ -137,10 +141,10 @@ export function AiLogs() {
             >
               <option value="all">すべて ({logs.length})</option>
               {allTypes
-                .filter(t => typeCounts[t])
+                .filter(t => existingTypes.has(t))
                 .map(t => (
                   <option key={t} value={t}>
-                    {typeLabels[t]} ({typeCounts[t]})
+                    {typeLabels[t]}
                   </option>
                 ))}
             </select>
