@@ -53,8 +53,17 @@ export function Privacy() {
         <section className="legal-section">
           <h2>5. APIキーの管理</h2>
           <p>
-            OpenAI APIキーは、お使いの端末のブラウザ内（localStorage）にのみ保存されます。
+            OpenAI APIキーは、お使いの端末のブラウザ内にのみ保存されます。
+            保存方法は設定ページで選択できます：
+          </p>
+          <ul>
+            <li>永続モード（localStorage）：ブラウザに保存され、次回アクセス時も使用可能</li>
+            <li>セッションモード（sessionStorage）：タブを閉じると自動的に消去</li>
+          </ul>
+          <p>
             APIキーが本アプリの開発者に送信されることはありません。
+            ただし、APIキーはブラウザから直接OpenAI APIに送信されるため、
+            専用の低権限キーを作成し、使用量上限を設定することを推奨します。
             APIキーの管理はユーザー自身の責任のもとで行ってください。
           </p>
         </section>

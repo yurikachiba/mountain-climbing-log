@@ -11,13 +11,13 @@ export function Import() {
     path: '/import',
   });
   const fileRef = useRef<HTMLInputElement>(null);
-  const [result, setResult] = useState<{ count: number; files: string[] } | null>(null);
+  const [result, setResult] = useState<{ count: number; total: number; files: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   // 直接入力
   const [directText, setDirectText] = useState('');
-  const [directResult, setDirectResult] = useState<number | null>(null);
+  const [directResult, setDirectResult] = useState<{ count: number; total: number } | null>(null);
   const [directError, setDirectError] = useState<string | null>(null);
   const [directSaving, setDirectSaving] = useState(false);
 
@@ -40,9 +40,9 @@ export function Import() {
         fileNames.push(file.name);
       }
 
-      await addEntries(allEntries);
+      const addedCount = await addEntries(allEntries);
       await markAllAiCacheStale();
-      setResult({ count: allEntries.length, files: fileNames });
+      setResult({ count: addedCount, total: allEntries.length, files: fileNames });
     } catch (err) {
       setError(err instanceof Error ? err.message : '読み込みに失敗しました');
     } finally {
@@ -61,9 +61,9 @@ export function Import() {
 
     try {
       const entries = parseTextFile(trimmed, '直接入力');
-      await addEntries(entries);
+      const addedCount = await addEntries(entries);
       await markAllAiCacheStale();
-      setDirectResult(entries.length);
+      setDirectResult({ count: addedCount, total: entries.length });
       setDirectText('');
     } catch (err) {
       setDirectError(err instanceof Error ? err.message : '保存に失敗しました');
@@ -98,7 +98,12 @@ export function Import() {
         {directError && <p className="error-text">{directError}</p>}
         {directResult !== null && (
           <div className="result-card">
-            <p>{directResult} 件のエントリを保存しました</p>
+            <p>{directResult.count} 件のエントリを保存しました</p>
+            {directResult.total > directResult.count && (
+              <p style={{ fontSize: '0.85em', color: 'var(--text-muted, #888)' }}>
+                {directResult.total - directResult.count} 件は既存データと重複のためスキップ
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -131,6 +136,11 @@ export function Import() {
       {result && (
         <div className="result-card">
           <p>{result.count} 件のエントリをインポートしました</p>
+          {result.total > result.count && (
+            <p style={{ fontSize: '0.85em', color: 'var(--text-muted, #888)' }}>
+              {result.total - result.count} 件は既存データと重複のためスキップ
+            </p>
+          )}
           <ul className="file-list">
             {result.files.map((f, i) => (
               <li key={i}>{f}</li>
