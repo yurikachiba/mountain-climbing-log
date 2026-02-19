@@ -57,7 +57,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   turningPoints: {
     title: '転機検出',
-    desc: '変化の時期を特定し、標高変動と「未来からの一行」を付与',
+    desc: '変化の時期を見つけて、今の自分につながる線を描く',
     fn: detectTurningPoints,
   },
   themes: {
@@ -76,8 +76,8 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     fn: analyzeSeasonalEmotions,
   },
   growth: {
-    title: '成長の軌跡',
-    desc: '初期・中期・後期の3期間で変化を追跡',
+    title: '呼吸のリズム',
+    desc: '初期・中期・後期で、あなたのリズムがどう変わったか',
     fn: analyzeGrowth,
   },
   report: {
@@ -87,17 +87,17 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   elevation: {
     title: '標高ナラティブ',
-    desc: '各年を登山の標高として表現 — どれだけ登ったかの物語',
+    desc: '各年を登山の旅として表現 — 登った年も、休んだ年も',
     fn: analyzeElevationNarrative,
   },
   strengths: {
-    title: '強みの宣言',
-    desc: 'データに基づく客観的な強みの明文化。遠慮なし',
+    title: '強みへの気づき',
+    desc: '日記の中にある、あなた自身も気づいていないかもしれない変化',
     fn: declareStrengths,
   },
   counterfactual: {
     title: '反事実的因果',
-    desc: '「もしこの転機がなかったら？」— 因果のロープを可視化',
+    desc: '「もしあの日がなかったら？」— あなたの歩みを振り返る',
     fn: analyzeCounterfactual,
   },
   lifeStory: {
@@ -107,7 +107,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   gentleReflection: {
     title: 'やさしい振り返り',
-    desc: '評価ではなく観察。日記の中の小さな変化をやさしく見つける',
+    desc: '評価じゃなく、ただ見ている。あなたの日記の中の小さな景色',
     fn: analyzeGentleReflection,
   },
 };
@@ -250,7 +250,7 @@ export function Analysis() {
   return (
     <div className="page">
       <h1 className="page-title">AI分析</h1>
-      <p className="subtitle">分析だけ。人格は禁止。</p>
+      <p className="subtitle">あなたの日記を、静かに見つめます。</p>
 
       {!hasApiKey() && (
         <p className="hint" style={{ color: 'var(--danger)' }}>
