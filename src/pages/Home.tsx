@@ -210,6 +210,10 @@ export function Home() {
             <span className="home-nav-label">AI分析</span>
             <span className="home-nav-desc">俯瞰する</span>
           </Link>
+          <Link to="/observatory" className="home-nav-card">
+            <span className="home-nav-label">観測所</span>
+            <span className="home-nav-desc">やさしく記録</span>
+          </Link>
         </div>
       </section>
     </div>

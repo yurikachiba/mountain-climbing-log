@@ -13,6 +13,7 @@ const links = [
   { to: '/wordcloud', label: 'ワード' },
   { to: '/analysis', label: 'AI分析' },
   { to: '/ai-logs', label: 'AIログ' },
+  { to: '/observatory', label: '観測所' },
   { to: '/settings', label: '設定' },
 ];
 

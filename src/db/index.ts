@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from 'idb';
-import type { DiaryEntry, Fragment, AiCache, AiLog } from '../types';
+import type { DiaryEntry, Fragment, AiCache, AiLog, Observation } from '../types';
 
 // --- スキーマ定義 ---
 // 最新のスキーマを反映する。マイグレーションで段階的にここへ到達する。
@@ -34,6 +34,14 @@ interface ClimbingLogDB extends DBSchema {
       'by-analyzed': string;
     };
   };
+  observations: {
+    key: string;
+    value: Observation;
+    indexes: {
+      'by-date': string;
+      'by-created': string;
+    };
+  };
 }
 
 // --- マイグレーション ---
@@ -46,9 +54,9 @@ interface ClimbingLogDB extends DBSchema {
 // 例: v1のユーザーがv3のアプリを開くと oldVersion=1 で呼ばれ、
 //     v2とv3のブロックが順番に両方実行される。
 
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
-type UpgradeTx = IDBPTransaction<ClimbingLogDB, ('entries' | 'fragments' | 'aiCache' | 'aiLogs')[], 'versionchange'>;
+type UpgradeTx = IDBPTransaction<ClimbingLogDB, ('entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations')[], 'versionchange'>;
 
 function runMigrations(
   db: IDBPDatabase<ClimbingLogDB>,
@@ -79,6 +87,13 @@ function runMigrations(
     const logStore = db.createObjectStore('aiLogs', { keyPath: 'id' });
     logStore.createIndex('by-type', 'type');
     logStore.createIndex('by-analyzed', 'analyzedAt');
+  }
+
+  // v3 → v4: 観測所（Observations）ストアを追加
+  if (oldVersion < 4) {
+    const obsStore = db.createObjectStore('observations', { keyPath: 'id' });
+    obsStore.createIndex('by-date', 'date');
+    obsStore.createIndex('by-created', 'createdAt');
   }
 
   // --- 次のマイグレーションはここに追加 ---
@@ -197,16 +212,19 @@ export async function getEntryCount(): Promise<number> {
 export async function exportAllData(): Promise<{
   entries: DiaryEntry[];
   fragments: Fragment[];
+  observations: Observation[];
 }> {
   const db = await getDB();
   const entries = await db.getAll('entries');
   const fragments = await db.getAll('fragments');
-  return { entries, fragments };
+  const observations = await db.getAll('observations');
+  return { entries, fragments, observations };
 }
 
 export async function importAllData(data: {
   entries: DiaryEntry[];
   fragments: Fragment[];
+  observations?: Observation[];
 }): Promise<void> {
   const db = await getDB();
   const tx1 = db.transaction('entries', 'readwrite');
@@ -219,6 +237,13 @@ export async function importAllData(data: {
     await tx2.store.put(frag);
   }
   await tx2.done;
+  if (data.observations && data.observations.length > 0) {
+    const tx3 = db.transaction('observations', 'readwrite');
+    for (const obs of data.observations) {
+      await tx3.store.put(obs);
+    }
+    await tx3.done;
+  }
 }
 
 // --- AIキャッシュ操作 ---
@@ -269,4 +294,31 @@ export async function getAllAiLogs(): Promise<AiLog[]> {
 export async function getAiLogsByType(type: string): Promise<AiLog[]> {
   const db = await getDB();
   return db.getAllFromIndex('aiLogs', 'by-type', type);
+}
+
+// --- 観測所（Observations）操作 ---
+
+export async function addObservation(observation: Observation): Promise<void> {
+  const db = await getDB();
+  await db.put('observations', observation);
+}
+
+export async function getAllObservations(): Promise<Observation[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('observations', 'by-date');
+}
+
+export async function getObservationsByDate(date: string): Promise<Observation[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('observations', 'by-date', date);
+}
+
+export async function getObservationCount(): Promise<number> {
+  const db = await getDB();
+  return db.count('observations');
+}
+
+export async function deleteObservation(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('observations', id);
 }

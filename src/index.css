@@ -1903,6 +1903,336 @@ body {
   line-height: 1.85;
 }
 
+/* ---- Observatory ---- */
+
+.obs-section {
+  margin-top: 40px;
+}
+
+.obs-section-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.obs-field {
+  margin-bottom: 28px;
+}
+
+.obs-field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-light);
+  margin-bottom: 10px;
+}
+
+.obs-field-value {
+  font-size: 0.9375rem;
+}
+
+.obs-sky-selector {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.obs-sky-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: var(--font);
+}
+
+.obs-sky-btn:hover {
+  background: var(--card-bg);
+  border-color: var(--border);
+}
+
+.obs-sky-btn.selected {
+  border-color: var(--accent);
+  background: var(--card-bg);
+}
+
+.obs-sky-emoji {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.obs-sky-label {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.obs-comfort-value {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+.obs-comfort-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-light);
+  border-radius: 3px;
+  outline: none;
+  margin: 8px 0;
+}
+
+.obs-comfort-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.obs-comfort-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.obs-comfort-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.obs-wave-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.obs-wave-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  color: var(--text-light);
+}
+
+.obs-wave-btn:hover {
+  background: var(--card-bg);
+  border-color: var(--border);
+}
+
+.obs-wave-btn.selected {
+  border-color: var(--accent);
+  background: var(--card-bg);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.obs-wave-label {
+  display: block;
+}
+
+.obs-prompt {
+  font-size: 0.9375rem;
+  color: var(--text-light);
+  margin-bottom: 12px;
+  font-style: italic;
+  line-height: 1.7;
+}
+
+.obs-note-input {
+  width: 100%;
+  padding: 16px;
+  font-size: 0.9375rem;
+  font-family: var(--font);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+  line-height: 1.8;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100px;
+  box-sizing: border-box;
+}
+
+.obs-note-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.obs-note-input::placeholder {
+  color: var(--text-muted);
+}
+
+.obs-save-area {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.obs-today-summary {
+  margin-top: 32px;
+}
+
+.obs-today-label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.obs-today-card {
+  padding: 24px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+}
+
+.obs-today-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.obs-today-row:last-of-type {
+  border-bottom: none;
+}
+
+.obs-today-note {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.obs-note-text {
+  font-size: 0.9375rem;
+  line-height: 1.8;
+  color: var(--text-light);
+  margin-top: 8px;
+}
+
+.obs-saved-message {
+  margin-top: 48px;
+  text-align: center;
+}
+
+.obs-saved-text {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.obs-saved-sub {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.obs-footprints {
+  margin-top: 48px;
+}
+
+.obs-footprints-lead {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.obs-footprint-card {
+  padding: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.obs-footprint-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  margin-bottom: 8px;
+}
+
+.obs-footprint-row {
+  display: flex;
+  gap: 16px;
+  font-size: 0.875rem;
+  color: var(--text-light);
+}
+
+.obs-footprint-note {
+  margin-top: 8px;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-light);
+}
+
+.obs-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.obs-history-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.875rem;
+}
+
+.obs-history-item:last-child {
+  border-bottom: none;
+}
+
+.obs-history-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  flex-shrink: 0;
+  width: 80px;
+}
+
+.obs-history-sky {
+  flex-shrink: 0;
+}
+
+.obs-history-comfort {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  flex-shrink: 0;
+  width: 50px;
+}
+
+.obs-history-wave {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 600px) {
@@ -2012,5 +2342,31 @@ body {
     flex-direction: column;
     gap: 4px;
     padding: 14px 16px;
+  }
+
+  .obs-sky-selector {
+    gap: 6px;
+  }
+
+  .obs-sky-btn {
+    padding: 10px 8px;
+  }
+
+  .obs-sky-emoji {
+    font-size: 1.25rem;
+  }
+
+  .obs-wave-selector {
+    flex-direction: column;
+  }
+
+  .obs-footprint-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .obs-history-item {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
