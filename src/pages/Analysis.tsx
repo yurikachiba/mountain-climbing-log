@@ -158,7 +158,7 @@ export function Analysis() {
   const [runningAll, setRunningAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [allProgress, setAllProgress] = useState<{ done: number; total: number } | null>(null);
-  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+
 
   // キャッシュから結果を取得（表示用）
   function getResult(type: AnalysisType): string | undefined {
@@ -228,28 +228,6 @@ export function Analysis() {
   const completedCount = Object.keys(cache).filter(k => cache[k]?.result).length;
   const staleCount = Object.values(cache).filter(c => c.isStale).length;
 
-  const allTypes = categories.flatMap(c => c.items);
-
-  const handleCopyAll = async () => {
-    const parts: string[] = [];
-    for (const type of allTypes) {
-      const c = cache[type];
-      if (!c?.result) continue;
-      const label = analysisMap[type].title;
-      const date = formatDate(c.analyzedAt);
-      parts.push(`【${label}】${date}（${c.entryCount}件の日記）\n${c.result}`);
-    }
-    if (parts.length === 0) return;
-    try {
-      await navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
-      setCopyMessage(`${parts.length}件の最新結果をコピーしました`);
-      setTimeout(() => setCopyMessage(null), 2500);
-    } catch {
-      setCopyMessage('コピーに失敗しました');
-      setTimeout(() => setCopyMessage(null), 2500);
-    }
-  };
-
   return (
     <div className="page">
       <h1 className="page-title">AI分析</h1>
@@ -272,19 +250,10 @@ export function Analysis() {
           {runningAll ? '一括分析中...' : staleCount > 0 ? 'すべて再分析' : 'すべて実行'}
         </button>
         {completedCount > 0 && (
-          <>
-            <button
-              className="btn btn-small"
-              onClick={handleCopyAll}
-              disabled={isRunning}
-            >
-              最新結果を一括コピー
-            </button>
-            <span className="analysis-completed-count">
-              {completedCount}/{Object.keys(analysisMap).length} 完了
-              {staleCount > 0 && ` (${staleCount}件 更新あり)`}
-            </span>
-          </>
+          <span className="analysis-completed-count">
+            {completedCount}/{Object.keys(analysisMap).length} 完了
+            {staleCount > 0 && ` (${staleCount}件 更新あり)`}
+          </span>
         )}
         {allProgress && (
           <div className="analysis-progress">
@@ -362,12 +331,6 @@ export function Analysis() {
       <p className="hint">
         分析結果はこの端末のブラウザに保存されます。過去の分析ログも蓄積されています。
       </p>
-
-      {copyMessage && (
-        <div className="toast" onClick={() => setCopyMessage(null)}>
-          {copyMessage}
-        </div>
-      )}
     </div>
   );
 }
