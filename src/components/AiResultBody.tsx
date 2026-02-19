@@ -14,12 +14,13 @@ function renderInline(text: string): ReactNode[] {
 
 /**
  * AI出力テキストをパースして適切なHTML構造でレンダリングする。
- * 対応記法: **太字**, - 箇条書き, 空行
+ * 対応記法: **太字**, - 箇条書き, 番号付きリスト, ■見出し, 【】見出し, ##見出し, ---区切り, 空行
  */
 export function AiResultBody({ text }: { text: string }) {
   const lines = text.split('\n');
   const elements: ReactNode[] = [];
   let listItems: ReactNode[] = [];
+  let orderedListItems: ReactNode[] = [];
 
   const flushList = (key: string) => {
     if (listItems.length > 0) {
@@ -30,16 +31,55 @@ export function AiResultBody({ text }: { text: string }) {
       );
       listItems = [];
     }
+    if (orderedListItems.length > 0) {
+      elements.push(
+        <ol key={`ol-${key}`} className="ai-result-list">
+          {orderedListItems}
+        </ol>,
+      );
+      orderedListItems = [];
+    }
   };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // --- 区切り線
+    if (/^-{3,}$/.test(line.trim())) {
+      flushList(`ul-${i}`);
+      elements.push(<hr key={i} className="ai-result-hr" />);
+      continue;
+    }
+
     const bulletMatch = line.match(/^[-•]\s+(.*)/);
+    const orderedMatch = line.match(/^\d+[.)]\s+(.*)/);
+    const h3Match = line.match(/^#{3,}\s+(.*)/);
     const h2Match = line.match(/^#{1,2}\s+(.*)/);
-    const h3Match = line.match(/^#{3}\s+(.*)/);
+    // ■ で始まる行 → セクション見出し
+    const sectionMatch = line.match(/^■\s*(.*)/);
+    // 【...】で始まる行 → 見出し
+    const bracketMatch = line.match(/^【(.+?)】(.*)/);
 
     if (bulletMatch) {
+      if (orderedListItems.length > 0) flushList(`ul-${i}`);
       listItems.push(<li key={i}>{renderInline(bulletMatch[1])}</li>);
+    } else if (orderedMatch) {
+      if (listItems.length > 0) flushList(`ul-${i}`);
+      orderedListItems.push(<li key={i}>{renderInline(orderedMatch[1])}</li>);
+    } else if (sectionMatch) {
+      flushList(`ul-${i}`);
+      elements.push(
+        <h3 key={i} className="ai-result-heading">{renderInline(sectionMatch[1])}</h3>,
+      );
+    } else if (bracketMatch) {
+      flushList(`ul-${i}`);
+      const rest = bracketMatch[2].trim();
+      elements.push(
+        <h3 key={i} className="ai-result-heading">
+          {'【'}{renderInline(bracketMatch[1])}{'】'}
+          {rest ? <>{' '}{renderInline(rest)}</> : null}
+        </h3>,
+      );
     } else if (h3Match) {
       flushList(`ul-${i}`);
       elements.push(

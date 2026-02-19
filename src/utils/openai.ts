@@ -36,37 +36,87 @@ async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<stri
   return data.choices?.[0]?.message?.content ?? '';
 }
 
-// 時系列で均等にサンプリングする
+// 年ごとに均等にスライスしてサンプリングする（均等にサンプリング）
+function sampleSliceFromArray(slice: DiaryEntry[], count: number): DiaryEntry[] {
+  if (slice.length <= count) return slice;
+  const step = slice.length / count;
+  return Array.from({ length: count }, (_, i) => slice[Math.floor(i * step)]);
+}
+
+// 時間ベースで分割位置を求める（配列位置ではなく実際の日付で分割）
+function splitIndexByTimeFraction(sorted: DiaryEntry[], fraction: number): number {
+  if (sorted.length === 0) return 0;
+  const firstDate = new Date(sorted[0].date!).getTime();
+  const lastDate = new Date(sorted[sorted.length - 1].date!).getTime();
+  if (lastDate <= firstDate) return Math.floor(sorted.length * fraction);
+  const cutoffTime = firstDate + (lastDate - firstDate) * fraction;
+  const idx = sorted.findIndex(e => new Date(e.date!).getTime() >= cutoffTime);
+  return idx >= 0 ? idx : sorted.length;
+}
+
+// 時系列で均等にサンプリングする（年ごとに最低保証枠あり）
 function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
     (a.date ?? '').localeCompare(b.date ?? '')
   );
   if (sorted.length <= maxCount) return sorted;
-  const step = sorted.length / maxCount;
-  return Array.from({ length: maxCount }, (_, i) => sorted[Math.floor(i * step)]);
+
+  // 年ごとにグループ化
+  const byYear = new Map<string, DiaryEntry[]>();
+  for (const e of sorted) {
+    const year = e.date!.substring(0, 4);
+    const list = byYear.get(year) ?? [];
+    list.push(e);
+    byYear.set(year, list);
+  }
+
+  const years = [...byYear.keys()].sort();
+  const yearCount = years.length;
+
+  // 各年に最低保証枠を確保（全体の15%を均等配分、最低2件）
+  const minPerYear = Math.max(2, Math.floor(maxCount * 0.15 / yearCount));
+  const guaranteed = years.reduce((sum, y) =>
+    sum + Math.min(minPerYear, byYear.get(y)!.length), 0);
+  const remaining = Math.max(0, maxCount - guaranteed);
+
+  const result: DiaryEntry[] = [];
+  for (const year of years) {
+    const yearEntries = byYear.get(year)!;
+    const min = Math.min(minPerYear, yearEntries.length);
+    const proportional = remaining > 0
+      ? Math.round(remaining * yearEntries.length / sorted.length)
+      : 0;
+    const budget = Math.min(min + proportional, yearEntries.length);
+    result.push(...sampleSliceFromArray(yearEntries, budget));
+  }
+
+  return result.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
 }
 
-// 直近を厚めにサンプリングする（直近30%の期間に40%のサンプルを割り当て）
+// 直近を厚めにサンプリングする（直近30%の「期間」に40%のサンプルを割り当て）
 function sampleWithRecencyBias(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
     (a.date ?? '').localeCompare(b.date ?? '')
   );
   if (sorted.length <= maxCount) return sorted;
 
-  const recentCutoff = Math.floor(sorted.length * 0.7);
+  // 実際のカレンダー日付で直近30%の期間を分割（配列位置ではなく時間ベース）
+  const recentCutoff = splitIndexByTimeFraction(sorted, 0.7);
   const olderEntries = sorted.slice(0, recentCutoff);
   const recentEntries = sorted.slice(recentCutoff);
+
+  // 直近が空の場合はフォールバック
+  if (recentEntries.length === 0) {
+    return sampleSliceFromArray(sorted, maxCount);
+  }
 
   const olderCount = Math.floor(maxCount * 0.6);
   const recentCount = maxCount - olderCount;
 
-  const sampleSlice = (slice: DiaryEntry[], count: number) => {
-    if (slice.length <= count) return slice;
-    const step = slice.length / count;
-    return Array.from({ length: count }, (_, i) => slice[Math.floor(i * step)]);
-  };
-
-  return [...sampleSlice(olderEntries, olderCount), ...sampleSlice(recentEntries, recentCount)];
+  return [
+    ...sampleSliceFromArray(olderEntries, olderCount),
+    ...sampleSliceFromArray(recentEntries, recentCount),
+  ];
 }
 
 // 年代別要約（500字以内）
@@ -177,11 +227,11 @@ export async function extractEmotionTags(entries: DiaryEntry[]): Promise<string>
 export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  // 時系列で前半・後半に分けて比較
+  // 時系列で前半・後半に分けて比較（実際のカレンダー日付の中間点で分割）
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
     (a.date ?? '').localeCompare(b.date ?? '')
   );
-  const mid = Math.floor(sorted.length / 2);
+  const mid = splitIndexByTimeFraction(sorted, 0.5);
   const earlyEntries = sorted.slice(0, mid);
   const lateEntries = sorted.slice(mid);
 
@@ -193,15 +243,8 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
     ? `${lateEntries[0].date} 〜 ${lateEntries[lateEntries.length - 1].date}`
     : '不明';
 
-  // 各半期から均等にサンプリング
-  const sampleHalf = (half: DiaryEntry[], maxCount: number) => {
-    if (half.length <= maxCount) return half;
-    const step = half.length / maxCount;
-    return Array.from({ length: maxCount }, (_, i) => half[Math.floor(i * step)]);
-  };
-
-  const earlySampled = sampleHalf(earlyEntries, 40);
-  const lateSampled = sampleHalf(lateEntries, 40);
+  const earlySampled = sampleSliceFromArray(earlyEntries, 40);
+  const lateSampled = sampleSliceFromArray(lateEntries, 40);
 
   const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
   const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
@@ -494,12 +537,13 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
     (a.date ?? '').localeCompare(b.date ?? '')
   );
 
-  // 3期に分けて比較
-  const third = Math.floor(sorted.length / 3);
+  // 3期に分けて比較（実際のカレンダー日付で均等分割）
+  const oneThird = splitIndexByTimeFraction(sorted, 1 / 3);
+  const twoThirds = splitIndexByTimeFraction(sorted, 2 / 3);
   const periods = [
-    sorted.slice(0, third),
-    sorted.slice(third, third * 2),
-    sorted.slice(third * 2),
+    sorted.slice(0, oneThird),
+    sorted.slice(oneThird, twoThirds),
+    sorted.slice(twoThirds),
   ];
 
   // 各期間の日付範囲を算出
@@ -511,11 +555,7 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
   const budgetPerPeriod = 3500;
   const samplePeriod = (period: DiaryEntry[]) => {
     const maxEntries = Math.max(1, Math.floor(budgetPerPeriod / 120));
-    let sampled = period;
-    if (period.length > maxEntries) {
-      const step = period.length / maxEntries;
-      sampled = Array.from({ length: maxEntries }, (_, i) => period[Math.floor(i * step)]);
-    }
+    const sampled = sampleSliceFromArray(period, maxEntries);
     return sampled.map(e => `[${e.date}] ${e.content.slice(0, 100)}`).join('\n').slice(0, budgetPerPeriod);
   };
 
@@ -643,19 +683,13 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
     ? `${sorted[0].date} 〜 ${sorted[sorted.length - 1].date}`
     : '不明';
 
-  // 初期と後期に分けてサンプリング
-  const mid = Math.floor(sorted.length / 2);
+  // 初期と後期に分けてサンプリング（実際のカレンダー日付の中間点で分割）
+  const mid = splitIndexByTimeFraction(sorted, 0.5);
   const earlyEntries = sorted.slice(0, mid);
   const lateEntries = sorted.slice(mid);
 
-  const sampleHalf = (half: DiaryEntry[], maxCount: number) => {
-    if (half.length <= maxCount) return half;
-    const step = half.length / maxCount;
-    return Array.from({ length: maxCount }, (_, i) => half[Math.floor(i * step)]);
-  };
-
-  const earlySampled = sampleHalf(earlyEntries, 30);
-  const lateSampled = sampleHalf(lateEntries, 30);
+  const earlySampled = sampleSliceFromArray(earlyEntries, 30);
+  const lateSampled = sampleSliceFromArray(lateEntries, 30);
 
   const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
   const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
