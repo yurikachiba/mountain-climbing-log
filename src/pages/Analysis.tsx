@@ -16,6 +16,7 @@ import {
   analyzeElevationNarrative,
   declareStrengths,
   analyzeCounterfactual,
+  analyzeLifeStory,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 
@@ -23,7 +24,8 @@ type AnalysisType =
   | 'summary' | 'tags' | 'tone'
   | 'turningPoints' | 'themes' | 'questions'
   | 'seasonal' | 'growth' | 'report'
-  | 'elevation' | 'strengths' | 'counterfactual';
+  | 'elevation' | 'strengths' | 'counterfactual'
+  | 'lifeStory';
 
 interface AnalysisItem {
   title: string;
@@ -97,6 +99,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '「もしこの転機がなかったら？」— 因果のロープを可視化',
     fn: analyzeCounterfactual,
   },
+  lifeStory: {
+    title: '人生の物語',
+    desc: '全日記を一つの大きな物語として再構成 — あなたの人生の長編あらすじ',
+    fn: analyzeLifeStory,
+  },
 };
 
 // 各分析タイプのサンプリング上限（分析対象として使われる最大件数）
@@ -113,6 +120,7 @@ const sampleLimits: Record<AnalysisType, number> = {
   elevation: 80,
   strengths: 60,   // 前半30 + 後半30
   counterfactual: 80,
+  lifeStory: 100,
 };
 
 const categories: AnalysisCategory[] = [
@@ -130,7 +138,7 @@ const categories: AnalysisCategory[] = [
   },
   {
     label: '物語分析',
-    items: ['elevation', 'strengths', 'counterfactual'],
+    items: ['elevation', 'strengths', 'counterfactual', 'lifeStory'],
   },
 ];
 
@@ -146,8 +154,8 @@ function formatDate(iso: string): string {
 
 export function Analysis() {
   useHead({
-    title: 'AI分析（12種類）',
-    description: 'OpenAI APIを使って日記を客観的に分析する12種類の機能。年代別要約、頻出感情タグ、文章トーン分析、転機検出、反復テーマ、内省質問、季節別感情、成長分析、包括レポート、標高ナラティブ、強みの宣言、反事実的因果。ユーザー自身のAPIキー使用でプライバシー保護。',
+    title: 'AI分析（13種類）',
+    description: 'OpenAI APIを使って日記を客観的に分析する13種類の機能。年代別要約、頻出感情タグ、文章トーン分析、転機検出、反復テーマ、内省質問、季節別感情、成長分析、包括レポート、標高ナラティブ、強みの宣言、反事実的因果、人生の物語。ユーザー自身のAPIキー使用でプライバシー保護。',
     keywords: 'AI日記分析,感情タグ,トーン分析,転機検出,成長分析,OpenAI,日記AI,標高ナラティブ,自己分析',
     path: '/analysis',
   });
