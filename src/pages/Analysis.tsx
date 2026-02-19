@@ -158,6 +158,7 @@ export function Analysis() {
   const [runningAll, setRunningAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [allProgress, setAllProgress] = useState<{ done: number; total: number } | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   // キャッシュから結果を取得（表示用）
   function getResult(type: AnalysisType): string | undefined {
@@ -192,11 +193,11 @@ export function Analysis() {
     }
     setRunningAll(true);
     setError(null);
-    const allTypes = categories.flatMap(c => c.items);
-    setAllProgress({ done: 0, total: allTypes.length });
+    const types = categories.flatMap(c => c.items);
+    setAllProgress({ done: 0, total: types.length });
 
-    for (let i = 0; i < allTypes.length; i++) {
-      const type = allTypes[i];
+    for (let i = 0; i < types.length; i++) {
+      const type = types[i];
       setRunning(type);
       try {
         const result = await analysisMap[type].fn(entries);
@@ -205,7 +206,7 @@ export function Analysis() {
         setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
         break;
       }
-      setAllProgress({ done: i + 1, total: allTypes.length });
+      setAllProgress({ done: i + 1, total: types.length });
     }
     setRunning(null);
     setRunningAll(false);
@@ -226,6 +227,28 @@ export function Analysis() {
   const isRunning = running !== null;
   const completedCount = Object.keys(cache).filter(k => cache[k]?.result).length;
   const staleCount = Object.values(cache).filter(c => c.isStale).length;
+
+  const allTypes = categories.flatMap(c => c.items);
+
+  const handleCopyAll = async () => {
+    const parts: string[] = [];
+    for (const type of allTypes) {
+      const c = cache[type];
+      if (!c?.result) continue;
+      const label = analysisMap[type].title;
+      const date = formatDate(c.analyzedAt);
+      parts.push(`【${label}】${date}（${c.entryCount}件の日記）\n${c.result}`);
+    }
+    if (parts.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
+      setCopyMessage(`${parts.length}件の最新結果をコピーしました`);
+      setTimeout(() => setCopyMessage(null), 2500);
+    } catch {
+      setCopyMessage('コピーに失敗しました');
+      setTimeout(() => setCopyMessage(null), 2500);
+    }
+  };
 
   return (
     <div className="page">
@@ -249,10 +272,19 @@ export function Analysis() {
           {runningAll ? '一括分析中...' : staleCount > 0 ? 'すべて再分析' : 'すべて実行'}
         </button>
         {completedCount > 0 && (
-          <span className="analysis-completed-count">
-            {completedCount}/{Object.keys(analysisMap).length} 完了
-            {staleCount > 0 && ` (${staleCount}件 更新あり)`}
-          </span>
+          <>
+            <button
+              className="btn btn-small"
+              onClick={handleCopyAll}
+              disabled={isRunning}
+            >
+              最新結果を一括コピー
+            </button>
+            <span className="analysis-completed-count">
+              {completedCount}/{Object.keys(analysisMap).length} 完了
+              {staleCount > 0 && ` (${staleCount}件 更新あり)`}
+            </span>
+          </>
         )}
         {allProgress && (
           <div className="analysis-progress">
@@ -330,6 +362,12 @@ export function Analysis() {
       <p className="hint">
         分析結果はこの端末のブラウザに保存されます。過去の分析ログも蓄積されています。
       </p>
+
+      {copyMessage && (
+        <div className="toast" onClick={() => setCopyMessage(null)}>
+          {copyMessage}
+        </div>
+      )}
     </div>
   );
 }
