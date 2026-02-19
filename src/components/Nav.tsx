@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 
 const links = [
   { to: '/', label: 'トップ' },
@@ -18,17 +19,45 @@ const links = [
 ];
 
 export function Nav() {
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+
+  // ページ遷移時にメニューを閉じる
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname]);
+
+  const toggle = useCallback(() => {
+    setOpen(prev => !prev);
+  }, []);
+
   return (
     <nav className="nav" aria-label="メインナビゲーション">
-      {links.map(link => (
-        <NavLink
-          key={link.to}
-          to={link.to}
-          className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
+      <div className="nav-bar">
+        <NavLink to="/home" className="nav-brand">登山ログ</NavLink>
+        <button
+          className="nav-toggle"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-label="メニューを開く"
+          type="button"
         >
-          {link.label}
-        </NavLink>
-      ))}
+          <span className={`nav-hamburger ${open ? 'open' : ''}`} />
+        </button>
+      </div>
+      {open && (
+        <div className="nav-menu">
+          {links.map(link => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) => isActive ? 'nav-menu-link active' : 'nav-menu-link'}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
     </nav>
   );
 }

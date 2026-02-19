@@ -62,36 +62,119 @@ body {
 /* ---- Navigation ---- */
 
 .nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
   border-bottom: 1px solid var(--border);
-  padding: 0 24px;
   background: var(--bg);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-.nav-link {
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 48px;
+}
+
+.nav-brand {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+}
+
+.nav-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.nav-toggle:hover {
+  background: var(--card-bg);
+}
+
+.nav-hamburger {
   display: block;
-  padding: 12px 14px;
+  width: 18px;
+  height: 2px;
+  background: var(--text);
+  position: relative;
+  transition: background 0.2s;
+}
+
+.nav-hamburger::before,
+.nav-hamburger::after {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text);
+  position: absolute;
+  left: 0;
+  transition: transform 0.2s;
+}
+
+.nav-hamburger::before {
+  top: -6px;
+}
+
+.nav-hamburger::after {
+  top: 6px;
+}
+
+.nav-hamburger.open {
+  background: transparent;
+}
+
+.nav-hamburger.open::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.nav-hamburger.open::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+.nav-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  padding: 8px 16px 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.nav-menu-link {
+  display: block;
+  padding: 12px 8px;
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.8125rem;
   letter-spacing: 0.02em;
-  white-space: nowrap;
-  border-bottom: 2px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
+  text-align: center;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
 }
 
-.nav-link:hover {
+.nav-menu-link:hover {
   color: var(--text);
+  background: var(--card-bg);
 }
 
-.nav-link.active {
+.nav-menu-link.active {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  font-weight: 600;
+  background: var(--card-bg);
 }
 
 /* ---- Pages ---- */
@@ -2243,12 +2326,17 @@ body {
     padding-top: 32px;
   }
 
-  .nav {
-    padding: 0 12px;
+  .nav-bar {
+    padding: 0 16px;
   }
 
-  .nav-link {
-    padding: 10px 10px;
+  .nav-menu {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 8px 12px 12px;
+  }
+
+  .nav-menu-link {
+    padding: 10px 6px;
     font-size: 0.75rem;
   }
 
