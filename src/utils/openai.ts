@@ -565,6 +565,75 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
   ], 2000);
 }
 
+// 人生の物語 — 全日記を一つの大きな物語として再構成する
+export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+
+  const totalCount = entries.length;
+  const dateRange = sorted.length > 0
+    ? `${sorted[0].date} 〜 ${sorted[sorted.length - 1].date}`
+    : '不明';
+
+  // 年ごとのエントリ数を集計
+  const byYear = new Map<string, number>();
+  for (const e of sorted) {
+    const y = e.date!.substring(0, 4);
+    byYear.set(y, (byYear.get(y) ?? 0) + 1);
+  }
+  const yearSummary = [...byYear.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([y, c]) => `${y}年: ${c}件`).join('、');
+
+  // 全期間から均等にサンプリング（100件で広くカバー）
+  const sampled = sampleUniform(entries, 100);
+  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const truncated = texts.join('\n---\n').slice(0, 12000);
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは日記の分析者です。人格を演じず、分析だけを行ってください。',
+        'これは「人生の物語」分析です。日記全体を一つの大きな物語として再構成する。',
+        '断片的な日記を、一本の長編小説のあらすじのように繋ぐ。',
+        '',
+        '以下のルールに従ってください：',
+        '- 日記全体を「一つの物語」として語り直す。分析レポートではなく、物語の形式で',
+        '- 以下の構造で書く：',
+        '',
+        '  ■ 序章：[物語のはじまり — 最初期の日記から見える「出発点」]',
+        '  ■ 第一幕：[最初の大きな変化・試練。どんな山に直面したか]',
+        '  ■ 転換点：[物語の転機。何が変わり、何が壊れ、何が生まれたか]',
+        '  ■ 第二幕：[転機を経て、どう歩き始めたか。新しいパターン・新しい視点]',
+        '  ■ 現在地：[今の書き手はどこにいるか。物語はどこまで来たか]',
+        '  ■ この物語のタイトル：[全体を貫く一行のタイトル]',
+        '',
+        '- 語り口のルール：',
+        '  - 三人称で書く（「この人は」ではなく「彼/彼女は」でもなく、名前なしの「書き手」を主語にする）',
+        '  - 事実に基づく。日記に書かれていないことは推測と明記する',
+        '  - 美化しない。苦しかった時期は苦しかったと書く',
+        '  - ただし、事実の連なりが作る「物語の力」を信じる。冷静に事実を並べるだけで、物語は立ち上がる',
+        '  - 感傷的にならない。だが、乾いた文体の中に温度を込める',
+        '  - 各章は3〜5文程度。簡潔に、しかし密度高く',
+        '- 最後のタイトルが最も重要。日記全体を貫く一本の線を、一行で射抜く',
+        '  例：「声を失くした人間が、文字で山を登った話」',
+        '  例：「壊れてから組み直すまでの、静かな記録」',
+        '  例：「自分を観察し続けた人間が、いつの間にか自分を理解していた話」',
+        '- 慰めや励ましは不要。事実が語る物語だけで十分',
+        '- 全体で1200字以内',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}、${yearSummary}）を、一つの大きな人生の物語として再構成してください：\n\n${truncated}`,
+    },
+  ], 2500);
+}
+
 // 一括分析レポート — 全分析を統合した包括レポート
 export async function generateComprehensiveReport(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
