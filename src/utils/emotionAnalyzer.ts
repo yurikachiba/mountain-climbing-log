@@ -234,6 +234,93 @@ export function calcElevationByMonth(
   return results;
 }
 
+// 期間別の感情統計を算出（AI分析への注入用）
+export interface PeriodEmotionStats {
+  period: string; // YYYY-MM or YYYY
+  entryCount: number;
+  negativeRatio: number;
+  positiveRatio: number;
+  selfDenialCount: number;
+  writingFrequency: number; // entries per month
+  topNegativeWords: string[];
+  topPositiveWords: string[];
+}
+
+export function calcPeriodStats(entries: DiaryEntry[]): PeriodEmotionStats[] {
+  const byMonth = new Map<string, DiaryEntry[]>();
+  for (const e of entries) {
+    if (!e.date) continue;
+    const month = e.date.substring(0, 7);
+    const list = byMonth.get(month) ?? [];
+    list.push(e);
+    byMonth.set(month, list);
+  }
+
+  const results: PeriodEmotionStats[] = [];
+  for (const [month, monthEntries] of [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const allText = monthEntries.map(e => e.content).join('\n');
+    const negCount = countOccurrences(allText, negativeWords);
+    const posCount = countOccurrences(allText, positiveWords);
+    const total = negCount + posCount;
+    const negRatio = total > 0 ? negCount / total : 0;
+    const selfDenial = countOccurrences(allText, selfDenialWords);
+
+    const negWordCounts = negativeWords
+      .map(w => ({ word: w, count: (allText.match(new RegExp(w, 'g')) ?? []).length }))
+      .filter(x => x.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(x => x.word);
+    const posWordCounts = positiveWords
+      .map(w => ({ word: w, count: (allText.match(new RegExp(w, 'g')) ?? []).length }))
+      .filter(x => x.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(x => x.word);
+
+    results.push({
+      period: month,
+      entryCount: monthEntries.length,
+      negativeRatio: Math.round(negRatio * 100) / 100,
+      positiveRatio: Math.round((1 - negRatio) * 100) / 100,
+      selfDenialCount: selfDenial,
+      writingFrequency: monthEntries.length,
+      topNegativeWords: negWordCounts,
+      topPositiveWords: posWordCounts,
+    });
+  }
+  return results;
+}
+
+// 期間統計を簡潔なテキストに変換（プロンプト注入用）
+export function formatPeriodStatsForPrompt(stats: PeriodEmotionStats[]): string {
+  if (stats.length === 0) return '';
+
+  // 半年ごとに集約して大きな変動を見せる
+  const byHalf = new Map<string, PeriodEmotionStats[]>();
+  for (const s of stats) {
+    const year = s.period.substring(0, 4);
+    const month = parseInt(s.period.substring(5, 7), 10);
+    const half = month <= 6 ? `${year}前半` : `${year}後半`;
+    const list = byHalf.get(half) ?? [];
+    list.push(s);
+    byHalf.set(half, list);
+  }
+
+  const lines: string[] = ['【感情データ（実測値）】'];
+  for (const [half, periods] of [...byHalf.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const avgNeg = periods.reduce((s, p) => s + p.negativeRatio, 0) / periods.length;
+    const avgSelfDenial = periods.reduce((s, p) => s + p.selfDenialCount, 0) / periods.length;
+    const totalEntries = periods.reduce((s, p) => s + p.entryCount, 0);
+    const avgEntries = totalEntries / periods.length;
+
+    lines.push(
+      `${half}: ネガティブ率${Math.round(avgNeg * 100)}%, 自己否定語月平均${avgSelfDenial.toFixed(1)}回, 月平均${avgEntries.toFixed(1)}件記述`
+    );
+  }
+  return lines.join('\n');
+}
+
 // 名前っぽいパターンを匿名化（他人モード用）
 export function anonymize(text: string): string {
   // 「〇〇さん」「〇〇くん」「〇〇ちゃん」パターン
