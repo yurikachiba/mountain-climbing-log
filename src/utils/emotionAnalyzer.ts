@@ -1,4 +1,4 @@
-import type { DiaryEntry, EmotionAnalysis, StabilityIndex, ElevationPoint } from '../types';
+import type { DiaryEntry, EmotionAnalysis, StabilityIndex, ElevationPoint, ElevationPointMonthly } from '../types';
 
 // 感情ワード辞書（日本語）
 const negativeWords = [
@@ -173,6 +173,62 @@ export function calcElevationByYear(
 
     cumulative += climb;
     results.push({ year: s.year, elevation: cumulative, climb });
+  }
+
+  return results;
+}
+
+// 月単位の累積標高を算出
+// 年単位よりも細かい粒度で成長の推移を可視化する
+export function calcElevationByMonth(
+  monthlyAnalysis: EmotionAnalysis[],
+  entries: DiaryEntry[],
+): ElevationPointMonthly[] {
+  if (monthlyAnalysis.length === 0) return [];
+
+  // 月ごとのエントリ数
+  const countByMonth = new Map<string, number>();
+  for (const e of entries) {
+    if (!e.date) continue;
+    const m = e.date.substring(0, 7); // YYYY-MM
+    countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
+  }
+
+  const sorted = [...monthlyAnalysis].sort((a, b) => a.month.localeCompare(b.month));
+  const results: ElevationPointMonthly[] = [];
+  let cumulative = 1000; // 基準点 1000m
+
+  for (let i = 0; i < sorted.length; i++) {
+    const a = sorted[i];
+    const entryCount = countByMonth.get(a.month) ?? 0;
+
+    // 書いた量による底上げ（最大7m/月）
+    const writingBonus = Math.min(7, Math.max(0, entryCount * 0.5));
+
+    // ポジティブ比率によるボーナス（最大12m/月）
+    const positiveRatio = 1 - a.negativeRatio;
+    const positiveClimb = positiveRatio * 12;
+
+    // 自己否定語が少ないほどボーナス（最大2.5m/月）
+    const denialScore = Math.max(0, 2.5 - a.selfDenialCount * 0.25);
+
+    // 前月比の改善ボーナス
+    let improvementBonus = 0;
+    if (i > 0) {
+      const prev = sorted[i - 1];
+      const prevPositive = 1 - prev.negativeRatio;
+      const diff = positiveRatio - prevPositive;
+      if (diff > 0) {
+        improvementBonus = diff * 10;
+      }
+    }
+
+    // 月間登攀量 = 最低4m + 各要素（最大約25m）
+    const rawClimb = 4 + writingBonus + positiveClimb + denialScore + improvementBonus;
+    const climb = Math.round(Math.min(25, rawClimb));
+
+    cumulative += climb;
+    results.push({ month: a.month, elevation: cumulative, climb });
   }
 
   return results;

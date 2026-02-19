@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
-import { analyzeEntries, calcStabilityByYear, calcElevationByYear } from '../utils/emotionAnalyzer';
+import { analyzeEntries, calcStabilityByYear, calcElevationByYear, calcElevationByMonth } from '../utils/emotionAnalyzer';
 
 export function Timeline() {
   const { entries, loading } = useEntries();
@@ -20,11 +20,12 @@ export function Timeline() {
   const analysis = useMemo(() => analyzeEntries(entries), [entries]);
   const stability = useMemo(() => calcStabilityByYear(analysis), [analysis]);
   const elevation = useMemo(() => calcElevationByYear(stability, entries), [stability, entries]);
+  const elevationMonthly = useMemo(() => calcElevationByMonth(analysis, entries), [analysis, entries]);
 
-  const elevationData = elevation.map(e => ({
-    year: e.year,
+  const elevationData = elevationMonthly.map(e => ({
+    month: e.month,
     '標高': e.elevation,
-    '年間登攀': e.climb,
+    '月間登攀': e.climb,
   }));
 
   const stabilityData = stability.map(s => ({
@@ -82,15 +83,31 @@ export function Timeline() {
         <section className="chart-section">
           <h2>標高 — どれだけ登ったか</h2>
           <p style={{ fontSize: '0.85em', color: 'var(--text-muted, #888)', marginBottom: 12 }}>
-            書き続けた年は必ず登っている。安定度・記述量・改善度から算出
+            書き続けた月は必ず登っている。ポジティブ比率・記述量・改善度から月単位で算出
           </p>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <AreaChart data={elevationData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="year" fontSize={12} />
-              <YAxis fontSize={12} unit="m" />
+              <XAxis
+                dataKey="month"
+                fontSize={11}
+                tickFormatter={(v: string) => {
+                  const [y, m] = v.split('-');
+                  return m === '01' || m === '07' ? `${y}/${m}` : '';
+                }}
+                interval={0}
+              />
+              <YAxis
+                fontSize={12}
+                unit="m"
+                tickCount={10}
+              />
               <Tooltip
-                formatter={(value) => value != null ? `${value}m` : '-'}
+                labelFormatter={(label: string) => label}
+                formatter={(value: number, name: string) => {
+                  if (value == null) return '-';
+                  return name === '月間登攀' ? `+${value}m` : `${value}m`;
+                }}
               />
               <Area
                 type="monotone"
@@ -98,6 +115,14 @@ export function Timeline() {
                 stroke="#444"
                 fill="#d0d0d0"
                 strokeWidth={2}
+              />
+              <Area
+                type="monotone"
+                dataKey="月間登攀"
+                stroke="#999"
+                fill="transparent"
+                strokeWidth={1}
+                strokeDasharray="4 2"
               />
             </AreaChart>
           </ResponsiveContainer>
