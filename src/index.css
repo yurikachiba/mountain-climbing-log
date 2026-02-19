@@ -63,11 +63,10 @@ body {
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 0;
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   background: var(--bg);
   position: sticky;
   top: 0;
@@ -76,10 +75,10 @@ body {
 
 .nav-link {
   display: block;
-  padding: 16px 20px;
+  padding: 12px 14px;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.02em;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
@@ -2249,8 +2248,8 @@ body {
   }
 
   .nav-link {
-    padding: 12px 14px;
-    font-size: 0.8125rem;
+    padding: 10px 10px;
+    font-size: 0.75rem;
   }
 
   .entry-card {
