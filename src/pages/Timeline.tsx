@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
-import { analyzeEntries, calcStabilityByYear, calcElevationByYear, calcElevationByMonth } from '../utils/emotionAnalyzer';
+import { analyzeEntries, calcStabilityByYear, calcElevationByMonth } from '../utils/emotionAnalyzer';
 
 export function Timeline() {
   const { entries, loading } = useEntries();
@@ -19,7 +19,6 @@ export function Timeline() {
 
   const analysis = useMemo(() => analyzeEntries(entries), [entries]);
   const stability = useMemo(() => calcStabilityByYear(analysis), [analysis]);
-  const elevation = useMemo(() => calcElevationByYear(stability, entries), [stability, entries]);
   const elevationMonthly = useMemo(() => calcElevationByMonth(analysis, entries), [analysis, entries]);
 
   const elevationData = elevationMonthly.map(e => ({
@@ -103,8 +102,8 @@ export function Timeline() {
                 tickCount={10}
               />
               <Tooltip
-                labelFormatter={(label: string) => label}
-                formatter={(value: number, name: string) => {
+                labelFormatter={(label) => `${label}`}
+                formatter={(value, name) => {
                   if (value == null) return '-';
                   return name === '月間登攀' ? `+${value}m` : `${value}m`;
                 }}
