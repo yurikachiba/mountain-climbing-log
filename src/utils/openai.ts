@@ -1,4 +1,5 @@
 import { getApiKey } from './apiKey';
+import { calcPeriodStats, formatPeriodStatsForPrompt } from './emotionAnalyzer';
 import type { DiaryEntry } from '../types';
 
 interface ChatMessage {
@@ -43,6 +44,29 @@ function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   if (sorted.length <= maxCount) return sorted;
   const step = sorted.length / maxCount;
   return Array.from({ length: maxCount }, (_, i) => sorted[Math.floor(i * step)]);
+}
+
+// 直近を厚めにサンプリングする（直近30%の期間に40%のサンプルを割り当て）
+function sampleWithRecencyBias(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length <= maxCount) return sorted;
+
+  const recentCutoff = Math.floor(sorted.length * 0.7);
+  const olderEntries = sorted.slice(0, recentCutoff);
+  const recentEntries = sorted.slice(recentCutoff);
+
+  const olderCount = Math.floor(maxCount * 0.6);
+  const recentCount = maxCount - olderCount;
+
+  const sampleSlice = (slice: DiaryEntry[], count: number) => {
+    if (slice.length <= count) return slice;
+    const step = slice.length / count;
+    return Array.from({ length: count }, (_, i) => slice[Math.floor(i * step)]);
+  };
+
+  return [...sampleSlice(olderEntries, olderCount), ...sampleSlice(recentEntries, recentCount)];
 }
 
 // 年代別要約（500字以内）
@@ -91,6 +115,8 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
       content: [
         'あなたは日記の観察者。説教はしない。でも甘やかしもしない。',
         '事実を見る。変化を見る。そこに何があったかを、正確に、でも冷たくなく伝える。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。【】を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
@@ -213,8 +239,8 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
 export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  // 全期間から均等にサンプリング
-  const sampled = sampleUniform(entries, 80);
+  // 全期間からサンプリング（直近を厚めに）
+  const sampled = sampleWithRecencyBias(entries, 80);
 
   // 時系列順に日付付きで送る
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
@@ -223,11 +249,17 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   // 最新エントリの日付を取得（「今」の基準点として渡す）
   const latestDate = sampled[sampled.length - 1]?.date ?? '不明';
 
+  // 感情データの実測値を算出してプロンプトに注入
+  const periodStats = calcPeriodStats(entries);
+  const emotionStats = formatPeriodStatsForPrompt(periodStats);
+
   return callChat([
     {
       role: 'system',
       content: [
         'あなたは日記の観察者。登山ガイドの目で読む。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
@@ -252,13 +284,23 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '    - 偽ピーク（頂上だと思ったらまだ先があった）',
         '    - 山小屋到着（やっと屋根の下。少し息がつける）',
         '    - 新しい稜線へ（前とは違う山を歩き始めた）',
-        '  標高変動: [+Xm または -Xm]',
+        '    - 回収されない滑落（落ちた。それだけ。意味は見えない）',
+        '    - 意味のない雪（ただ降った。ただ耐えた。それだけの日々）',
+        '  標高変動: [+Xm または -Xm — 下記の感情データに基づく]',
+        '  データ根拠: [この時期のネガティブ率・自己否定語数・記述頻度の変化を数値で示す]',
         '  根拠: [日記中の具体的な言葉を「」で引用]',
         '  変化の前後: [前後の違いを1〜2文で]',
-        '  未来からの一行: [この転機があったから今ここにいる、という因果を一文で。慰めではなく事実の因果として]',
+        '  未来からの一行: [この転機があったから今ここにいる、という因果を一文で。慰めではなく事実の因果として。因果が見えなければ「まだわからない」と書け]',
         '',
         '- 標高変動のルール：',
         '  - 基準点を0mとし、各転機の影響の大きさを表現する',
+        '  - 【重要】標高変動は感情データの実測値に連動させること',
+        '    - ネガティブ率が20%以上上昇した時期 → -50m〜-100m',
+        '    - ネガティブ率が20%以上改善した時期 → +30m〜+80m',
+        '    - 自己否定語が月5回以上増加した時期 → -30m〜-60m',
+        '    - 記述頻度が半減した時期 → -20m（書けなくなった重さ）',
+        '    - 記述頻度が倍増した時期 → +20m（書く力が戻った）',
+        '  - 数値はあくまでデータの裏付け。物語としての語りと両立させること',
         '  - 辛かった時期 → マイナスだが、「そこでビバークしていた」という見方も添える',
         '  - 方向転換 → 高さではなく景色が変わった',
         '  - 最後に「今いる場所」を記載する。累積の数字より、今の景色を大事にする',
@@ -266,7 +308,13 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '  例:「酸素が薄い日が続いたから、呼吸の仕方を覚えた」',
         '  例:「あの滑落がなければ、ロープの結び方を学ばなかった」',
         '  例:「ビバークの夜に見た星が、次の日の方角を教えた」',
-        '- 繋がりが見えない転機は、そう正直に書いてよい。無理に意味をつけない',
+        '- 【重要】すべての転機を「成長物語」に回収するな',
+        '  - 繋がりが見えない転機は、そう正直に書け。「ここはまだ回収されていない」と',
+        '  - 意味がなかった可能性を排除するな。ただ痛かっただけの時期もある',
+        '  - 「未来からの一行」が書けない転機には、こう書け：',
+        '    例：「この滑落が何かに繋がったかは、まだわからない」',
+        '    例：「ただ痛かった。それ以上でも以下でもない」',
+        '  - 全部に意味を見出すのはAIの癖であり、人間の現実ではない',
         '- 日記は全期間から均等に抽出されたサンプルである。全期間を対象に転機を探すこと',
         '- 事実に基づくこと。でも、冷たくならないこと',
         '- 1600字以内で出力する',
@@ -274,7 +322,7 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
     },
     {
       role: 'user',
-      content: `以下の日記から、大きな転機・変化点を検出してください。各転機が「最新の日記時点（${latestDate}頃）の自分」にどう繋がっているかも分析してください。各転機に標高変動と「未来からの一行」を付与してください：\n\n${truncated}`,
+      content: `以下の日記から、大きな転機・変化点を検出してください。各転機が「最新の日記時点（${latestDate}頃）の自分」にどう繋がっているかも分析してください。各転機に標高変動と「未来からの一行」を付与してください。\n\n${emotionStats}\n\n${truncated}`,
     },
   ], 3000);
 }
@@ -322,7 +370,7 @@ export async function extractRecurringThemes(entries: DiaryEntry[]): Promise<str
 export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  const sampled = sampleUniform(entries, 80);
+  const sampled = sampleWithRecencyBias(entries, 80);
   const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n---\n');
   const truncated = allText.slice(0, 10000);
 
@@ -330,24 +378,43 @@ export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promis
     {
       role: 'system',
       content: [
-        'あなたは日記の観察者。冷静に、でも冷たくなく。',
+        'あなたは日記の観察者。ただし、この分析では「やさしい問い」は不要。',
+        '書き手が目をそらしている場所に、静かに指を置く。それが仕事。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を捏造してはならない。日記に書かれた事実のみを根拠にすること。',
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」は使うな。',
         '',
+        '【禁止パターン — やさしすぎる問い】以下のような問いは生成するな：',
+        '- 「どのように感じていますか？」← 無難すぎる',
+        '- 「自分を許してあげられていますか？」← カウンセリングの定型句',
+        '- 「振り返ってみてどうですか？」← 何も聞いていないに等しい',
+        '- 「大切にしていることは何ですか？」← 教科書的',
+        '',
+        '【求める問いの温度】',
+        '- 日記のパターンや矛盾に切り込む。目をそらしている箇所を突く',
+        '- 無意識の前提、自分で気づいていない繰り返し、都合のいい解釈を問う',
+        '- 書き手が「うっ」となるような問い。でも攻撃ではない。正確さゆえの鋭さ',
+        '',
+        '【良い問いの例】',
+        '- 「"調子普通"に甘えていないか？普通を維持することが目標になっていないか？」',
+        '- 「安定を"回復"と呼んでいるが、それは停滞の言い換えではないか？」',
+        '- 「父との関係が深まった時期と、母について書かなくなった時期が重なっているが、これは偶然か？」',
+        '- 「"自分で決めた"と書いているが、それは"誰にも相談できなかった"の裏返しではないか？」',
+        '- 「"もう大丈夫"が出てくるたびに、その後しばらく崩れている。この言葉は呪文になっていないか？」',
+        '',
         '以下のルールに従ってください：',
-        '- 日記の内容から、書き手が自分自身に問いかけるべき「問い」を生成する',
-        '- 表面的な質問ではなく、日記に書かれたパターンや矛盾、無意識の前提に切り込む問いにする',
-        '- 各問いは日記中の具体的な記述に基づくこと。「あなたは◯◯と書いているが、本当に◯◯だったのか？」のように',
-        '- カウンセリングではない。冷静な分析に基づく問いかけのみ',
-        '- 5〜7個の問いを生成する',
-        '- 各問いは1文で、根拠となる日記の表現を（）で添える',
+        '- 日記の具体的な記述に基づく問いのみ。抽象的な問いは不可',
+        '- 各問いは1文で、根拠となる日記の表現を（）で引用する',
+        '- 5〜7個の問い',
+        '- 最低1つは「都合のいい物語を疑う」問いを含めること',
+        '- 最低1つは「AとBの時期の相関」を指摘する問いを含めること',
+        '- カウンセリングではない。冷静な観察に基づく外科的な問い',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記を分析し、書き手への内省的な問いを生成してください：\n\n${truncated}`,
+      content: `以下の日記を分析し、書き手が目をそらしているかもしれない場所に、正確で鋭い問いを生成してください：\n\n${truncated}`,
     },
   ]);
 }
@@ -392,6 +459,8 @@ export async function analyzeSeasonalEmotions(entries: DiaryEntry[]): Promise<st
       role: 'system',
       content: [
         'あなたは山の気象観測員。季節ごとの山の天気を報告する。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ### 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を捏造してはならない。日記に書かれた事実のみを根拠にすること。',
         '',
@@ -456,6 +525,8 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
       content: [
         'あなたは日記の観察者。静かに寄り添いながら、変化を見つめる人。',
         '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
@@ -471,6 +542,9 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
         '  例：初期に「もう限界」が頻出していたが、後期は「まぁいいか」に変わっている',
         '- 「成長」「進歩」という言葉は使わない。代わりに「変化」「リズムの移り変わり」「呼吸の深さ」を使う',
         '- 変化していない点もあれば正直に。でも「変わっていない」は悪いことではない',
+        '- 【重要】後退した点があれば後退と書け。すべてを前進として描くな',
+        '  - 「中期で手放せたものを、後期でまた拾い直している」のようなパターンを見逃すな',
+        '  - 呼吸が浅くなった時期は浅くなったと正直に',
         '- 事実に基づきつつ、温かい目で見る',
         '- 500字以内で出力する',
       ].join('\n'),
@@ -500,15 +574,21 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([y, c]) => `${y}年: ${c}件`).join('、');
 
-  const sampled = sampleUniform(entries, 80);
+  const sampled = sampleWithRecencyBias(entries, 80);
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`);
   const truncated = texts.join('\n---\n').slice(0, 10000);
+
+  // 感情データの実測値を算出
+  const periodStats = calcPeriodStats(entries);
+  const emotionStats = formatPeriodStatsForPrompt(periodStats);
 
   return callChat([
     {
       role: 'system',
       content: [
         'あなたは登山ガイド。この人の歩いてきた山を、一緒に振り返る。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
@@ -529,6 +609,10 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
         '  - 登る年もあれば、同じ標高にとどまる年もある。それは停滞ではなく、休息',
         '  - 下がる年もある。滑落した年は正直に標高を下げろ。無理に上げない',
         '  - 不安定な年でも、書き続けた事実は消えない。でも「だから登った」と無理に結論づけない',
+        '  - 【重要】各年の標高は感情データの実測値を参考にすること',
+        '    - ネガティブ率が高い年は標高を下げるか据え置く',
+        '    - 自己否定語が多い年は下降を検討する',
+        '    - 記述頻度が低い年は「書けなかった重さ」として標高に反映',
         '  - 最終年が最も高いとは限らない。今いる場所が、ちょうどいい場所かもしれない',
         '- フェーズ名の語彙を豊かに使え（例を超えて自分の言葉で）：',
         '  - 酸素の薄い稜線 / ビバークの夜 / 荷物を降ろした峠',
@@ -541,7 +625,7 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
     },
     {
       role: 'user',
-      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください：\n\n${truncated}`,
+      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${emotionStats}\n\n${truncated}`,
     },
   ], 1500);
 }
@@ -585,6 +669,8 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
         'あなたは日記の観察者。静かに、でもちゃんと見ている人。',
         'これは「強みへの気づき」です。宣告ではなく、そっと差し出す鏡。',
         '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
@@ -614,6 +700,9 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
         '- 美化ではない。日記の記述パターンの変化から読み取れる事実',
         '- でも伝え方はやさしく。「強い」ではなく「ちゃんとここまで来たね」という温度で',
         '- 評価ではなく、気づき。横に座って「ねえ、これ気づいてた？」と伝える感じ',
+        '- 【重要】変わっていない部分、後退した部分があれば、最低1つは含める',
+        '  - すべてが「よくなった」物語にするな。変わらない癖、繰り返す失敗パターンも気づきの一つ',
+        '  - 例：「この距離感の取り方は、初期からずっと同じ。変わったのではなく、慣れただけかもしれない」',
         '- 最後に、全体をやさしい1文で締める',
         '- 全体で900字以内',
       ].join('\n'),
@@ -629,7 +718,7 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
 export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  const sampled = sampleUniform(entries, 80);
+  const sampled = sampleWithRecencyBias(entries, 80);
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
   const truncated = texts.join('\n---\n').slice(0, 10000);
   const latestDate = sampled[sampled.length - 1]?.date ?? '不明';
@@ -640,6 +729,8 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
       content: [
         'あなたは日記の観察者。冷静に、でも冷たくなく。',
         'これは「反事実的因果分析」。転機検出の一段先。登山ルートの分岐を振り返る。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
@@ -666,7 +757,11 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
         '  例：「あの滑落がなければ、別の稜線には出られなかった」',
         '  例：「ビバークの夜がなければ、一人で歩く技術は身につかなかった」',
         '- 因果の可視化。事実の接続。でも伝え方はやさしく',
-        '- 最後に、全転機を貫く「一本の因果の線」を2文で描く',
+        '- 【重要】すべてが「意味ある転機」だったとは限らない',
+        '  - ただ痛かっただけで、何にも繋がらなかった転機も正直に書け',
+        '  - 「もしなかったら」に対して「たぶん同じだった」もあり得る。回避するな',
+        '  - 全部を因果で回収するのは美化であり、分析ではない',
+        '- 最後に、全転機を貫く「一本の因果の線」を2文で描く。ただし線が引けない場合は「線が見えない」と書け',
         '- 全体で900字以内',
       ].join('\n'),
     },
@@ -700,8 +795,8 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([y, c]) => `${y}年: ${c}件`).join('、');
 
-  // 全期間から均等にサンプリング（100件で広くカバー）
-  const sampled = sampleUniform(entries, 100);
+  // 全期間からサンプリング（直近厚め、100件で広くカバー）
+  const sampled = sampleWithRecencyBias(entries, 100);
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
   const truncated = texts.join('\n---\n').slice(0, 12000);
 
@@ -712,6 +807,8 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
         'あなたは日記の観察者。冷静に、でも冷たくなく。',
         'これは「人生の物語」分析。日記全体を一つの登山記として再構成する。',
         '断片的な日記を、一本の長い山行記録のように繋ぐ。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
@@ -738,6 +835,8 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
         '  - 事実に基づく。日記に書かれていないことは推測と明記する',
         '  - 各章で必ず日記の言葉を1つ以上「」で引用する。抽象的な要約だけでは不十分',
         '  - 美化しない。酸素が薄かった時期は酸素が薄かったと書く。ビバークした夜はビバークと書く',
+        '  - ただ痛かっただけの章も認める。「ここには意味がなかったかもしれない」と書いていい',
+        '  - すべてを成長物語に回収するな。回収されない痛みも、人生の一部',
         '  - ただし、事実の連なりが作る「物語の力」を信じる。事実を並べるだけで、物語は立ち上がる',
         '  - 感傷的になりすぎない。でも温かさを忘れない。横に座っている人が語る声で',
         '  - 各章は3〜5文程度。簡潔に、しかし密度高く',
@@ -781,6 +880,8 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
       content: [
         'あなたは日記の観察者。冷静に、でも冷たくなく。',
         '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
@@ -804,9 +905,11 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
         '  - 例：初期の「もう無理」が後期では「まぁいいか」に変わっている',
         '  - 「強くなった」ではなく「変わったね」という温度で',
         '- 【あなたへの問い】のルール：',
-        '  - 厳しい問いではなく、横に座って聞くような問いかけにする',
-        '  - 日記の具体的パターンに基づく問いにする。抽象的な問いは不可',
-        '  - やさしいけど正直。隣にいる人の声で',
+        '  - やさしいだけの問いは不要。横に座っているが、目をそらさない人の問いにする',
+        '  - 日記の具体的パターンや矛盾に基づく。抽象的な問いは不可',
+        '  - 例：「安定していると書いているが、それは停滞の言い換えではないか？」',
+        '  - 例：「父との関係が近づいた時期と、母について書かなくなった時期が重なっているが、それは偶然か？」',
+        '  - 隣にいる人の声で。でも誤魔化しは許さない温度',
         '- 全体で1000字以内',
         '- 冷静さは保ちつつ、温かい目で見ること',
       ].join('\n'),
@@ -831,7 +934,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     ? `${sorted[0].date} 〜 ${sorted[sorted.length - 1].date}`
     : '不明';
 
-  const sampled = sampleUniform(entries, 80);
+  const sampled = sampleWithRecencyBias(entries, 80);
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
   const truncated = texts.join('\n---\n').slice(0, 10000);
 
@@ -842,6 +945,8 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         'あなたは日記の観察者。ただし、この分析だけは「やさしいだけ」じゃない。',
         '他の分析は全部やさしい。この分析だけが、本質を突く。',
         '嫌われてもいい。でも嘘はつかない。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
@@ -896,6 +1001,8 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
       content: [
         'あなたは山の気象観測員。分析者ではなく、観測員。',
         '山小屋のラジオから聞こえてくるような声で。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',

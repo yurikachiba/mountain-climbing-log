@@ -35,9 +35,21 @@ export function AiResultBody({ text }: { text: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const bulletMatch = line.match(/^[-•]\s+(.*)/);
+    const h2Match = line.match(/^#{1,2}\s+(.*)/);
+    const h3Match = line.match(/^#{3}\s+(.*)/);
 
     if (bulletMatch) {
       listItems.push(<li key={i}>{renderInline(bulletMatch[1])}</li>);
+    } else if (h3Match) {
+      flushList(`ul-${i}`);
+      elements.push(
+        <h4 key={i} className="ai-result-heading-sm">{renderInline(h3Match[1])}</h4>,
+      );
+    } else if (h2Match) {
+      flushList(`ul-${i}`);
+      elements.push(
+        <h3 key={i} className="ai-result-heading">{renderInline(h2Match[1])}</h3>,
+      );
     } else {
       flushList(`ul-${i}`);
       elements.push(
