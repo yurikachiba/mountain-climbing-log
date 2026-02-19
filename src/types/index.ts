@@ -68,3 +68,15 @@ export interface AiLog {
   analyzedAt: string; // ISO timestamp
   entryCount: number; // 分析時のエントリ数
 }
+
+// 観測所の観測記録
+export interface Observation {
+  id: string; // crypto.randomUUID()
+  date: string; // YYYY-MM-DD
+  sky: string; // 空模様の絵文字 (☀️🌤️⛅🌥️☁️🌧️⛈️)
+  comfort: number; // 安心ゲージ 0-100
+  wave: string; // 'calm' | 'ripple' | 'high'
+  note: string; // 自由記述（任意）
+  prompt: string; // 表示されたやさしいプロンプト
+  createdAt: string; // ISO timestamp
+}

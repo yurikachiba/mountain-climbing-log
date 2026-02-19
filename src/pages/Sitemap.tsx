@@ -27,6 +27,7 @@ const pages = [
       { to: '/wordcloud', label: 'ワード', desc: '頻出語のワードクラウド表示' },
       { to: '/analysis', label: 'AI分析', desc: 'OpenAI APIによる日記の分析' },
       { to: '/ai-logs', label: 'AI分析ログ', desc: '過去のAI分析結果の閲覧' },
+      { to: '/observatory', label: '観測所', desc: '毎日の気分や状態をやさしく記録する' },
     ],
   },
   {

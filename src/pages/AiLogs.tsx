@@ -9,7 +9,8 @@ type AnalysisType =
   | 'summary' | 'tags' | 'tone'
   | 'turningPoints' | 'themes' | 'questions'
   | 'seasonal' | 'growth' | 'report'
-  | 'elevation' | 'strengths' | 'counterfactual';
+  | 'elevation' | 'strengths' | 'counterfactual'
+  | 'lifeStory' | 'gentleReflection';
 
 const typeLabels: Record<AnalysisType, string> = {
   summary: '年代別要約',
@@ -24,6 +25,8 @@ const typeLabels: Record<AnalysisType, string> = {
   elevation: '標高ナラティブ',
   strengths: '強みの宣言',
   counterfactual: '反事実的因果',
+  lifeStory: '人生の物語',
+  gentleReflection: 'やさしい振り返り',
 };
 
 const allTypes: AnalysisType[] = [
@@ -31,6 +34,7 @@ const allTypes: AnalysisType[] = [
   'turningPoints', 'themes', 'questions',
   'seasonal', 'growth', 'report',
   'elevation', 'strengths', 'counterfactual',
+  'lifeStory', 'gentleReflection',
 ];
 
 function formatDate(iso: string): string {
