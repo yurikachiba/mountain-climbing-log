@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { AiLog } from '../types';
 import { getAllAiLogs } from '../db';
 import { useHead } from '../hooks/useHead';
+import { useAiCache } from '../hooks/useAiCache';
 
 type AnalysisType =
   | 'summary' | 'tags' | 'tone'
@@ -55,6 +56,7 @@ export function AiLogs() {
   const [filter, setFilter] = useState<AnalysisType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const { cache, loading: cacheLoading } = useAiCache();
 
   const handleItemCopy = async (log: AiLog) => {
     const label = typeLabels[log.type as AnalysisType] || log.type;
@@ -87,7 +89,7 @@ export function AiLogs() {
     })();
   }, []);
 
-  if (loading) {
+  if (loading || cacheLoading) {
     return (
       <div className="page">
         <p className="loading-text">読み込み中...</p>
@@ -115,6 +117,28 @@ export function AiLogs() {
       setTimeout(() => setCopyMessage(null), 2500);
     }
   };
+
+  const handleCopyLatestResults = async () => {
+    const parts: string[] = [];
+    for (const type of allTypes) {
+      const c = cache[type];
+      if (!c?.result) continue;
+      const label = typeLabels[type];
+      const date = formatDate(c.analyzedAt);
+      parts.push(`【${label}】${date}（${c.entryCount}件の日記）\n${c.result}`);
+    }
+    if (parts.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
+      setCopyMessage(`${parts.length}件の最新結果をコピーしました`);
+      setTimeout(() => setCopyMessage(null), 2500);
+    } catch {
+      setCopyMessage('コピーに失敗しました');
+      setTimeout(() => setCopyMessage(null), 2500);
+    }
+  };
+
+  const latestResultCount = allTypes.filter(t => cache[t]?.result).length;
 
   // 存在するタイプを収集
   const existingTypes = new Set(logs.map(l => l.type));
@@ -157,6 +181,13 @@ export function AiLogs() {
               disabled={filtered.length === 0}
             >
               一括コピー
+            </button>
+            <button
+              className="btn btn-small"
+              onClick={handleCopyLatestResults}
+              disabled={latestResultCount === 0}
+            >
+              最新結果を一括コピー
             </button>
           </div>
 
