@@ -20,6 +20,7 @@ import {
   analyzeGentleReflection,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
+import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
   | 'summary' | 'tags' | 'tone'
@@ -324,9 +325,7 @@ export function Analysis() {
                           データが更新されています。再実行で最新の分析結果を取得できます。
                         </p>
                       )}
-                      {result.split('\n').map((line, i) => (
-                        <p key={i}>{line || '\u00A0'}</p>
-                      ))}
+                      <AiResultBody text={result} />
                       {cachedAt && (
                         <p className="analysis-meta" style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)', marginTop: 8 }}>
                           分析日時: {formatDate(cachedAt)}

@@ -950,6 +950,28 @@ body {
   white-space: pre-wrap;
 }
 
+.ai-result-list {
+  margin: 8px 0;
+  padding-left: 1.5em;
+  list-style: disc;
+}
+
+.ai-result-list li {
+  margin-bottom: 10px;
+  line-height: 1.8;
+}
+
+.ailogs-item-body .ai-result-list {
+  margin: 8px 0;
+  padding-left: 1.5em;
+  list-style: disc;
+}
+
+.ailogs-item-body .ai-result-list li {
+  margin-bottom: 10px;
+  line-height: 1.8;
+}
+
 /* ---- AI Logs ---- */
 
 .ailogs-empty {

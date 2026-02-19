@@ -4,6 +4,7 @@ import type { AiLog } from '../types';
 import { getAllAiLogs } from '../db';
 import { useHead } from '../hooks/useHead';
 import { useAiCache } from '../hooks/useAiCache';
+import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
   | 'summary' | 'tags' | 'tone'
@@ -237,9 +238,7 @@ export function AiLogs() {
                           コピー
                         </button>
                       </div>
-                      {log.result.split('\n').map((line, i) => (
-                        <p key={i}>{line || '\u00A0'}</p>
-                      ))}
+                      <AiResultBody text={log.result} />
                     </div>
                   )}
                 </section>
