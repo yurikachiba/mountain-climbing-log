@@ -37,11 +37,18 @@ export interface StabilityIndex {
   selfDenialAvg: number; // 月平均自己否定語数
 }
 
-// 標高（累積的な成長の高さ）
+// 標高（累積的な成長の高さ）— 年単位
 export interface ElevationPoint {
   year: string; // YYYY
   elevation: number; // 累積標高（m）
   climb: number; // その年の登攀量（m）
+}
+
+// 標高（累積的な成長の高さ）— 月単位
+export interface ElevationPointMonthly {
+  month: string; // YYYY-MM
+  elevation: number; // 累積標高（m）
+  climb: number; // その月の登攀量（m）
 }
 
 // AI分析キャッシュ: 各分析タイプの最新結果を保持
