@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
-import { analyzeEntries, calcStabilityByYear, calcElevationByMonth } from '../utils/emotionAnalyzer';
+import { analyzeEntries, analyzeEntriesEveryOtherDay, calcStabilityByYear, calcElevationEveryOtherDay } from '../utils/emotionAnalyzer';
 
 export function Timeline() {
   const { entries, loading } = useEntries();
@@ -18,13 +18,14 @@ export function Timeline() {
   });
 
   const analysis = useMemo(() => analyzeEntries(entries), [entries]);
+  const dailyAnalysis = useMemo(() => analyzeEntriesEveryOtherDay(entries), [entries]);
   const stability = useMemo(() => calcStabilityByYear(analysis), [analysis]);
-  const elevationMonthly = useMemo(() => calcElevationByMonth(analysis, entries), [analysis, entries]);
+  const elevationDaily = useMemo(() => calcElevationEveryOtherDay(dailyAnalysis, entries), [dailyAnalysis, entries]);
 
-  const elevationData = elevationMonthly.map(e => ({
-    month: e.month,
+  const elevationData = elevationDaily.map(e => ({
+    date: e.date,
     '標高': e.elevation,
-    '月間登攀': e.climb,
+    '登攀': e.climb,
   }));
 
   const stabilityData = stability.map(s => ({
@@ -32,13 +33,13 @@ export function Timeline() {
     '安定指数': s.score,
   }));
 
-  const ratioData = analysis.map(a => ({
-    month: a.month,
+  const ratioData = dailyAnalysis.map(a => ({
+    date: a.date,
     'ネガティブ比率': Math.round(a.negativeRatio * 100),
   }));
 
-  const denialData = analysis.map(a => ({
-    month: a.month,
+  const denialData = dailyAnalysis.map(a => ({
+    date: a.date,
     '自己否定語': a.selfDenialCount,
   }));
 
@@ -82,17 +83,20 @@ export function Timeline() {
         <section className="chart-section">
           <h2>標高 — どれだけ登ったか</h2>
           <p style={{ fontSize: '0.85em', color: 'var(--text-muted, #888)', marginBottom: 12 }}>
-            書き続けた月は必ず登っている。ポジティブ比率・記述量・改善度から月単位で算出
+            書き続けた日は必ず登っている。ポジティブ比率・記述量・改善度から1日おきに算出
           </p>
           <ResponsiveContainer width="100%" height={350}>
             <AreaChart data={elevationData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis
-                dataKey="month"
+                dataKey="date"
                 fontSize={11}
                 tickFormatter={(v: string) => {
-                  const [y, m] = v.split('-');
-                  return m === '01' || m === '07' ? `${y}/${m}` : '';
+                  const day = v.substring(8, 10);
+                  if (day === '01' || day === '15') {
+                    return v.substring(2, 10); // YY-MM-DD
+                  }
+                  return '';
                 }}
                 interval={0}
               />
@@ -105,7 +109,7 @@ export function Timeline() {
                 labelFormatter={(label) => `${label}`}
                 formatter={(value, name) => {
                   if (value == null) return '-';
-                  return name === '月間登攀' ? `+${value}m` : `${value}m`;
+                  return name === '登攀' ? `+${value}m` : `${value}m`;
                 }}
               />
               <Area
@@ -117,7 +121,7 @@ export function Timeline() {
               />
               <Area
                 type="monotone"
-                dataKey="月間登攀"
+                dataKey="登攀"
                 stroke="#999"
                 fill="transparent"
                 strokeWidth={1}
@@ -147,11 +151,22 @@ export function Timeline() {
       )}
 
       <section className="chart-section">
-        <h2>ネガティブ比率の推移（月単位 %）</h2>
+        <h2>ネガティブ比率の推移（1日おき %）</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={ratioData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis dataKey="month" fontSize={12} />
+            <XAxis
+              dataKey="date"
+              fontSize={11}
+              tickFormatter={(v: string) => {
+                const day = v.substring(8, 10);
+                if (day === '01' || day === '15') {
+                  return v.substring(2, 10);
+                }
+                return '';
+              }}
+              interval={0}
+            />
             <YAxis domain={[0, 100]} fontSize={12} />
             <Tooltip />
             <Line
@@ -159,18 +174,29 @@ export function Timeline() {
               dataKey="ネガティブ比率"
               stroke="#555"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>
       </section>
 
       <section className="chart-section">
-        <h2>自己否定語の推移（月単位）</h2>
+        <h2>自己否定語の推移（1日おき）</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={denialData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis dataKey="month" fontSize={12} />
+            <XAxis
+              dataKey="date"
+              fontSize={11}
+              tickFormatter={(v: string) => {
+                const day = v.substring(8, 10);
+                if (day === '01' || day === '15') {
+                  return v.substring(2, 10);
+                }
+                return '';
+              }}
+              interval={0}
+            />
             <YAxis fontSize={12} />
             <Tooltip />
             <Line
@@ -178,7 +204,7 @@ export function Timeline() {
               dataKey="自己否定語"
               stroke="#555"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>
