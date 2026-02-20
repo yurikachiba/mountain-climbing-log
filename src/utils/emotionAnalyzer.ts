@@ -1,4 +1,4 @@
-import type { DiaryEntry, EmotionAnalysis, EmotionAnalysisDaily, StabilityIndex, ElevationPoint, ElevationPointMonthly, ElevationPointDaily } from '../types';
+import type { DiaryEntry, EmotionAnalysis, EmotionAnalysisDaily, StabilityIndex, ElevationPoint, ElevationPointMonthly, ElevationPointDaily, ResilienceMetrics } from '../types';
 
 // 感情ワード辞書（日本語）
 const negativeWords = [
@@ -127,8 +127,9 @@ export function calcStabilityByYear(monthlyAnalysis: EmotionAnalysis[]): Stabili
 }
 
 // 年単位の累積標高を算出
-// 思想: 書き続けた年は必ず登っている。安定度が高いほど大きく登る。
-// 最悪の年でも最低 +50m。最良の年で +300m。
+// 思想: 安定度50が中立点。50超なら登る、50未満なら落ちる。
+// 書き続けたことには少しだけ価値があるが、それだけでは登れない。
+// 最悪の年は滑落する。嘘をつかない。
 export function calcElevationByYear(
   stability: StabilityIndex[],
   entries: DiaryEntry[],
@@ -145,41 +146,42 @@ export function calcElevationByYear(
 
   const sorted = [...stability].sort((a, b) => a.year.localeCompare(b.year));
   const results: ElevationPoint[] = [];
-  let cumulative = 1000; // 基準点 1000m — 既にここまで来ている
+  let cumulative = 1000; // 基準点 1000m
 
   for (let i = 0; i < sorted.length; i++) {
     const s = sorted[i];
     const entryCount = countByYear.get(s.year) ?? 0;
 
-    // 書いた量による底上げ（月1件でも書いていれば最低50m）
-    const writingBonus = Math.min(80, Math.max(0, entryCount * 0.5));
+    // 書いた量による控えめなボーナス（最大30m）— 書いただけでは救われない
+    const writingBonus = Math.min(30, Math.max(0, entryCount * 0.3));
 
-    // 安定度スコアによる登攀（0-100 → 0-150m）
-    const stabilityClimb = s.score * 1.5;
+    // 安定度スコアによる変動: 50が中立点
+    // score 100 → +150m, score 50 → 0m, score 0 → -150m
+    const stabilityDelta = (s.score - 50) * 3;
 
-    // 前年比の改善ボーナス
-    let improvementBonus = 0;
+    // 前年比の変化ボーナス/ペナルティ
+    let changeDelta = 0;
     if (i > 0) {
       const prev = sorted[i - 1];
       const scoreDiff = s.score - prev.score;
-      if (scoreDiff > 0) {
-        improvementBonus = scoreDiff * 0.5; // 改善分の半分をボーナス
-      }
+      // 改善も悪化もそのまま反映（最大±30m）
+      changeDelta = Math.max(-30, Math.min(30, scoreDiff * 0.5));
     }
 
-    // 年間登攀量 = 最低50m + 各要素（最大約300m）
-    const rawClimb = 50 + writingBonus + stabilityClimb + improvementBonus;
-    const climb = Math.round(Math.min(300, rawClimb));
+    // 年間変動量（マイナスあり）
+    const rawClimb = writingBonus + stabilityDelta + changeDelta;
+    const climb = Math.round(Math.max(-150, Math.min(250, rawClimb)));
+    const isSlide = climb < 0;
 
     cumulative += climb;
-    results.push({ year: s.year, elevation: cumulative, climb });
+    results.push({ year: s.year, elevation: cumulative, climb, isSlide });
   }
 
   return results;
 }
 
-// 月単位の累積標高を算出
-// 年単位よりも細かい粒度で成長の推移を可視化する
+// 月単位の累積標高を算出（滑落あり）
+// ネガ率50%が中立。それ以上なら落ちる、以下なら登る。
 export function calcElevationByMonth(
   monthlyAnalysis: EmotionAnalysis[],
   entries: DiaryEntry[],
@@ -190,45 +192,42 @@ export function calcElevationByMonth(
   const countByMonth = new Map<string, number>();
   for (const e of entries) {
     if (!e.date) continue;
-    const m = e.date.substring(0, 7); // YYYY-MM
+    const m = e.date.substring(0, 7);
     countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
   }
 
   const sorted = [...monthlyAnalysis].sort((a, b) => a.month.localeCompare(b.month));
   const results: ElevationPointMonthly[] = [];
-  let cumulative = 1000; // 基準点 1000m
+  let cumulative = 1000;
 
   for (let i = 0; i < sorted.length; i++) {
     const a = sorted[i];
     const entryCount = countByMonth.get(a.month) ?? 0;
 
-    // 書いた量による底上げ（最大7m/月）
-    const writingBonus = Math.min(7, Math.max(0, entryCount * 0.5));
+    // 書いた量（控えめ。最大2.5m）
+    const writingBonus = Math.min(2.5, Math.max(0, entryCount * 0.2));
 
-    // ポジティブ比率によるボーナス（最大12m/月）
-    const positiveRatio = 1 - a.negativeRatio;
-    const positiveClimb = positiveRatio * 12;
+    // ネガ率による変動: 0.5が中立（0m）、0→+12m、1→-12m
+    const emotionDelta = (0.5 - a.negativeRatio) * 24;
 
-    // 自己否定語が少ないほどボーナス（最大2.5m/月）
-    const denialScore = Math.max(0, 2.5 - a.selfDenialCount * 0.25);
+    // 自己否定語ペナルティ（多ければ引く）
+    const denialPenalty = Math.min(3, a.selfDenialCount * 0.3);
 
-    // 前月比の改善ボーナス
-    let improvementBonus = 0;
+    // 前月比の変化
+    let changeDelta = 0;
     if (i > 0) {
       const prev = sorted[i - 1];
-      const prevPositive = 1 - prev.negativeRatio;
-      const diff = positiveRatio - prevPositive;
-      if (diff > 0) {
-        improvementBonus = diff * 10;
-      }
+      const diff = prev.negativeRatio - a.negativeRatio; // 改善ならプラス
+      changeDelta = Math.max(-3, Math.min(3, diff * 15));
     }
 
-    // 月間登攀量 = 最低4m + 各要素（最大約25m）
-    const rawClimb = 4 + writingBonus + positiveClimb + denialScore + improvementBonus;
-    const climb = Math.round(Math.min(25, rawClimb));
+    // 月間変動量（マイナスあり）
+    const rawClimb = writingBonus + emotionDelta - denialPenalty + changeDelta;
+    const climb = Math.round(Math.max(-15, Math.min(20, rawClimb)));
+    const isSlide = climb < 0;
 
     cumulative += climb;
-    results.push({ month: a.month, elevation: cumulative, climb });
+    results.push({ month: a.month, elevation: cumulative, climb, isSlide });
   }
 
   return results;
@@ -267,8 +266,7 @@ export function analyzeEntriesEveryOtherDay(entries: DiaryEntry[]): EmotionAnaly
   return results;
 }
 
-// 1日おきの累積標高を算出
-// 月単位を日単位にスケールダウン（月の約1/15）
+// 1日おきの累積標高を算出（滑落あり）
 export function calcElevationEveryOtherDay(
   dailyAnalysis: EmotionAnalysisDaily[],
   entries: DiaryEntry[],
@@ -284,39 +282,36 @@ export function calcElevationEveryOtherDay(
 
   const sorted = [...dailyAnalysis].sort((a, b) => a.date.localeCompare(b.date));
   const results: ElevationPointDaily[] = [];
-  let cumulative = 1000; // 基準点 1000m
+  let cumulative = 1000;
 
   for (let i = 0; i < sorted.length; i++) {
     const a = sorted[i];
     const entryCount = countByDate.get(a.date) ?? 0;
 
-    // 書いた量（最大0.5m）
-    const writingBonus = Math.min(0.5, Math.max(0, entryCount * 0.3));
+    // 書いた量（控えめ。最大0.15m）
+    const writingBonus = Math.min(0.15, Math.max(0, entryCount * 0.1));
 
-    // ポジティブ比率（最大0.8m）
-    const positiveRatio = 1 - a.negativeRatio;
-    const positiveClimb = positiveRatio * 0.8;
+    // ネガ率による変動: 0.5が中立、0→+0.8m、1→-0.8m
+    const emotionDelta = (0.5 - a.negativeRatio) * 1.6;
 
-    // 自己否定語が少ないほどボーナス（最大0.15m）
-    const denialScore = Math.max(0, 0.15 - a.selfDenialCount * 0.02);
+    // 自己否定語ペナルティ
+    const denialPenalty = Math.min(0.2, a.selfDenialCount * 0.02);
 
-    // 前回比の改善ボーナス
-    let improvementBonus = 0;
+    // 前回比の変化
+    let changeDelta = 0;
     if (i > 0) {
       const prev = sorted[i - 1];
-      const prevPositive = 1 - prev.negativeRatio;
-      const diff = positiveRatio - prevPositive;
-      if (diff > 0) {
-        improvementBonus = diff * 0.7;
-      }
+      const diff = prev.negativeRatio - a.negativeRatio;
+      changeDelta = Math.max(-0.2, Math.min(0.2, diff * 1.0));
     }
 
-    // 登攀量 = 最低0.3m + 各要素（最大約1.7m）
-    const rawClimb = 0.3 + writingBonus + positiveClimb + denialScore + improvementBonus;
-    const climb = Math.round(Math.min(1.7, rawClimb) * 10) / 10;
+    // 日次変動量（マイナスあり）
+    const rawClimb = writingBonus + emotionDelta - denialPenalty + changeDelta;
+    const climb = Math.round(Math.max(-1.0, Math.min(1.2, rawClimb)) * 10) / 10;
+    const isSlide = climb < 0;
 
     cumulative = Math.round((cumulative + climb) * 10) / 10;
-    results.push({ date: a.date, elevation: cumulative, climb });
+    results.push({ date: a.date, elevation: cumulative, climb, isSlide });
   }
 
   return results;
@@ -521,6 +516,81 @@ export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContex
     recentSelfDenial: recent.selfDenialPerMonth,
     historicalSelfDenial: historical.selfDenialPerMonth,
     promptText,
+  };
+}
+
+// ── 回復力（レジリエンス）算出 ──
+// 滑落からどれだけ速く、どれだけ深く回復したかを測る
+export function calcResilience(elevationPoints: { climb: number; isSlide: boolean }[]): ResilienceMetrics {
+  const slides: { startIdx: number; depth: number; recoveryPeriods: number | null }[] = [];
+  let inSlide = false;
+  let slideStart = -1;
+  let slideDepth = 0;
+
+  for (let i = 0; i < elevationPoints.length; i++) {
+    const p = elevationPoints[i];
+
+    if (p.isSlide) {
+      if (!inSlide) {
+        inSlide = true;
+        slideStart = i;
+        slideDepth = 0;
+      }
+      slideDepth += Math.abs(p.climb);
+    } else {
+      if (inSlide) {
+        // 滑落終了。回復までの期間を測る
+        let recoveryPeriods: number | null = null;
+        let recovered = 0;
+        for (let j = i; j < elevationPoints.length; j++) {
+          if (elevationPoints[j].climb > 0) {
+            recovered += elevationPoints[j].climb;
+          }
+          if (recovered >= slideDepth * 0.5) {
+            recoveryPeriods = j - i + 1;
+            break;
+          }
+        }
+
+        slides.push({ startIdx: slideStart, depth: slideDepth, recoveryPeriods });
+        inSlide = false;
+      }
+    }
+  }
+
+  // 最後まで滑落中だった場合
+  if (inSlide) {
+    slides.push({ startIdx: slideStart, depth: slideDepth, recoveryPeriods: null });
+  }
+
+  if (slides.length === 0) {
+    return {
+      deepestSlide: null,
+      avgRecoveryPeriods: null,
+      recoveryRatio: null,
+      slideCount: 0,
+      totalSlideDepth: 0,
+    };
+  }
+
+  const deepest = slides.reduce((max, s) => s.depth > max.depth ? s : max, slides[0]);
+  const recoveredSlides = slides.filter(s => s.recoveryPeriods !== null);
+  const avgRecovery = recoveredSlides.length > 0
+    ? recoveredSlides.reduce((s, sl) => s + sl.recoveryPeriods!, 0) / recoveredSlides.length
+    : null;
+
+  const totalSlideDepth = slides.reduce((s, sl) => s + sl.depth, 0);
+  const totalRecovery = elevationPoints
+    .filter(p => p.climb > 0)
+    .reduce((s, p) => s + p.climb, 0);
+  const recoveryRatio = totalSlideDepth > 0 ? Math.min(1, totalRecovery / totalSlideDepth) : null;
+
+  return {
+    deepestSlide: { period: `index:${deepest.startIdx}`, depth: Math.round(deepest.depth * 10) / 10 },
+    avgRecoveryPeriods: avgRecovery !== null ? Math.round(avgRecovery * 10) / 10 : null,
+    recoveryRatio: recoveryRatio !== null ? Math.round(recoveryRatio * 100) / 100 : null,
+    slideCount: slides.length,
+    totalSlideDepth: Math.round(totalSlideDepth * 10) / 10,
   };
 }
 

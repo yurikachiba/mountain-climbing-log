@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
-import { analyzeEntries, analyzeEntriesEveryOtherDay, calcStabilityByYear, calcElevationEveryOtherDay } from '../utils/emotionAnalyzer';
+import { analyzeEntries, analyzeEntriesEveryOtherDay, calcStabilityByYear, calcElevationEveryOtherDay, calcResilience } from '../utils/emotionAnalyzer';
 import {
   calcMonthlyDeepAnalysis,
   detectTrendShifts,
@@ -46,11 +46,15 @@ export function Timeline() {
   const currentState = useMemo(() => calcCurrentStateNumeric(monthlyDeep), [monthlyDeep]);
   const predictive = useMemo(() => calcPredictiveIndicators(monthlyDeep, entries), [monthlyDeep, entries]);
 
-  // 1日おきチャートデータ
+  // レジリエンス指標
+  const resilience = useMemo(() => calcResilience(elevationDaily), [elevationDaily]);
+
+  // 1日おきチャートデータ（滑落を視覚的に分離）
   const elevationData = elevationDaily.map(e => ({
     date: e.date,
     '標高': e.elevation,
-    '登攀': e.climb,
+    '変動': e.climb,
+    isSlide: e.isSlide,
   }));
 
   const stabilityData = stability.map(s => ({
@@ -259,10 +263,43 @@ export function Timeline() {
       {/* ── 標高（1日おき） ── */}
       {elevationData.length > 1 && (
         <section className="chart-section">
-          <h2>標高 — どれだけ登ったか</h2>
+          <h2>標高 — 登攀と滑落の記録</h2>
           <p style={mutedStyle}>
-            書き続けた日は必ず登っている。ポジティブ比率・記述量・改善度から1日おきに算出
+            感情の安定度と記述量から1日おきに算出。ネガ率50%が中立点。それ以上なら滑落、以下なら登攀。嘘はつかない。
           </p>
+
+          {/* レジリエンス指標 */}
+          {resilience.slideCount > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 16, padding: 12, border: '1px solid var(--border, #ddd)', borderRadius: 6 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.6em', fontWeight: 'bold' }}>{resilience.slideCount}</div>
+                <div style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)' }}>滑落回数</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.6em', fontWeight: 'bold' }}>{resilience.totalSlideDepth}m</div>
+                <div style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)' }}>総滑落量</div>
+              </div>
+              {resilience.deepestSlide && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6em', fontWeight: 'bold' }}>{resilience.deepestSlide.depth}m</div>
+                  <div style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)' }}>最大滑落</div>
+                </div>
+              )}
+              {resilience.avgRecoveryPeriods !== null && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6em', fontWeight: 'bold' }}>{resilience.avgRecoveryPeriods}</div>
+                  <div style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)' }}>平均回復期間</div>
+                </div>
+              )}
+              {resilience.recoveryRatio !== null && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6em', fontWeight: 'bold' }}>{Math.round(resilience.recoveryRatio * 100)}%</div>
+                  <div style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)' }}>回復率</div>
+                </div>
+              )}
+            </div>
+          )}
+
           <ResponsiveContainer width="100%" height={350}>
             <AreaChart data={elevationData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -282,9 +319,14 @@ export function Timeline() {
                 labelFormatter={(label) => `${label}`}
                 formatter={(value, name) => {
                   if (value == null) return '-';
-                  return name === '登攀' ? `+${value}m` : `${value}m`;
+                  if (name === '変動') {
+                    const sign = Number(value) > 0 ? '+' : '';
+                    return `${sign}${value}m`;
+                  }
+                  return `${value}m`;
                 }}
               />
+              <ReferenceLine y={1000} stroke="#aaa" strokeDasharray="4 4" label={{ value: '基準点', position: 'right', fontSize: 10, fill: '#aaa' }} />
               <Area
                 type="monotone"
                 dataKey="標高"
@@ -295,7 +337,7 @@ export function Timeline() {
               />
               <Area
                 type="monotone"
-                dataKey="登攀"
+                dataKey="変動"
                 stroke="#999"
                 fill="transparent"
                 strokeWidth={1}
