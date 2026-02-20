@@ -1,5 +1,15 @@
 import { getApiKey } from './apiKey';
 import { calcPeriodStats, formatPeriodStatsForPrompt, calcRecentStateContext } from './emotionAnalyzer';
+import {
+  calcMonthlyDeepAnalysis,
+  detectTrendShifts,
+  calcSeasonalCrossStats,
+  calcCurrentStateNumeric,
+  calcPredictiveIndicators,
+  calcVocabularyDepth,
+  formatDeepStatsForPrompt,
+  formatVocabularyDepthForPrompt,
+} from './deepAnalyzer';
 import type { DiaryEntry } from '../types';
 
 interface ChatMessage {
@@ -262,6 +272,11 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
   const truncatedEarly = early.slice(0, 5000);
   const truncatedLate = late.slice(0, 5000);
 
+  // 語彙深度データを算出
+  const earlyDepth = calcVocabularyDepth(earlyEntries, earlyRange);
+  const lateDepth = calcVocabularyDepth(lateEntries, lateRange);
+  const vocabDepthText = formatVocabularyDepthForPrompt(earlyDepth, lateDepth);
+
   return callChat([
     {
       role: 'system',
@@ -272,19 +287,29 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」は使うな。',
         '',
+        '【後期ポジティブ増＝成長 と安易に判断するな】',
+        '- ポジティブ語が増えた場合、以下の可能性を検討しろ：',
+        '  a) 実際の回復（ネガティブ語の深度が浅くなっている場合）',
+        '  b) 社会的適応の上昇（他者参照が増え、本音を書かなくなった可能性）',
+        '  c) 役割意識の強化（一人称が減り、タスク語が増えている場合）',
+        '- 以下に語彙深度の実測データを提供する。このデータに基づいて判断しろ',
+        '',
         '以下のルールに従ってください：',
         '- 前期と後期の文章トーンの違いを分析する',
         '- 文体の変化、語彙の変化、視点の変化に注目する',
         '- 抽象的に「文体が変わった」ではなく、具体的にどの言葉が増えたか・減ったか・消えたかを示す',
         '  例：「前期に頻出していた『もう無理』が後期ではほぼ消え、代わりに『まあいいか』が現れている」',
         '  例：「一人称が『自分』から『わたし』に変わっている」',
+        '- ネガティブ語の「深度」（軽い不満 vs 深い絶望）の変化にも言及しろ',
+        '- 一人称率と他者参照率の変化から「誰の視点で書いているか」の変化を分析しろ',
+        '- 自己モニタリング語（調子、体調等）の出現変化は、自己認識の変化として重要。無視するな',
         '- 400字以内で冷静に記述する',
         '- 事実に基づきつつ、温かい目で見ること',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記の前期・後期でトーンの変化を分析してください：\n\n【前期：${earlyRange}】\n${truncatedEarly}\n\n【後期：${lateRange}】\n${truncatedLate}`,
+      content: `以下の日記の前期・後期でトーンの変化を分析してください：\n\n${vocabDepthText}\n【前期：${earlyRange}】\n${truncatedEarly}\n\n【後期：${lateRange}】\n${truncatedLate}`,
     },
   ]);
 }
@@ -310,6 +335,14 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
 
+  // 深層分析データを算出
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const trendShifts = detectTrendShifts(monthlyDeep);
+  const seasonalStats = calcSeasonalCrossStats(monthlyDeep);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+  const predictive = calcPredictiveIndicators(monthlyDeep, entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive);
+
   return callChat([
     {
       role: 'system',
@@ -323,6 +356,12 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
         '',
+        '【転機検出の根拠ルール — 最重要】',
+        '- 転機は「単一の文章」から検出するな。最低3ヶ月の傾向変化で判定しろ',
+        '- 以下に実測データによるトレンドシフトを提供する。転機はこのデータに基づくこと',
+        '- 日記の一文で「夢を見た」と書いてあっても、前後の数値変動がなければ転機ではない',
+        '- 前兆語・語彙頻度・一人称率の変化を根拠として示せ',
+        '',
         '【時間的整合性ルール】',
         '- 過去の辛い出来事を、直近の状態と無関係に「今も影響している」と描写するな',
         '- 直近の日記が穏やかなら、「現在地」はその穏やかさを正確に反映しろ',
@@ -334,6 +373,7 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '',
         '以下のルールに従ってください：',
         '- 日記の時系列を読み、感情・生活・思考に大きな変化が起きた「転機」を最大10個検出する',
+        '- 【重要】転機の根拠は実測データのトレンドシフトと一致させること。データにない転機を捏造するな',
         '- 各転機について以下の形式で記述する：',
         '',
         '  ■ 転機N：[時期] [変化の内容]',
@@ -370,7 +410,7 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
     },
     {
       role: 'user',
-      content: `以下の日記から、大きな転機・変化点を検出してください。各転機が「最新の日記時点（${latestDate}頃）の自分」にどう繋がっているかも分析してください。各転機に標高変動と「未来からの一行」を付与してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${emotionStats}\n\n${truncated}`,
+      content: `以下の日記から、大きな転機・変化点を検出してください。各転機が「最新の日記時点（${latestDate}頃）の自分」にどう繋がっているかも分析してください。各転機に標高変動と「未来からの一行」を付与してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${deepStats}\n${emotionStats}\n\n${truncated}`,
     },
   ], 3000);
 }
@@ -517,6 +557,13 @@ export async function analyzeSeasonalEmotions(entries: DiaryEntry[]): Promise<st
     })
     .join('\n\n');
 
+  // 深層分析: 季節×指標クロス集計
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const seasonalCross = calcSeasonalCrossStats(monthlyDeep);
+  const seasonalDataText = seasonalCross.map(s =>
+    `${s.seasonLabel}: ネガ率${Math.round(s.avgNegativeRatio * 100)}% / 仕事語${s.avgWorkWordRate}/1000字 / 身体症状${s.avgPhysicalSymptoms}件/月 / 一人称率${s.avgFirstPersonRate}/1000字 / 自己モニタリング${s.avgSelfMonitorRate}/1000字 / 平均文長${s.avgSentenceLength}字（${s.monthCount}ヶ月分）`
+  ).join('\n');
+
   return callChat([
     {
       role: 'system',
@@ -529,22 +576,26 @@ export async function analyzeSeasonalEmotions(entries: DiaryEntry[]): Promise<st
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「頑張った」は使うな。',
         '',
+        '【季節分析の定量化ルール — 最重要】',
+        '- 「春は芽吹き」「冬は吹雪」のような詩的表現だけに逃げるな',
+        '- 以下に季節×指標のクロス集計データを提供する。このデータを必ず引用しろ',
+        '- 季節ごとのネガ率、仕事語率、身体症状数、一人称率、自己モニタリング率を数値で示せ',
+        '- 季節間の差異が統計的に大きい指標を特定し、その意味を解釈しろ',
+        '- 例：「冬はネガ率42%、仕事語率は夏の1.8倍。仕事の負荷が冬季の感情悪化と共起している」',
+        '',
         '以下のルールに従ってください：',
-        '- 春夏秋冬それぞれの季節で、感情の傾向・特徴を「山の気象」として分析する',
-        '- 各季節を山の気象で喩える：',
-        '  春 → 雪解け・雪崩注意報・芽吹き前の凍結',
-        '  夏 → 落雷リスク・視界良好・高山病・水分不足',
-        '  秋 → 紅葉の尾根・日没が早い・撤退判断の季節',
-        '  冬 → 吹雪・ビバーク・アイゼンが必要・星が近い',
-        '- 季節ごとに2〜3行で記述する。日記中の具体的な表現を「」で引用すること',
+        '- 春夏秋冬それぞれの季節で、感情の傾向・特徴を数値データに基づいて分析する',
+        '- 山の気象メタファーは使ってよいが、必ず数値の裏付けを添えること',
+        '- 季節ごとに2〜3行で記述する。数値データ＋日記中の具体的な表現を「」で引用',
         '- 季節間の対比や周期的パターンがあれば指摘する',
+        '- 身体症状が特定の季節に集中しているかを確認し、あれば言及する',
         '- 500字以内で出力する',
         '- 事実に基づきつつ、温かい目で見ること',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記を季節別に分析し、感情の傾向を教えてください：\n\n${grouped}`,
+      content: `以下の日記を季節別に分析し、感情の傾向を教えてください：\n\n【季節×指標クロス集計（実測データ）】\n${seasonalDataText}\n\n${grouped}`,
     },
   ]);
 }
@@ -582,6 +633,18 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
 
+  // 語彙深度データを算出（3期比較）
+  const earlyDepth = calcVocabularyDepth(periods[0], periodLabels[0]);
+  const midDepth = calcVocabularyDepth(periods[1], periodLabels[1]);
+  const lateDepth = calcVocabularyDepth(periods[2], periodLabels[2]);
+  const depthComparison = [
+    '【実測データ: 3期間の語彙深度比較】',
+    `  初期: 軽度ネガ${earlyDepth.lightNegCount} / 深度ネガ${earlyDepth.deepNegCount} / 深度比${Math.round(earlyDepth.depthRatio * 100)}% / 一人称${earlyDepth.firstPersonCount} / 他者${earlyDepth.otherPersonCount} / 文長${earlyDepth.avgSentenceLength}字`,
+    `  中期: 軽度ネガ${midDepth.lightNegCount} / 深度ネガ${midDepth.deepNegCount} / 深度比${Math.round(midDepth.depthRatio * 100)}% / 一人称${midDepth.firstPersonCount} / 他者${midDepth.otherPersonCount} / 文長${midDepth.avgSentenceLength}字`,
+    `  後期: 軽度ネガ${lateDepth.lightNegCount} / 深度ネガ${lateDepth.deepNegCount} / 深度比${Math.round(lateDepth.depthRatio * 100)}% / 一人称${lateDepth.firstPersonCount} / 他者${lateDepth.otherPersonCount} / 文長${lateDepth.avgSentenceLength}字`,
+    '→ 「ポジティブ語が増えた＝成長」と安易に結論づけるな。深度比・主語比率・文長の複合変化を見ろ。',
+  ].join('\n');
+
   return callChat([
     {
       role: 'system',
@@ -594,6 +657,13 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【感情の質を見ろ — 最重要】',
+        '- ポジティブ語の増加だけで「回復」「成長」を判断するな',
+        '- ネガティブ語の「深度」を見ろ：軽い不満（疲れ、だるい）と深い苦悩（死にたい、消えたい）は別物',
+        '- 一人称の増減を見ろ：一人称の減少は「社会的適応の向上」ではなく「本音を書かなくなった」可能性',
+        '- 自己モニタリング語（調子、体調等）の消失は注意信号。自分を観察する余裕がなくなった可能性',
+        '- 以下に3期間の語彙深度データを提供する。このデータに基づいて判断しろ',
         '',
         '【時間的整合性ルール】',
         '- 後期が穏やかな場合、その穏やかさを「変化」として正確に反映しろ',
@@ -621,7 +691,7 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
+      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${depthComparison}\n\n【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
     },
   ], 1500);
 }
@@ -654,6 +724,13 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
 
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
+
+  // 深層分析データを算出
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+  const currentStateText = currentState
+    ? `\n【現在地の数値】複合安定度 ${currentState.overallStability}/100 / ネガ率 ${Math.round(currentState.recentNegRatio * 100)}% / トレンド ${currentState.negRatioTrend === 'improving' ? '改善' : currentState.negRatioTrend === 'worsening' ? '悪化' : '安定'} / リスク ${currentState.riskLevel}\n→ 「今いる場所」の描写はこの数値に基づくこと。`
+    : '';
 
   return callChat([
     {
@@ -706,7 +783,7 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
     },
     {
       role: 'user',
-      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${emotionStats}\n\n${truncated}`,
+      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${currentStateText}\n${emotionStats}\n\n${truncated}`,
     },
   ], 1500);
 }
@@ -982,6 +1059,14 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
 
+  // 深層分析データを算出
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const trendShifts = detectTrendShifts(monthlyDeep);
+  const seasonalStats = calcSeasonalCrossStats(monthlyDeep);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+  const predictive = calcPredictiveIndicators(monthlyDeep, entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive);
+
   return callChat([
     {
       role: 'system',
@@ -993,6 +1078,11 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【数値ベースの判断 — 最重要】',
+        '- 以下に深層分析の実測データを提供する。判断はこのデータに基づくこと',
+        '- 「穏やか」「不安定」等の状態判定はAIの主観ではなく数値で根拠を示せ',
+        '- トレンドシフト、季節パターン、予測シグナルのデータを必ずレポートに反映しろ',
         '',
         '【時間的整合性ルール】',
         '- 「変化の流れ」を描くとき、直近の状態を正確に反映しろ',
@@ -1033,7 +1123,7 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${deepStats}\n${truncated}`,
     },
   ], 2000);
 }
@@ -1124,6 +1214,15 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
 
+  // 深層分析: 予測シグナルを算出（気象予報の精度向上）
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+  const predictive = calcPredictiveIndicators(monthlyDeep, entries);
+  const forecastData = [
+    currentState ? `複合安定度 ${currentState.overallStability}/100 / トレンド ${currentState.negRatioTrend === 'improving' ? '改善傾向' : currentState.negRatioTrend === 'worsening' ? '悪化傾向' : '安定'}` : '',
+    ...predictive.activeSignals.map(s => `${s.severity === 'warning' ? '⚠' : s.severity === 'caution' ? '△' : '○'} ${s.signal}: ${s.evidence}`),
+  ].filter(Boolean).join('\n');
+
   return callChat([
     {
       role: 'system',
@@ -1175,7 +1274,7 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
     },
     {
       role: 'user',
-      content: `以下の日記を、やさしく観測してください。評価ではなく、観察として：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
+      content: `以下の日記を、やさしく観測してください。評価ではなく、観察として：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${forecastData ? `【気象観測データ（実測値）】\n${forecastData}\n→ 「今日の山岳気象予報」はこのデータに基づくこと。主観で天気を作るな。\n\n` : ''}${truncated}`,
     },
   ], 1500);
 }
