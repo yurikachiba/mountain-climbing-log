@@ -93,7 +93,7 @@ export function Timeline() {
 
   const bodyWorkData = monthlyDeep.map(m => ({
     month: m.month,
-    '身体症状': m.physicalSymptomCount,
+    '身体症状(/1000字)': m.physicalSymptomRate,
     '仕事語率': m.workWordRate,
   }));
 
@@ -450,7 +450,7 @@ export function Timeline() {
               <YAxis fontSize={12} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="身体症状" stroke="#555" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="身体症状(/1000字)" stroke="#555" strokeWidth={2} dot={{ r: 2 }} />
               <Line type="monotone" dataKey="仕事語率" stroke="#aaa" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>

@@ -6,7 +6,10 @@ import {
   calcSeasonalCrossStats,
   calcCurrentStateNumeric,
   calcPredictiveIndicators,
+  calcDailyPredictiveContext,
   calcVocabularyDepth,
+  interpretDepthChange,
+  interpretFirstPersonShift,
   formatDeepStatsForPrompt,
   formatVocabularyDepthForPrompt,
 } from './deepAnalyzer';
@@ -272,10 +275,18 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
   const truncatedEarly = early.slice(0, 5000);
   const truncatedLate = late.slice(0, 5000);
 
-  // 語彙深度データを算出
+  // 語彙深度データを算出（正規化版）
   const earlyDepth = calcVocabularyDepth(earlyEntries, earlyRange);
   const lateDepth = calcVocabularyDepth(lateEntries, lateRange);
-  const vocabDepthText = formatVocabularyDepthForPrompt(earlyDepth, lateDepth);
+
+  // 深度比と一人称変化の自動解釈
+  const depthInterp = interpretDepthChange(earlyDepth, lateDepth);
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const earlyMonthly = monthlyDeep.slice(0, Math.floor(monthlyDeep.length / 2));
+  const lateMonthly = monthlyDeep.slice(Math.floor(monthlyDeep.length / 2));
+  const fpInterp = interpretFirstPersonShift(earlyDepth, lateDepth, earlyMonthly, lateMonthly);
+
+  const vocabDepthText = formatVocabularyDepthForPrompt(earlyDepth, lateDepth, depthInterp, fpInterp);
 
   return callChat([
     {
@@ -341,7 +352,8 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   const seasonalStats = calcSeasonalCrossStats(monthlyDeep);
   const currentState = calcCurrentStateNumeric(monthlyDeep);
   const predictive = calcPredictiveIndicators(monthlyDeep, entries);
-  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive);
+  const dailyPredictive = calcDailyPredictiveContext(entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictive);
 
   return callChat([
     {
@@ -1065,7 +1077,8 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
   const seasonalStats = calcSeasonalCrossStats(monthlyDeep);
   const currentState = calcCurrentStateNumeric(monthlyDeep);
   const predictive = calcPredictiveIndicators(monthlyDeep, entries);
-  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive);
+  const dailyPredictiveCtx = calcDailyPredictiveContext(entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictiveCtx);
 
   return callChat([
     {
