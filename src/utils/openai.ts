@@ -7,6 +7,7 @@ import {
   calcCurrentStateNumeric,
   calcPredictiveIndicators,
   calcDailyPredictiveContext,
+  calcExistentialDensity30d,
   calcVocabularyDepth,
   interpretDepthChange,
   interpretFirstPersonShift,
@@ -363,7 +364,8 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   const currentState = calcCurrentStateNumeric(monthlyDeep);
   const predictive = calcPredictiveIndicators(monthlyDeep, entries);
   const dailyPredictive = calcDailyPredictiveContext(entries);
-  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictive);
+  const existentialDensity = calcExistentialDensity30d(entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictive, existentialDensity);
 
   return callChat([
     {
@@ -1098,7 +1100,8 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
   const currentState = calcCurrentStateNumeric(monthlyDeep);
   const predictive = calcPredictiveIndicators(monthlyDeep, entries);
   const dailyPredictiveCtx = calcDailyPredictiveContext(entries);
-  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictiveCtx);
+  const existentialDensityCtx = calcExistentialDensity30d(entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictiveCtx, existentialDensityCtx);
 
   return callChat([
     {
@@ -1186,6 +1189,25 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
 
+  // 存在論的密度データを算出
+  const existentialDensity = calcExistentialDensity30d(entries);
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+
+  // 存在テーマデータのフォーマット
+  const existentialDataText = existentialDensity.density > 0
+    ? [
+        '【実測データ: 直近30日の存在論的テーマ密度】',
+        `  総密度: ${existentialDensity.density}/1000字`,
+        `  生死: ${existentialDensity.themes.lifeDeath} / 自己同一性: ${existentialDensity.themes.identity} / 完成/未完: ${existentialDensity.themes.completion} / 存在的強度: ${existentialDensity.themes.intensity}`,
+        existentialDensity.highlightWords.length > 0 ? `  検出語: ${existentialDensity.highlightWords.join('、')}` : '',
+        currentState ? `  存在テーマ方向性: ${currentState.existentialTrend === 'deepening' ? '深化中' : currentState.existentialTrend === 'surface' ? '表層化' : '安定'}` : '',
+        '→ 急所は「生活リズム」だけでなく「存在論的な構造」からも探れ。',
+        '→ 直近30日に存在テーマが検出されている場合、急所はそこにある可能性が高い。',
+        '',
+      ].filter(Boolean).join('\n')
+    : '';
+
   return callChat([
     {
       role: 'system',
@@ -1205,6 +1227,14 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '- 根拠として引用する日記は、古いものだけでなく直近のものも含めて「繰り返し」を証明しろ',
         '- 直近が穏やかな場合に、過去の辛い時期だけを引っ張って「急所」を捏造するな',
         '',
+        '【存在論レイヤーの検出 — 重要】',
+        '- 急所は「生活リズムの崩れ」「睡眠」「仕事」だけとは限らない',
+        '- 直近の日記に存在論的テーマ（死、有限性、未完、自己同一性、熱、核）が検出されている場合：',
+        '  → 急所はそのレイヤーにある可能性が高い。生活ログから急所を探すな',
+        '  → 「終わりを前提に生きすぎる癖」「有限性への過剰適応」「炉心の熱を抑え込む構造」など、存在論的な急所を検討しろ',
+        '  → 低頻度でも深度の高い語（死、核、未完、統合、主体）は、高頻度の生活語より重要',
+        '- 存在テーマが検出されていない場合は従来通り生活パターンから急所を探せ',
+        '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」「でも大丈夫」は使うな。',
         '',
         '以下のルールに従ってください：',
@@ -1216,6 +1246,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '',
         '  ■ 急所：[一言で命名。登山メタファーで]',
         '  例：「いつも同じ分岐で迷う」「他人のザックまで背負う癖」「偽ピークで毎回燃え尽きる」',
+        '  例（存在論的）：「終わりの見える稜線で急ぐ癖」「炉心を抑え込む荷造り」「未完を恐れて荷物を増やす」',
         '',
         '  ■ 根拠',
         '  日記のどの記述パターンからそう判断したか。具体的な表現を3つ以上「」で引用する。',
@@ -1238,7 +1269,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）を読み、書き手の「急所」を1つだけ、正直に指摘してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）を読み、書き手の「急所」を1つだけ、正直に指摘してください：\n\n${existentialDataText}${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
   ], 2500);
 }
