@@ -1041,33 +1041,36 @@ export function interpretDepthChange(early: VocabularyDepth, late: VocabularyDep
   const frequencyChange = earlyTotalRate > 0 ? (lateTotalRate - earlyTotalRate) / earlyTotalRate : 0;
   const depthChange = late.depthRatio - early.depthRatio;
 
-  // 頻度は減ったが深度比が上がった → 最も危険なパターン
+  // 頻度は減ったが深度比が上がった
   if (frequencyChange < -0.15 && depthChange > 0.05) {
     return {
       pattern: 'frequency_down_depth_up',
       label: '頻度減少×深度上昇',
-      description: `ネガティブ語の総量は${Math.round(Math.abs(frequencyChange) * 100)}%減少したが、深度比は${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。「愚痴は減ったが、来る時は深い」パターン。軽度の不満が減り、重い言葉だけが残っている。`,
-      riskNote: '表面的な改善に見えるが、深層のリスクは残存。むしろ軽度ネガが「フィルタリング」されている可能性（本音を書かなくなった／書けなくなった）。',
+      description: `ネガティブ語の総量は${Math.round(Math.abs(frequencyChange) * 100)}%減少したが、深度比は${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。軽度の不満が減り、重い言葉だけが残っている。`,
+      riskNote: '読み方A: 軽い愚痴を流せるようになり、本当に深い感情だけが残った（感情の成熟）。読み方B: 本音を書かなくなり、書けなくなったときだけ深い言葉が漏れている（抑圧の兆候）。どちらかは日記の文脈で判断せよ。',
+      alternativeReading: '「愚痴が減った」は安定の証かもしれないし、感情の出口が狭まった兆候かもしれない。両方の可能性を提示すること。',
     };
   }
 
-  // 頻度も深度も減った → 本質的な回復
+  // 頻度も深度も減った
   if (frequencyChange < -0.15 && depthChange < -0.05) {
     return {
       pattern: 'frequency_down_depth_down',
       label: '頻度減少×深度低下',
       description: `ネガティブ語の総量が${Math.round(Math.abs(frequencyChange) * 100)}%減少し、深度比も${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に低下。深い苦悩も軽い不満も共に減っている。`,
-      riskNote: '回復傾向として最も信頼性が高いパターン。ただし記述量自体の減少による見かけの改善でないか確認が必要。',
+      riskNote: '読み方A: 回復傾向として信頼性が高いパターン。実際に苦痛が減っている。読み方B: 記述量自体の減少、または日記に感情を書かなくなった可能性。テキスト量と記述頻度も確認せよ。',
+      alternativeReading: '感情語が減ったのは「楽になった」からかもしれないし、「書く力が落ちた」からかもしれない。記述量の変化と合わせて判断すること。',
     };
   }
 
-  // 頻度も深度も上がった → 悪化
+  // 頻度も深度も上がった
   if (frequencyChange > 0.15 && depthChange > 0.05) {
     return {
       pattern: 'frequency_up_depth_up',
       label: '頻度増加×深度上昇',
-      description: `ネガティブ語が${Math.round(frequencyChange * 100)}%増加し、深度比も${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。量も質も悪化。`,
-      riskNote: '注意を要する。身体症状との並行を確認せよ。',
+      description: `ネガティブ語が${Math.round(frequencyChange * 100)}%増加し、深度比も${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。量も質も変化。`,
+      riskNote: '読み方A: 実際に苦痛が増している。身体症状との並行を確認せよ。読み方B: 感情を言語化する力が上がり、以前は書けなかった深い感情を書けるようになった可能性。文長や語彙の多様性も確認せよ。',
+      alternativeReading: 'ネガティブ語の増加は「状態の悪化」かもしれないし、「感情を書ける余裕が生まれた」かもしれない。文脈で判断すること。',
     };
   }
 
@@ -1077,7 +1080,8 @@ export function interpretDepthChange(early: VocabularyDepth, late: VocabularyDep
       pattern: 'stable',
       label: '安定',
       description: `ネガティブ語の頻度・深度ともに大きな変化なし。深度比 ${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%。`,
-      riskNote: '変化がないこと自体は中立。現状の水準が高い場合は持続的リスク。',
+      riskNote: '読み方A: 安定した状態が続いている。読み方B: 変化がないこと自体が停滞。現状の水準が高い場合は持続的リスク。',
+      alternativeReading: '「変わっていない」は安定かもしれないし、動けなくなっているのかもしれない。日記の内容の変化と合わせて判断すること。',
     };
   }
 
@@ -1085,7 +1089,8 @@ export function interpretDepthChange(early: VocabularyDepth, late: VocabularyDep
     pattern: 'other',
     label: 'その他のパターン',
     description: `頻度変化${Math.round(frequencyChange * 100)}%、深度比${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%。分類に収まらない複合変化。`,
-    riskNote: '個別判断が必要。',
+    riskNote: '単一の読み方に収まらない。複数の解釈を並べて提示すること。',
+    alternativeReading: '複合パターンのため、複数の解釈を並列に提示すること。',
   };
 }
 
@@ -1107,6 +1112,7 @@ export function interpretFirstPersonShift(
       pattern: 'insufficient_data',
       label: '有意な変化なし',
       description: `一人称出現率の変化が${Math.round(Math.abs(fpChange) * 100)}%で、解釈に必要な閾値（30%）に達していない。`,
+      alternativeReading: '',
       evidence: [],
     };
   }
@@ -1138,14 +1144,15 @@ export function interpretFirstPersonShift(
     const lateWorkAvg = lateMonthly.length > 0
       ? lateMonthly.reduce((s, m) => s + m.workWordRate, 0) / lateMonthly.length : 0;
 
-    // 仮説1: 役割人格化 — タスク語・仕事語が増えている場合
+    // 仮説1: 役割人格化 — タスク語・仕事語が増えている場合（最有力仮説として提示、ただし断定しない）
     if (lateTaskAvg > earlyTaskAvg * 1.3 || lateWorkAvg > earlyWorkAvg * 1.3) {
       evidence.push(`タスク語率: ${earlyTaskAvg.toFixed(2)} → ${lateTaskAvg.toFixed(2)}/1000字`);
       evidence.push(`仕事語率: ${earlyWorkAvg.toFixed(2)} → ${lateWorkAvg.toFixed(2)}/1000字`);
       return {
         pattern: 'role_persona',
-        label: '役割人格化',
-        description: '一人称が減少し、タスク・仕事関連語が増加。「私」ではなく「役割」として書くようになった可能性。日記が内省の場から業務報告に変質している兆候。',
+        label: '役割人格化（有力仮説）',
+        description: '一人称が減少し、タスク・仕事関連語が増加。「私」ではなく「役割」として書くようになった可能性がある。',
+        alternativeReading: '別の読み方: 仕事に集中できる余裕が生まれ、日記が「内面の吐露」から「日々の記録」に自然に変化した可能性。必ずしも悪い兆候とは限らない。',
         evidence,
       };
     }
@@ -1155,8 +1162,9 @@ export function interpretFirstPersonShift(
       evidence.push(`他者参照率: ${early.otherPersonRate}/1000字 → ${late.otherPersonRate}/1000字（${Math.round(opChange * 100)}%増加）`);
       return {
         pattern: 'outward_adaptation',
-        label: '外向き適応強化',
-        description: '一人称が減少し、他者への言及が増加。対人関係への意識が強まり、自己を語る言葉が相対的に減っている。社会的適応の強化か、自己を他者の目で見るようになった変化。',
+        label: '外向き適応強化（有力仮説）',
+        description: '一人称が減少し、他者への言及が増加。対人関係への意識が強まり、自己を語る言葉が相対的に減っている。',
+        alternativeReading: '別の読み方: 自分のことばかり考える状態から抜け出し、周囲に目を向けられるようになった可能性。「自分」が減ったのは、世界が広がったからかもしれない。',
         evidence,
       };
     }
@@ -1166,8 +1174,9 @@ export function interpretFirstPersonShift(
       evidence.push(`自己モニタリング語率: ${earlySmAvg.toFixed(2)} → ${lateSmAvg.toFixed(2)}/1000字`);
       return {
         pattern: 'self_disclosure_decrease',
-        label: '自己開示の減少',
-        description: '一人称・自己モニタリング語が共に減少。自分の状態を言語化すること自体が減っている。日記に本音を書かなくなった、または自分を観察する余裕がなくなった可能性。',
+        label: '自己開示の減少（有力仮説）',
+        description: '一人称・自己モニタリング語が共に減少。自分の状態を言語化すること自体が減っている。',
+        alternativeReading: '別の読み方: 自分の状態をいちいち確認する必要がなくなるほど安定した可能性。「調子」を書かなくなったのは、調子が安定しているからかもしれない。',
         evidence,
       };
     }
@@ -1177,8 +1186,9 @@ export function interpretFirstPersonShift(
     evidence.push(`自己モニタリング: ${earlySmAvg.toFixed(2)} → ${lateSmAvg.toFixed(2)}/1000字`);
     return {
       pattern: 'genuine_growth',
-      label: '視点の拡張（仮説）',
-      description: '一人称の減少に対し、特定の代替パターン（役割化・外向化・閉鎖化）が検出されなかった。自己と外界のバランスが変化した可能性があるが、断定はできない。',
+      label: '視点の変化（複数仮説あり）',
+      description: '一人称の減少に対し、特定の代替パターン（役割化・外向化・閉鎖化）が明確には検出されなかった。自己と外界のバランスが変化した可能性があるが、断定はできない。',
+      alternativeReading: '読み方は複数ある。「自分を語る必要がなくなった安定」「自分を語れなくなった疲弊」「視野が広がり自分以外に意識が向いた」のいずれも否定できない。',
       evidence,
     };
   }
@@ -1187,7 +1197,8 @@ export function interpretFirstPersonShift(
   return {
     pattern: 'insufficient_data',
     label: '一人称増加',
-    description: `一人称出現率が${Math.round(fpChange * 100)}%増加。内省の深化、または社会的撤退の可能性。`,
+    description: `一人称出現率が${Math.round(fpChange * 100)}%増加。`,
+    alternativeReading: '読み方A: 内省が深まり、自分と向き合う力が増した。読み方B: 社会的な関係が薄れ、自分のことしか書けなくなった。どちらの可能性もある。',
     evidence: [`一人称率: ${early.firstPersonRate}/1000字 → ${late.firstPersonRate}/1000字`],
   };
 }
@@ -1317,19 +1328,25 @@ export function formatVocabularyDepthForPrompt(
     lines.push(`  ⚠ テキスト量の差: 前期${early.textLength.toLocaleString()}字 vs 後期${late.textLength.toLocaleString()}字（${Math.round(textRatio * 100)}%）。生カウントでの比較は不適切。1000字あたりの出現率で判断せよ。`);
   }
 
-  // 深度比の解釈（自動判定結果）
+  // 深度比の解釈（自動判定結果 — 両義的）
   if (depthInterpretation) {
     lines.push('');
     lines.push(`  【深度比の自動解釈: ${depthInterpretation.label}】`);
     lines.push(`    ${depthInterpretation.description}`);
-    lines.push(`    リスク評価: ${depthInterpretation.riskNote}`);
+    lines.push(`    ${depthInterpretation.riskNote}`);
+    if (depthInterpretation.alternativeReading) {
+      lines.push(`    ★両義性: ${depthInterpretation.alternativeReading}`);
+    }
   }
 
-  // 一人称変化の解釈
+  // 一人称変化の解釈（両義的）
   if (fpInterpretation && fpInterpretation.pattern !== 'insufficient_data') {
     lines.push('');
     lines.push(`  【一人称変化の自動解釈: ${fpInterpretation.label}】`);
     lines.push(`    ${fpInterpretation.description}`);
+    if (fpInterpretation.alternativeReading) {
+      lines.push(`    ★両義性: ${fpInterpretation.alternativeReading}`);
+    }
     for (const ev of fpInterpretation.evidence) {
       lines.push(`    根拠: ${ev}`);
     }
@@ -1338,6 +1355,7 @@ export function formatVocabularyDepthForPrompt(
   lines.push('');
   lines.push('→ ポジティブ語の増加＝成長と安易に結論づけるな。上記の正規化データと自動解釈で質を検証せよ。');
   lines.push('→ 生カウントの比較は期間のテキスト量が異なるため無効。必ず/1000字の出現率で判断すること。');
+  lines.push('→ 【重要】自動解釈には必ず「★両義性」が付記されている。単一の読み方で閉じるな。両方の可能性を出力に反映せよ。');
   lines.push('');
 
   return lines.join('\n');
