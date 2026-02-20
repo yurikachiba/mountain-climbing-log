@@ -244,6 +244,7 @@ export interface DepthInterpretation {
   label: string;
   description: string;
   riskNote: string;
+  alternativeReading: string;
 }
 
 // 一人称変化の解釈結果
@@ -251,6 +252,7 @@ export interface FirstPersonShiftInterpretation {
   pattern: 'role_persona' | 'outward_adaptation' | 'self_disclosure_decrease' | 'genuine_growth' | 'insufficient_data';
   label: string;
   description: string;
+  alternativeReading: string;
   evidence: string[];
 }
 
