@@ -458,7 +458,8 @@ export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContex
   const olderEntries = sorted.filter(e => e.date! < cutoffStr);
 
   // 直近のエントリが少なすぎる場合はコンテキストを生成しない
-  if (recentEntries.length < 3 || olderEntries.length < 3) {
+  // ただし直近1件でもあれば現在の状態は伝える（材料が少ないからと見逃さない）
+  if (recentEntries.length < 1 || olderEntries.length < 1) {
     return {
       isRecentCalm: false,
       recentNegRatio: 0,
@@ -592,6 +593,36 @@ export function calcResilience(elevationPoints: { climb: number; isSlide: boolea
     slideCount: slides.length,
     totalSlideDepth: Math.round(totalSlideDepth * 10) / 10,
   };
+}
+
+// 直近エントリのハイライトテキスト生成（プロンプト注入用）
+// 直近14日のエントリを丸ごと別枠で渡し、AIが見逃さないようにする
+export function formatRecentEntriesHighlight(entries: DiaryEntry[], maxChars = 3000): string {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length === 0) return '';
+
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const cutoff = new Date(latestDate);
+  cutoff.setDate(cutoff.getDate() - 14);
+  const cutoffStr = cutoff.toISOString().substring(0, 10);
+
+  const recentEntries = sorted.filter(e => e.date! >= cutoffStr);
+  if (recentEntries.length === 0) return '';
+
+  const lines = recentEntries.map(e => `[${e.date}] ${e.content.slice(0, 300)}`);
+  let text = lines.join('\n---\n');
+  if (text.length > maxChars) text = text.slice(0, maxChars);
+
+  return [
+    '【直近14日の日記（全文に近い抜粋）— 最重要】',
+    `件数: ${recentEntries.length}件（全${sorted.length}件中）`,
+    '→ 直近の日記は件数が少なくても「今」を映している。古い日記より優先して読め。',
+    '→ この中に転機・変化・濃い記述があれば、必ず分析に含めろ。材料が少ないからと見逃すな。',
+    '',
+    text,
+  ].join('\n');
 }
 
 // 名前っぽいパターンを匿名化（他人モード用）

@@ -1,5 +1,5 @@
 import { getApiKey } from './apiKey';
-import { calcPeriodStats, formatPeriodStatsForPrompt, calcRecentStateContext } from './emotionAnalyzer';
+import { calcPeriodStats, formatPeriodStatsForPrompt, calcRecentStateContext, formatRecentEntriesHighlight } from './emotionAnalyzer';
 import {
   calcMonthlyDeepAnalysis,
   detectTrendShifts,
@@ -69,15 +69,26 @@ function splitIndexByTimeFraction(sorted: DiaryEntry[], fraction: number): numbe
 }
 
 // 時系列で均等にサンプリングする（年ごとに最低保証枠あり）
+// 追加: 直近14日のエントリは必ず全件含める
 function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
     (a.date ?? '').localeCompare(b.date ?? '')
   );
   if (sorted.length <= maxCount) return sorted;
 
+  // 直近14日のエントリは必ず含める
+  const mustInclude = getRecentEntries(sorted, 14);
+  const mustIncludeDates = new Set(mustInclude.map(e => e.date));
+  const rest = sorted.filter(e => !mustIncludeDates.has(e.date));
+  const remainingBudget = Math.max(0, maxCount - mustInclude.length);
+
+  if (remainingBudget === 0) {
+    return mustInclude.slice(-maxCount);
+  }
+
   // 年ごとにグループ化
   const byYear = new Map<string, DiaryEntry[]>();
-  for (const e of sorted) {
+  for (const e of rest) {
     const year = e.date!.substring(0, 4);
     const list = byYear.get(year) ?? [];
     list.push(e);
@@ -88,49 +99,74 @@ function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const yearCount = years.length;
 
   // 各年に最低保証枠を確保（全体の15%を均等配分、最低2件）
-  const minPerYear = Math.max(2, Math.floor(maxCount * 0.15 / yearCount));
+  const minPerYear = Math.max(2, Math.floor(remainingBudget * 0.15 / Math.max(1, yearCount)));
   const guaranteed = years.reduce((sum, y) =>
     sum + Math.min(minPerYear, byYear.get(y)!.length), 0);
-  const remaining = Math.max(0, maxCount - guaranteed);
+  const remaining = Math.max(0, remainingBudget - guaranteed);
 
   const result: DiaryEntry[] = [];
   for (const year of years) {
     const yearEntries = byYear.get(year)!;
     const min = Math.min(minPerYear, yearEntries.length);
     const proportional = remaining > 0
-      ? Math.round(remaining * yearEntries.length / sorted.length)
+      ? Math.round(remaining * yearEntries.length / rest.length)
       : 0;
     const budget = Math.min(min + proportional, yearEntries.length);
     result.push(...sampleSliceFromArray(yearEntries, budget));
   }
 
-  return result.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+  return [...result, ...mustInclude].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+}
+
+// 直近N日のエントリを確実に取得する（日数ベース）
+function getRecentEntries(sorted: DiaryEntry[], days: number): DiaryEntry[] {
+  if (sorted.length === 0) return [];
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const cutoff = new Date(latestDate);
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().substring(0, 10);
+  return sorted.filter(e => e.date! >= cutoffStr);
 }
 
 // 直近を厚めにサンプリングする（直近30%の「期間」に40%のサンプルを割り当て）
+// 追加: 直近14日のエントリは必ず全件含める（薄い直近を見逃さない）
 function sampleWithRecencyBias(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
     (a.date ?? '').localeCompare(b.date ?? '')
   );
   if (sorted.length <= maxCount) return sorted;
 
+  // 直近14日のエントリは必ず含める（truncateしない）
+  const mustInclude = getRecentEntries(sorted, 14);
+  const mustIncludeDates = new Set(mustInclude.map(e => e.date));
+  const remaining = sorted.filter(e => !mustIncludeDates.has(e.date));
+  const remainingBudget = Math.max(0, maxCount - mustInclude.length);
+
+  if (remainingBudget === 0) {
+    return mustInclude.slice(-maxCount);
+  }
+
   // 実際のカレンダー日付で直近30%の期間を分割（配列位置ではなく時間ベース）
-  const recentCutoff = splitIndexByTimeFraction(sorted, 0.7);
-  const olderEntries = sorted.slice(0, recentCutoff);
-  const recentEntries = sorted.slice(recentCutoff);
+  const recentCutoff = splitIndexByTimeFraction(remaining, 0.7);
+  const olderEntries = remaining.slice(0, recentCutoff);
+  const recentEntries = remaining.slice(recentCutoff);
 
   // 直近が空の場合はフォールバック
   if (recentEntries.length === 0) {
-    return sampleSliceFromArray(sorted, maxCount);
+    return [
+      ...sampleSliceFromArray(remaining, remainingBudget),
+      ...mustInclude,
+    ].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
   }
 
-  const olderCount = Math.floor(maxCount * 0.6);
-  const recentCount = maxCount - olderCount;
+  const olderCount = Math.floor(remainingBudget * 0.55);
+  const recentCount = remainingBudget - olderCount;
 
   return [
     ...sampleSliceFromArray(olderEntries, olderCount),
     ...sampleSliceFromArray(recentEntries, recentCount),
-  ];
+    ...mustInclude,
+  ].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
 }
 
 // 年代別要約（500字以内）
@@ -214,7 +250,7 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
         '- 年をまたぐ変化の流れが読み取れるように、前年との差分を意識する',
       ].join('\n'),
     },
-    { role: 'user', content: `以下の日記を年代別に要約してください。各年に「物語タイトル」を付け、登山の旅として描いてください。日記中の具体的な言葉を「」で引用すること：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}` },
+    { role: 'user', content: `以下の日記を年代別に要約してください。各年に「物語タイトル」を付け、登山の旅として描いてください。日記中の具体的な言葉を「」で引用すること：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n${truncated}` },
   ]);
 }
 
@@ -244,7 +280,7 @@ export async function extractEmotionTags(entries: DiaryEntry[]): Promise<string>
         '- 冷静に、箇条書きで出力する',
       ].join('\n'),
     },
-    { role: 'user', content: `以下の日記から頻出感情タグを抽出してください：\n\n${truncated}` },
+    { role: 'user', content: `以下の日記から頻出感情タグを抽出してください：\n\n${formatRecentEntriesHighlight(entries, 1500)}\n\n${truncated}` },
   ]);
 }
 
@@ -327,11 +363,16 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
         '- 日記中の具体的な言葉を5つ以上「」で引用すること。引用なしの分析は却下',
         '- 800字以内で冷静に記述する',
         '- 事実に基づきつつ、温かい目で見ること',
+        '',
+        '【直近重視ルール】',
+        '- 直近14日の日記は件数が少なくても「今」を映す最重要データ。古い日記より優先して分析しろ',
+        '- 直近に濃い記述があれば、それを必ず分析に含めろ。材料が少ないからと見逃すな',
+        '- 「今」の変化に言及しない分析は不完全。昔のことだけ書くな',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記の前期・後期でトーンの変化を分析してください：\n\n${vocabDepthText}\n【前期：${earlyRange}】\n${truncatedEarly}\n\n【後期：${lateRange}】\n${truncatedLate}`,
+      content: `以下の日記の前期・後期でトーンの変化を分析してください：\n\n${vocabDepthText}\n\n${formatRecentEntriesHighlight(entries, 2000)}\n\n【前期：${earlyRange}】\n${truncatedEarly}\n\n【後期：${lateRange}】\n${truncatedLate}`,
     },
   ], 2000);
 }
@@ -430,11 +471,16 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '- 日記は全期間から均等に抽出されたサンプルである。全期間を対象に転機を探すこと',
         '- 事実に基づくこと。でも、冷たくならないこと',
         '- 2500字以内で出力する',
+        '',
+        '【直近重視ルール】',
+        '- 直近14日の日記は別途ハイライトとして提供される。件数が少なくても「今」を映す最重要データ',
+        '- 直近に転機となりうる記述があれば、必ず転機として検出しろ。古い転機ばかり並べて直近を見逃すな',
+        '- 「今日の記述」に重大な変化が見られるなら、それは転機だ。材料の量で判断するな。密度で判断しろ',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記から、大きな転機・変化点を検出してください。各転機と「最新の日記時点（${latestDate}頃）」の間に見える相関を分析してください。因果の断定ではなく、時間的相関の観測として。各転機に標高変動と「未来からの一行」を付与してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${deepStats}\n${emotionStats}\n\n${truncated}`,
+      content: `以下の日記から、大きな転機・変化点を検出してください。各転機と「最新の日記時点（${latestDate}頃）」の間に見える相関を分析してください。因果の断定ではなく、時間的相関の観測として。各転機に標高変動と「未来からの一行」を付与してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries)}\n\n${deepStats}\n${emotionStats}\n\n${truncated}`,
     },
   ], 4000);
 }
@@ -541,7 +587,7 @@ export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promis
     },
     {
       role: 'user',
-      content: `以下の日記を読んで、書き手に隣からそっと差し出すような、やさしい問いを生成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
+      content: `以下の日記を読んで、書き手に隣からそっと差し出すような、やさしい問いを生成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n${truncated}`,
     },
   ]);
 }
@@ -619,7 +665,7 @@ export async function analyzeSeasonalEmotions(entries: DiaryEntry[]): Promise<st
     },
     {
       role: 'user',
-      content: `以下の日記を季節別に分析し、感情の傾向を教えてください：\n\n【季節×指標クロス集計（実測データ）】\n${seasonalDataText}\n\n${grouped}`,
+      content: `以下の日記を季節別に分析し、感情の傾向を教えてください：\n\n${formatRecentEntriesHighlight(entries, 1500)}\n\n【季節×指標クロス集計（実測データ）】\n${seasonalDataText}\n\n${grouped}`,
     },
   ]);
 }
@@ -723,7 +769,7 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${depthComparison}\n\n【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
+      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n${depthComparison}\n\n【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
     },
   ], 1500);
 }
@@ -811,11 +857,16 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
         '- 最後に「今いる場所」として、ここまでの旅を2〜3文でやさしく振り返る',
         '- 事実に基づくこと。でも、温かい目で見ること',
         '- 全体で1200字以内',
+        '',
+        '【直近重視ルール】',
+        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 最新年の描写は直近の日記に基づけ。古いデータだけで最新年を描くな',
+        '- 直近に濃い出来事があれば、「今いる場所」の描写に必ず反映しろ',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${currentStateText}\n${emotionStats}\n\n${truncated}`,
+      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries)}\n\n${currentStateText}\n${emotionStats}\n\n${truncated}`,
     },
   ], 2500);
 }
@@ -906,7 +957,7 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）から、書き手の強みをデータに基づいて宣言してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}【初期】\n${truncatedEarly}\n\n【後期】\n${truncatedLate}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）から、書き手の強みをデータに基づいて宣言してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n【初期】\n${truncatedEarly}\n\n【後期】\n${truncatedLate}`,
     },
   ], 2000);
 }
@@ -969,11 +1020,16 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
         '  - 全部を因果で回収するのは美化であり、分析ではない',
         '- 最後に、全転機を貫く「一本の線」を2文で描く。因果の断定ではなく、振り返って見える風景として。線が見えない場合は「線が見えない」と書け',
         '- 全体で1500字以内',
+        '',
+        '【直近重視ルール】',
+        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 直近に転機となりうる記述があれば、必ず転機として含めろ。古い転機ばかり並べるな',
+        '- 「今日」に重大な出来事があれば、それは転機だ。材料の量ではなく密度で判断しろ',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記（最新: ${latestDate}頃）から、重大な転機を検出し、「もしこの転機がなかったら今の自分はどうなっていたか」を反事実的に分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
+      content: `以下の日記（最新: ${latestDate}頃）から、重大な転機を検出し、「もしこの転機がなかったら今の自分はどうなっていたか」を反事実的に分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries)}\n\n${truncated}`,
     },
   ], 3000);
 }
@@ -1062,11 +1118,16 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
         '  例：「荷物を降ろすことを覚えた登山者の話」',
         '- 事実が語る物語を信じる。でもその語り口に、温度を込める',
         '- 全体で2000字以内',
+        '',
+        '【直近重視ルール】',
+        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 「現在地」は直近の日記に基づいて描け。古い日記の延長線上で想像するな',
+        '- 直近に濃い記述があれば、「現在地」で必ず言及しろ。昔のことだけで物語を閉じるな',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}、${yearSummary}）を、一つの大きな人生の物語として再構成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}、${yearSummary}）を、一つの大きな人生の物語として再構成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries)}\n\n${truncated}`,
     },
   ], 4000);
 }
@@ -1160,11 +1221,16 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
         '  - 答えなくてもいい。ただ「あ、そういえば」となれば十分',
         '- 全体で1500字以内',
         '- 冷静さは保ちつつ、温かい目で見ること',
+        '',
+        '【直近重視ルール】',
+        '- 直近14日の日記は別途ハイライトとして提供される。件数が少なくても「今」を映す最重要データ',
+        '- 直近に濃い記述があれば、【主要テーマ】【変化の流れ】【静かに変わったこと】に必ず反映しろ',
+        '- 昔のことばかり書くな。「今」の日記から読み取れることを必ず含めろ',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${deepStats}\n${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries)}\n\n${deepStats}\n${truncated}`,
     },
   ], 3000);
 }
@@ -1265,11 +1331,16 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '- 「これが意味すること」は深く掘れ。表面ではなく構造を見ろ',
         '- 慰めない。でも見捨てない。「ここが痛いのは知ってる。でも見ないふりはしない」の温度',
         '- 全体で1000字以内',
+        '',
+        '【直近重視ルール】',
+        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 急所の根拠に直近の記述を必ず含めろ。古い日記だけで急所を指摘するな',
+        '- 直近に構造的な癖が現れていれば、それが今の急所。古い癖だけ掘り返すな',
       ].join('\n'),
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）を読み、書き手の「急所」を1つだけ、正直に指摘してください：\n\n${existentialDataText}${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）を読み、書き手の「急所」を1つだけ、正直に指摘してください：\n\n${existentialDataText}${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries)}\n\n${truncated}`,
     },
   ], 2500);
 }
@@ -1345,7 +1416,7 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
     },
     {
       role: 'user',
-      content: `以下の日記を、やさしく観測してください。評価ではなく、観察として：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${forecastData ? `【気象観測データ（実測値）】\n${forecastData}\n→ 「今日の山岳気象予報」はこのデータに基づくこと。主観で天気を作るな。\n\n` : ''}${truncated}`,
+      content: `以下の日記を、やさしく観測してください。評価ではなく、観察として：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n${forecastData ? `【気象観測データ（実測値）】\n${forecastData}\n→ 「今日の山岳気象予報」はこのデータに基づくこと。主観で天気を作るな。\n\n` : ''}${truncated}`,
     },
   ], 1500);
 }
