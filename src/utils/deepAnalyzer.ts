@@ -10,6 +10,7 @@ import type {
   FirstPersonShiftInterpretation,
   StatisticalTest,
   DailyPredictiveContext,
+  ExistentialDensity,
 } from '../types';
 
 // ── 辞書定義 ──
@@ -86,6 +87,53 @@ const selfMonitorWords = [
 const taskWords = [
   'やること', 'やらなきゃ', 'やらないと', '予定', '計画',
   '目標', 'TODO', 'やりたい', 'やろう', '決めた', '始める',
+];
+
+// ── 存在論レイヤー辞書 ──
+
+// 生死テーマ
+const existentialLifeDeathWords = [
+  '死', '死ぬ', '死んだ', '死にたい', '死ぬかも',
+  '終わる', '終わり', '終える', '終焉',
+  '有限', '命', '寿命', '余命',
+  '最期', '臨終', '看取', '死後', '遺す', '遺言',
+  '生きる意味', '生きている意味', '存在意義',
+  '消滅', '虚無', '無に',
+];
+
+// 自己同一性・主体性テーマ
+const existentialIdentityWords = [
+  '核', '自分とは', '何者', '本質', '主体', '主体性',
+  '統合', '観測者', '観測', '俯瞰', '鳥瞰', 'メタ',
+  'インナーチャイルド', '内なる', '本当の自分',
+  'アイデンティティ', '同一性',
+  '断絶', '解離', '乖離',
+  '保護者', '内側', '深層',
+];
+
+// 完成・未完テーマ
+const existentialCompletionWords = [
+  '未完', '未完成', '道半ば', '途中で終わ', '半ばで',
+  '完成', '仕上げ', '完遂', '成し遂げ',
+  '残す', '遺す', 'やり残', '間に合わ',
+  '作品', '使命', '痕跡', '爪痕',
+];
+
+// 存在的強度・熱テーマ
+const existentialHeatWords = [
+  '熱を持', '石', '炉', '炉心', '燃える', '燃やす', '炎',
+  '暴れ', '制御', '爆発',
+  '密度', '凝縮',
+  '誇り', '誇らしい', '威厳', '尊厳',
+  '覚悟', '決意', '受容', '和解', '赦し',
+];
+
+// 全存在論語の統合リスト
+const allExistentialWords = [
+  ...existentialLifeDeathWords,
+  ...existentialIdentityWords,
+  ...existentialCompletionWords,
+  ...existentialHeatWords,
 ];
 
 // ── ユーティリティ ──
@@ -179,6 +227,16 @@ export function calcMonthlyDeepAnalysis(entries: DiaryEntry[]): MonthlyDeepAnaly
     const negativeRate = textLength > 0 ? (negCount / textLength) * 1000 : 0;
     const positiveRate = textLength > 0 ? (posCount / textLength) * 1000 : 0;
 
+    // 存在論テーマ語の出現率（/1000字）
+    const existentialCount = countWords(allText, allExistentialWords);
+    const existentialRate = textLength > 0 ? (existentialCount / textLength) * 1000 : 0;
+
+    // 低頻度高強度加重スコア: 存在論語×3 + 深度ネガ語×2（/1000字）
+    const deepNegInText = countWords(allText, deepNegativeWords);
+    const existentialIntensityScore = textLength > 0
+      ? ((existentialCount * 3 + deepNegInText * 2) / textLength) * 1000
+      : 0;
+
     rawResults.push({
       month,
       negativeRatio,
@@ -198,6 +256,8 @@ export function calcMonthlyDeepAnalysis(entries: DiaryEntry[]): MonthlyDeepAnaly
       workWordRate: Math.round(workWordRate * 100) / 100,
       negativeRate: Math.round(negativeRate * 100) / 100,
       positiveRate: Math.round(positiveRate * 100) / 100,
+      existentialRate: Math.round(existentialRate * 100) / 100,
+      existentialIntensityScore: Math.round(existentialIntensityScore * 100) / 100,
     });
   }
 
@@ -264,13 +324,23 @@ export function detectTrendShifts(monthly: MonthlyDeepAnalysis[]): TrendShift[] 
     const smBefore = before.reduce((s, m) => s + m.selfMonitorRate, 0) / windowSize;
     const smAfter = after.reduce((s, m) => s + m.selfMonitorRate, 0) / windowSize;
 
+    // 存在論テーマ率の変化
+    const exBefore = before.reduce((s, m) => s + m.existentialRate, 0) / windowSize;
+    const exAfter = after.reduce((s, m) => s + m.existentialRate, 0) / windowSize;
+    const existentialRateChange = exAfter - exBefore;
+
     const vocabShift = Math.abs(fpAfter - fpBefore) / Math.max(fpBefore, 0.01) +
       Math.abs(slAfter - slBefore) / Math.max(slBefore, 1) +
       Math.abs(smAfter - smBefore) / Math.max(smBefore, 0.01);
 
-    if (Math.abs(diff) > threshold || vocabShift > 1.5) {
+    // 存在論シフト: 存在テーマ率が有意に変化（0以外から50%以上変化、または0→出現）
+    const existentialShiftDetected = (exBefore > 0.01 && Math.abs(existentialRateChange) / exBefore > 0.5) ||
+      (exBefore <= 0.01 && exAfter > 0.1);
+
+    if (Math.abs(diff) > threshold || vocabShift > 1.5 || existentialShiftDetected) {
       let type: TrendShift['type'];
-      if (diff > threshold) type = 'deterioration';
+      if (existentialShiftDetected && Math.abs(diff) <= threshold) type = 'existential_shift';
+      else if (diff > threshold) type = 'deterioration';
       else if (diff < -threshold) type = 'recovery';
       else if (vocabShift > 1.5) type = 'vocabulary_shift';
       else type = 'plateau';
@@ -290,6 +360,7 @@ export function detectTrendShifts(monthly: MonthlyDeepAnalysis[]): TrendShift[] 
 
       const description = buildShiftDescription(type, diff, vocabShift, {
         fpBefore, fpAfter, slBefore, slAfter, smBefore, smAfter,
+        exBefore, exAfter,
       });
 
       shifts.push({
@@ -303,6 +374,7 @@ export function detectTrendShifts(monthly: MonthlyDeepAnalysis[]): TrendShift[] 
           vocabShiftScore: Math.round(vocabShift * 100) / 100,
           sentenceLengthChange: Math.round((slAfter - slBefore) * 10) / 10,
           firstPersonChange: Math.round((fpAfter - fpBefore) * 100) / 100,
+          existentialRateChange: Math.round(existentialRateChange * 100) / 100,
         },
         description,
       });
@@ -316,7 +388,7 @@ function buildShiftDescription(
   type: TrendShift['type'],
   negDiff: number,
   vocabShift: number,
-  rates: { fpBefore: number; fpAfter: number; slBefore: number; slAfter: number; smBefore: number; smAfter: number },
+  rates: { fpBefore: number; fpAfter: number; slBefore: number; slAfter: number; smBefore: number; smAfter: number; exBefore?: number; exAfter?: number },
 ): string {
   const parts: string[] = [];
 
@@ -324,6 +396,18 @@ function buildShiftDescription(
     parts.push(`ネガ率が${Math.round(Math.abs(negDiff) * 100)}pt上昇`);
   } else if (type === 'recovery') {
     parts.push(`ネガ率が${Math.round(Math.abs(negDiff) * 100)}pt低下`);
+  }
+
+  if (type === 'existential_shift') {
+    const exB = rates.exBefore ?? 0;
+    const exA = rates.exAfter ?? 0;
+    if (exB <= 0.01 && exA > 0.1) {
+      parts.push('存在論テーマの出現（生死・自己同一性・未完・熱）');
+    } else if (exA > exB) {
+      parts.push(`存在論テーマの深化（${exB.toFixed(2)}→${exA.toFixed(2)}/1000字）`);
+    } else {
+      parts.push(`存在論テーマの後退（${exB.toFixed(2)}→${exA.toFixed(2)}/1000字）`);
+    }
   }
 
   if (vocabShift > 1.5) {
@@ -339,6 +423,16 @@ function buildShiftDescription(
     }
     if (Math.abs(rates.slAfter - rates.slBefore) > 10) {
       parts.push(rates.slAfter > rates.slBefore ? '文章の長文化' : '文章の短文化');
+    }
+  }
+
+  // 存在論テーマの変化（existential_shift以外のタイプでも付記）
+  if (type !== 'existential_shift' && rates.exBefore !== undefined && rates.exAfter !== undefined) {
+    const exChange = rates.exAfter - rates.exBefore;
+    if (Math.abs(exChange) > 0.05) {
+      parts.push(exChange > 0
+        ? `存在論テーマ並行増加（+${exChange.toFixed(2)}/1000字）`
+        : `存在論テーマ並行減少（${exChange.toFixed(2)}/1000字）`);
     }
   }
 
@@ -592,6 +686,15 @@ export function calcCurrentStateNumeric(monthly: MonthlyDeepAnalysis[]): Current
     riskLevel = 'low';
   }
 
+  // 存在論テーマの分析
+  const recentExistentialRate = avg(recent3, m => m.existentialRate);
+  const historicalExistentialRate = avg(historical, m => m.existentialRate);
+  const existentialSlope = linearSlope(recent3.map(m => m.existentialRate));
+  let existentialTrend: CurrentStateNumeric['existentialTrend'];
+  if (existentialSlope > 0.02) existentialTrend = 'deepening';
+  else if (existentialSlope < -0.02) existentialTrend = 'surface';
+  else existentialTrend = 'stable';
+
   return {
     recentNegRatio: Math.round(recentNegRatio * 1000) / 1000,
     recentNegRatioMA: lastMA ?? recentNegRatio,
@@ -608,6 +711,9 @@ export function calcCurrentStateNumeric(monthly: MonthlyDeepAnalysis[]): Current
     negRatioTrend,
     overallStability,
     riskLevel,
+    recentExistentialRate: Math.round(recentExistentialRate * 100) / 100,
+    historicalExistentialRate: Math.round(historicalExistentialRate * 100) / 100,
+    existentialTrend,
   };
 }
 
@@ -774,6 +880,63 @@ export function calcPredictiveIndicators(
   }
 
   return { precursorWords, activeSignals, symptomCorrelations };
+}
+
+// ── 直近30日の存在論的密度 ──
+
+export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDensity {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (b.date ?? '').localeCompare(a.date ?? '')
+  );
+  if (sorted.length === 0) {
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0 }, recentEntryCount: 0, highlightWords: [] };
+  }
+
+  // 最新エントリの日付から30日遡る
+  const latestDate = sorted[0].date!.substring(0, 10);
+  const cutoffDate = new Date(latestDate);
+  cutoffDate.setDate(cutoffDate.getDate() - 30);
+  const cutoff = cutoffDate.toISOString().substring(0, 10);
+
+  const recentEntries = entries.filter(e => e.date && e.date >= cutoff);
+  if (recentEntries.length === 0) {
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0 }, recentEntryCount: 0, highlightWords: [] };
+  }
+
+  const allText = recentEntries.map(e => e.content).join('\n');
+  const textLength = allText.length;
+  if (textLength === 0) {
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0 }, recentEntryCount: recentEntries.length, highlightWords: [] };
+  }
+
+  const per1k = (count: number) => Math.round((count / textLength) * 1000 * 100) / 100;
+
+  const lifeDeathCount = countWords(allText, existentialLifeDeathWords);
+  const identityCount = countWords(allText, existentialIdentityWords);
+  const completionCount = countWords(allText, existentialCompletionWords);
+  const intensityCount = countWords(allText, existentialHeatWords);
+
+  const totalExistential = lifeDeathCount + identityCount + completionCount + intensityCount;
+
+  // 実際に出現した存在論的語を検出
+  const highlightWords: string[] = [];
+  for (const word of allExistentialWords) {
+    if (allText.includes(word) && !highlightWords.includes(word)) {
+      highlightWords.push(word);
+    }
+  }
+
+  return {
+    density: per1k(totalExistential),
+    themes: {
+      lifeDeath: per1k(lifeDeathCount),
+      identity: per1k(identityCount),
+      completion: per1k(completionCount),
+      intensity: per1k(intensityCount),
+    },
+    recentEntryCount: recentEntries.length,
+    highlightWords,
+  };
 }
 
 // ── 日次レベル予測コンテキスト ──
@@ -1212,6 +1375,7 @@ export function formatDeepStatsForPrompt(
   currentState: CurrentStateNumeric | null,
   predictive: PredictiveIndicator,
   dailyPredictive?: DailyPredictiveContext,
+  existentialDensity?: ExistentialDensity,
 ): string {
   const lines: string[] = [];
 
@@ -1221,7 +1385,7 @@ export function formatDeepStatsForPrompt(
     lines.push('以下は3ヶ月移動ウィンドウで検出した変化。単発の文章ではなく、傾向として確認済み：');
     for (const s of shifts) {
       lines.push(`  ${s.startMonth}〜${s.endMonth}: ${s.description}（変化量 ${s.magnitude}σ）`);
-      lines.push(`    ネガ率 ${Math.round(s.metrics.negRatioBefore * 100)}%→${Math.round(s.metrics.negRatioAfter * 100)}% / 一人称変化 ${s.metrics.firstPersonChange > 0 ? '+' : ''}${s.metrics.firstPersonChange} / 文長変化 ${s.metrics.sentenceLengthChange > 0 ? '+' : ''}${s.metrics.sentenceLengthChange}字`);
+      lines.push(`    ネガ率 ${Math.round(s.metrics.negRatioBefore * 100)}%→${Math.round(s.metrics.negRatioAfter * 100)}% / 一人称変化 ${s.metrics.firstPersonChange > 0 ? '+' : ''}${s.metrics.firstPersonChange} / 文長変化 ${s.metrics.sentenceLengthChange > 0 ? '+' : ''}${s.metrics.sentenceLengthChange}字 / 存在テーマ変化 ${s.metrics.existentialRateChange > 0 ? '+' : ''}${s.metrics.existentialRateChange}/1000字`);
     }
     lines.push('→ 転機判定はこのデータに基づくこと。単一の文章から転機を推測するな。');
     lines.push('');
@@ -1253,7 +1417,32 @@ export function formatDeepStatsForPrompt(
     lines.push(`  一人称率: ${currentState.recentFirstPersonRate}/1000字（全期間: ${currentState.historicalFirstPersonRate}/1000字）`);
     lines.push(`  身体症状: ${currentState.recentPhysicalSymptoms}件/月（全期間: ${currentState.historicalPhysicalSymptoms}件/月）`);
     lines.push(`  平均文長: ${currentState.recentAvgSentenceLength}字（全期間: ${currentState.historicalAvgSentenceLength}字）`);
+    lines.push(`  存在テーマ率: ${currentState.recentExistentialRate}/1000字（全期間: ${currentState.historicalExistentialRate}/1000字）`);
+    lines.push(`  存在テーマ方向性: ${currentState.existentialTrend === 'deepening' ? '深化中' : currentState.existentialTrend === 'surface' ? '表層化' : '安定'}`);
     lines.push('→ 「穏やか」「不安定」の判定はこの数値に基づくこと。AIの主観で判定するな。');
+    lines.push('→ 存在テーマ率が高い場合、生活リズムの問題ではなく存在論的フェーズ（生死・自己同一性・有限性）に入っている可能性を重視せよ。');
+    lines.push('');
+  }
+
+  // 3.5 直近30日の存在論的密度
+  if (existentialDensity && existentialDensity.density > 0) {
+    lines.push('【実測データ: 直近30日の存在論的テーマ密度 — 最重要】');
+    lines.push(`  存在テーマ総密度: ${existentialDensity.density}/1000字（${existentialDensity.recentEntryCount}件の日記）`);
+    lines.push(`    生死テーマ: ${existentialDensity.themes.lifeDeath}/1000字`);
+    lines.push(`    自己同一性テーマ: ${existentialDensity.themes.identity}/1000字`);
+    lines.push(`    完成/未完テーマ: ${existentialDensity.themes.completion}/1000字`);
+    lines.push(`    存在的強度/熱テーマ: ${existentialDensity.themes.intensity}/1000字`);
+    if (existentialDensity.highlightWords.length > 0) {
+      lines.push(`  検出語: ${existentialDensity.highlightWords.join('、')}`);
+    }
+    lines.push('→ これらの語は頻度は低いが深度は高い。「睡眠」「仕事」「調子」より分析の重みを上げろ。');
+    lines.push('→ 直近30日にこれらのテーマが出現している場合、書き手は「生活ログ」ではなく「存在論レイヤー」にいる。');
+    lines.push('→ 「安定している」「穏やかな尾根」で片づけるな。安定の中に熱い石があるかもしれない。');
+    lines.push('→ 検出された存在テーマごとの読み方：');
+    lines.push('   生死テーマ → 「死の恐怖」ではなく「有限を理解した上でどう燃やすか」のフェーズかもしれない');
+    lines.push('   自己同一性テーマ → 「自分が誰か」を問い直す密度の上昇。成熟か解離かは文脈で判断');
+    lines.push('   完成/未完テーマ → 「道半ばで終わる恐怖」は創作者・若年者に特有の存在的痛み');
+    lines.push('   存在的強度テーマ → 炉心の熱、石、覚悟 — 密度が上がったフェーズの兆候');
     lines.push('');
   }
 

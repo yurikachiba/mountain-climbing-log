@@ -187,8 +187,9 @@ export function Analysis() {
   }
 
   const isRunning = running !== null;
-  const completedCount = Object.keys(cache).filter(k => cache[k]?.result).length;
-  const staleCount = Object.values(cache).filter(c => c.isStale).length;
+  const validTypes = new Set(Object.keys(analysisMap));
+  const completedCount = Object.keys(cache).filter(k => validTypes.has(k) && cache[k]?.result).length;
+  const staleCount = Object.keys(cache).filter(k => validTypes.has(k) && cache[k]?.isStale).length;
 
   return (
     <div className="page">

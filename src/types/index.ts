@@ -135,13 +135,15 @@ export interface MonthlyDeepAnalysis {
   workWordRate: number; // 仕事関連語出現率（/1000字）
   negativeRate: number; // ネガティブ語出現率（/1000字）— negativeRatioとは別。絶対頻度
   positiveRate: number; // ポジティブ語出現率（/1000字）
+  existentialRate: number; // 存在論的テーマ語出現率（/1000字）
+  existentialIntensityScore: number; // 低頻度高強度加重スコア（存在論語×3 + 深度ネガ語×2）/1000字
 }
 
 // トレンドベースの転機検出
 export interface TrendShift {
   startMonth: string; // 変化開始月
   endMonth: string; // 変化終了月
-  type: 'deterioration' | 'recovery' | 'plateau' | 'vocabulary_shift';
+  type: 'deterioration' | 'recovery' | 'plateau' | 'vocabulary_shift' | 'existential_shift';
   magnitude: number; // 変化の大きさ（標準偏差単位）
   metrics: {
     negRatioBefore: number;
@@ -149,6 +151,7 @@ export interface TrendShift {
     vocabShiftScore: number; // 語彙変化スコア
     sentenceLengthChange: number;
     firstPersonChange: number;
+    existentialRateChange: number; // 存在テーマ率の変化
   };
   description: string; // 自動生成の説明文
 }
@@ -194,6 +197,10 @@ export interface CurrentStateNumeric {
   negRatioTrend: 'improving' | 'stable' | 'worsening';
   overallStability: number; // 0-100 複合安定度スコア
   riskLevel: 'low' | 'moderate' | 'elevated'; // リスクレベル
+  // 存在論レイヤー
+  recentExistentialRate: number; // 直近3ヶ月の存在テーマ率（/1000字）
+  historicalExistentialRate: number; // 全期間の存在テーマ率（/1000字）
+  existentialTrend: 'deepening' | 'stable' | 'surface'; // 存在テーマの方向性
 }
 
 // 予測指標
@@ -264,6 +271,19 @@ export interface StatisticalTest {
   significant: boolean; // p < 0.05
   effectSize: number; // クラメールのV or コーエンのh
   description: string;
+}
+
+// 存在論的密度（直近30日）
+export interface ExistentialDensity {
+  density: number; // 存在テーマ語出現率（/1000字）
+  themes: {
+    lifeDeath: number; // 生死テーマ率
+    identity: number; // 自己同一性テーマ率
+    completion: number; // 完成/未完テーマ率
+    intensity: number; // 存在的強度テーマ率
+  };
+  recentEntryCount: number;
+  highlightWords: string[]; // 実際に出現した存在論的語
 }
 
 // 日次レベルの予測用コンテキスト
