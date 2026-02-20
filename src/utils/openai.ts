@@ -50,6 +50,25 @@ async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<stri
   return data.choices?.[0]?.message?.content ?? '';
 }
 
+// 直近90日のエントリはより多くの文字数を割り当てる（直近の密度を保つ）
+function formatEntryWithRecencyAware(entries: DiaryEntry[], recentChars = 300, olderChars = 120): string[] {
+  if (entries.length === 0) return [];
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  const latestDate = sorted[sorted.length - 1]?.date ?? '';
+  const cutoff = (() => {
+    if (!latestDate) return '';
+    const d = new Date(latestDate);
+    d.setDate(d.getDate() - 90);
+    return d.toISOString().substring(0, 10);
+  })();
+  return sorted.map(e => {
+    const isRecent = e.date! >= cutoff;
+    return `[${e.date}] ${e.content.slice(0, isRecent ? recentChars : olderChars)}`;
+  });
+}
+
 // 年ごとに均等にスライスしてサンプリングする（均等にサンプリング）
 function sampleSliceFromArray(slice: DiaryEntry[], count: number): DiaryEntry[] {
   if (slice.length <= count) return slice;
@@ -69,15 +88,15 @@ function splitIndexByTimeFraction(sorted: DiaryEntry[], fraction: number): numbe
 }
 
 // 時系列で均等にサンプリングする（年ごとに最低保証枠あり）
-// 追加: 直近14日のエントリは必ず全件含める
+// 追加: 直近30日のエントリは必ず全件含める
 function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
     (a.date ?? '').localeCompare(b.date ?? '')
   );
   if (sorted.length <= maxCount) return sorted;
 
-  // 直近14日のエントリは必ず含める
-  const mustInclude = getRecentEntries(sorted, 14);
+  // 直近30日のエントリは必ず含める
+  const mustInclude = getRecentEntries(sorted, 30);
   const mustIncludeDates = new Set(mustInclude.map(e => e.date));
   const rest = sorted.filter(e => !mustIncludeDates.has(e.date));
   const remainingBudget = Math.max(0, maxCount - mustInclude.length);
@@ -128,16 +147,16 @@ function getRecentEntries(sorted: DiaryEntry[], days: number): DiaryEntry[] {
   return sorted.filter(e => e.date! >= cutoffStr);
 }
 
-// 直近を厚めにサンプリングする（直近30%の「期間」に40%のサンプルを割り当て）
-// 追加: 直近14日のエントリは必ず全件含める（薄い直近を見逃さない）
+// 直近を厚めにサンプリングする（直近30%の「期間」に60%のサンプルを割り当て）
+// 追加: 直近30日のエントリは必ず全件含める（薄い直近を見逃さない）
 function sampleWithRecencyBias(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
     (a.date ?? '').localeCompare(b.date ?? '')
   );
   if (sorted.length <= maxCount) return sorted;
 
-  // 直近14日のエントリは必ず含める（truncateしない）
-  const mustInclude = getRecentEntries(sorted, 14);
+  // 直近30日のエントリは必ず含める（truncateしない）
+  const mustInclude = getRecentEntries(sorted, 30);
   const mustIncludeDates = new Set(mustInclude.map(e => e.date));
   const remaining = sorted.filter(e => !mustIncludeDates.has(e.date));
   const remainingBudget = Math.max(0, maxCount - mustInclude.length);
@@ -159,7 +178,7 @@ function sampleWithRecencyBias(entries: DiaryEntry[], maxCount: number): DiaryEn
     ].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
   }
 
-  const olderCount = Math.floor(remainingBudget * 0.55);
+  const olderCount = Math.floor(remainingBudget * 0.40);
   const recentCount = remainingBudget - olderCount;
 
   return [
@@ -259,7 +278,7 @@ export async function extractEmotionTags(entries: DiaryEntry[]): Promise<string>
   if (entries.length === 0) return '';
 
   const sampled = sampleUniform(entries, 80);
-  const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n---\n');
+  const allText = formatEntryWithRecencyAware(sampled, 200, 120).join('\n---\n');
   const truncated = allText.slice(0, 10000);
 
   return callChat([
@@ -280,7 +299,7 @@ export async function extractEmotionTags(entries: DiaryEntry[]): Promise<string>
         '- 冷静に、箇条書きで出力する',
       ].join('\n'),
     },
-    { role: 'user', content: `以下の日記から頻出感情タグを抽出してください：\n\n${formatRecentEntriesHighlight(entries, 1500)}\n\n${truncated}` },
+    { role: 'user', content: `以下の日記から頻出感情タグを抽出してください：\n\n${formatRecentEntriesHighlight(entries, 2000)}\n\n${truncated}` },
   ]);
 }
 
@@ -308,9 +327,9 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
   const lateSampled = sampleSliceFromArray(lateEntries, 50);
 
   const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n');
-  const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n');
-  const truncatedEarly = early.slice(0, 6000);
-  const truncatedLate = late.slice(0, 6000);
+  const late = formatEntryWithRecencyAware(lateSampled).join('\n');
+  const truncatedEarly = early.slice(0, 5000);
+  const truncatedLate = late.slice(0, 7000);
 
   // 語彙深度データを算出（正規化版）
   const earlyDepth = calcVocabularyDepth(earlyEntries, earlyRange);
@@ -365,7 +384,7 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
         '- 事実に基づきつつ、温かい目で見ること',
         '',
         '【直近重視ルール】',
-        '- 直近14日の日記は件数が少なくても「今」を映す最重要データ。古い日記より優先して分析しろ',
+        '- 直近30日の日記は件数が少なくても「今」を映す最重要データ。古い日記より優先して分析しろ',
         '- 直近に濃い記述があれば、それを必ず分析に含めろ。材料が少ないからと見逃すな',
         '- 「今」の変化に言及しない分析は不完全。昔のことだけ書くな',
       ].join('\n'),
@@ -384,8 +403,8 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   // 全期間からサンプリング（直近を厚めに、深く分析するため120件）
   const sampled = sampleWithRecencyBias(entries, 120);
 
-  // 時系列順に日付付きで送る
-  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  // 時系列順に日付付きで送る（直近エントリはより多くの文字数）
+  const texts = formatEntryWithRecencyAware(sampled);
   const truncated = texts.join('\n---\n').slice(0, 14000);
 
   // 最新エントリの日付を取得（「今」の基準点として渡す）
@@ -473,7 +492,7 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '- 2500字以内で出力する',
         '',
         '【直近重視ルール】',
-        '- 直近14日の日記は別途ハイライトとして提供される。件数が少なくても「今」を映す最重要データ',
+        '- 直近30日の日記は別途ハイライトとして提供される。件数が少なくても「今」を映す最重要データ',
         '- 直近に転機となりうる記述があれば、必ず転機として検出しろ。古い転機ばかり並べて直近を見逃すな',
         '- 「今日の記述」に重大な変化が見られるなら、それは転機だ。材料の量で判断するな。密度で判断しろ',
       ].join('\n'),
@@ -490,7 +509,7 @@ export async function extractRecurringThemes(entries: DiaryEntry[]): Promise<str
   if (entries.length === 0) return '';
 
   const sampled = sampleUniform(entries, 80);
-  const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n---\n');
+  const allText = formatEntryWithRecencyAware(sampled, 200, 100).join('\n---\n');
   const truncated = allText.slice(0, 10000);
 
   return callChat([
@@ -529,7 +548,7 @@ export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promis
   if (entries.length === 0) return '';
 
   const sampled = sampleWithRecencyBias(entries, 80);
-  const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n---\n');
+  const allText = formatEntryWithRecencyAware(sampled, 200, 100).join('\n---\n');
   const truncated = allText.slice(0, 10000);
 
   // 直近の状態コンテキストを算出
@@ -694,9 +713,12 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
   });
 
   const budgetPerPeriod = 3500;
-  const samplePeriod = (period: DiaryEntry[]) => {
-    const maxEntries = Math.max(1, Math.floor(budgetPerPeriod / 120));
+  const samplePeriod = (period: DiaryEntry[], isLatest = false) => {
+    const maxEntries = Math.max(1, Math.floor(budgetPerPeriod / (isLatest ? 150 : 120)));
     const sampled = sampleSliceFromArray(period, maxEntries);
+    if (isLatest) {
+      return formatEntryWithRecencyAware(sampled, 250, 100).join('\n').slice(0, budgetPerPeriod + 500);
+    }
     return sampled.map(e => `[${e.date}] ${e.content.slice(0, 100)}`).join('\n').slice(0, budgetPerPeriod);
   };
 
@@ -769,7 +791,7 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n${depthComparison}\n\n【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
+      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n${depthComparison}\n\n【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2], true)}`,
     },
   ], 1500);
 }
@@ -793,7 +815,7 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
     .map(([y, c]) => `${y}年: ${c}件`).join('、');
 
   const sampled = sampleWithRecencyBias(entries, 100);
-  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const texts = formatEntryWithRecencyAware(sampled);
   const truncated = texts.join('\n---\n').slice(0, 12000);
 
   // 感情データの実測値を算出
@@ -859,7 +881,7 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
         '- 全体で1200字以内',
         '',
         '【直近重視ルール】',
-        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 直近30日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
         '- 最新年の描写は直近の日記に基づけ。古いデータだけで最新年を描くな',
         '- 直近に濃い出来事があれば、「今いる場所」の描写に必ず反映しろ',
       ].join('\n'),
@@ -893,9 +915,9 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
   const lateSampled = sampleSliceFromArray(lateEntries, 30);
 
   const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
-  const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
-  const truncatedEarly = early.slice(0, 5000);
-  const truncatedLate = late.slice(0, 5000);
+  const late = formatEntryWithRecencyAware(lateSampled, 250, 120).join('\n');
+  const truncatedEarly = early.slice(0, 4000);
+  const truncatedLate = late.slice(0, 6000);
 
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
@@ -967,7 +989,7 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
   if (entries.length === 0) return '';
 
   const sampled = sampleWithRecencyBias(entries, 100);
-  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const texts = formatEntryWithRecencyAware(sampled);
   const truncated = texts.join('\n---\n').slice(0, 12000);
   const latestDate = sampled[sampled.length - 1]?.date ?? '不明';
 
@@ -1022,7 +1044,7 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
         '- 全体で1500字以内',
         '',
         '【直近重視ルール】',
-        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 直近30日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
         '- 直近に転機となりうる記述があれば、必ず転機として含めろ。古い転機ばかり並べるな',
         '- 「今日」に重大な出来事があれば、それは転機だ。材料の量ではなく密度で判断しろ',
       ].join('\n'),
@@ -1059,7 +1081,7 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
 
   // 全期間からサンプリング（直近厚め、120件で広くカバー）
   const sampled = sampleWithRecencyBias(entries, 120);
-  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const texts = formatEntryWithRecencyAware(sampled);
   const truncated = texts.join('\n---\n').slice(0, 14000);
 
   // 直近の状態コンテキストを算出
@@ -1120,7 +1142,7 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
         '- 全体で2000字以内',
         '',
         '【直近重視ルール】',
-        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 直近30日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
         '- 「現在地」は直近の日記に基づいて描け。古い日記の延長線上で想像するな',
         '- 直近に濃い記述があれば、「現在地」で必ず言及しろ。昔のことだけで物語を閉じるな',
       ].join('\n'),
@@ -1145,11 +1167,19 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
     ? `${sorted[0].date} 〜 ${sorted[sorted.length - 1].date}`
     : '不明';
 
-  // 全体からサンプリング（30→50件に増加）
-  const step = Math.max(1, Math.floor(sorted.length / 50));
-  const sampled = sorted.filter((_, i) => i % step === 0);
-  const sampledTexts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
-  const truncated = sampledTexts.join('\n---\n').slice(0, 10000);
+  // 直近を厚めにサンプリング（直近のデータが薄くならないように）
+  const sampled = sampleWithRecencyBias(sorted, 60);
+  const ninetyDaysAgo = (() => {
+    if (sorted.length === 0) return '';
+    const d = new Date(sorted[sorted.length - 1].date!);
+    d.setDate(d.getDate() - 90);
+    return d.toISOString().substring(0, 10);
+  })();
+  const sampledTexts = sampled.map(e => {
+    const isRecent = e.date! >= ninetyDaysAgo;
+    return `[${e.date}] ${e.content.slice(0, isRecent ? 300 : 150)}`;
+  });
+  const truncated = sampledTexts.join('\n---\n').slice(0, 12000);
 
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
@@ -1223,7 +1253,7 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
         '- 冷静さは保ちつつ、温かい目で見ること',
         '',
         '【直近重視ルール】',
-        '- 直近14日の日記は別途ハイライトとして提供される。件数が少なくても「今」を映す最重要データ',
+        '- 直近30日の日記は別途ハイライトとして提供される。件数が少なくても「今」を映す最重要データ',
         '- 直近に濃い記述があれば、【主要テーマ】【変化の流れ】【静かに変わったこと】に必ず反映しろ',
         '- 昔のことばかり書くな。「今」の日記から読み取れることを必ず含めろ',
       ].join('\n'),
@@ -1249,7 +1279,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     : '不明';
 
   const sampled = sampleWithRecencyBias(entries, 120);
-  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const texts = formatEntryWithRecencyAware(sampled);
   const truncated = texts.join('\n---\n').slice(0, 14000);
 
   // 直近の状態コンテキストを算出
@@ -1333,7 +1363,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '- 全体で1000字以内',
         '',
         '【直近重視ルール】',
-        '- 直近14日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
+        '- 直近30日の日記は別途ハイライトとして提供される。「今」を映す最重要データ',
         '- 急所の根拠に直近の記述を必ず含めろ。古い日記だけで急所を指摘するな',
         '- 直近に構造的な癖が現れていれば、それが今の急所。古い癖だけ掘り返すな',
       ].join('\n'),
@@ -1350,7 +1380,7 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
   if (entries.length === 0) return '';
 
   const sampled = sampleUniform(entries, 60);
-  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`);
+  const texts = formatEntryWithRecencyAware(sampled, 200, 100);
   const truncated = texts.join('\n---\n').slice(0, 8000);
 
   // 直近の状態コンテキストを算出
