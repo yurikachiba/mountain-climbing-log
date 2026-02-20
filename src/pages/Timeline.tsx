@@ -75,6 +75,25 @@ export function Timeline() {
     );
   }
 
+  // X軸の月初ラベルだけ表示するフォーマッタ
+  const dateTickFormatter = (v: string) => {
+    if (typeof v !== 'string' || v.length < 10) return '';
+    const day = v.substring(8, 10);
+    if (day === '01') {
+      // YYYY-MM-DD → YY/MM
+      return `${v.substring(2, 4)}/${v.substring(5, 7)}`;
+    }
+    return '';
+  };
+
+  // データ量に応じた tick 間隔を算出
+  const calcTickInterval = (dataLength: number) => {
+    if (dataLength <= 30) return 0;
+    if (dataLength <= 90) return Math.floor(dataLength / 15);
+    if (dataLength <= 365) return Math.floor(dataLength / 12);
+    return Math.floor(dataLength / 10);
+  };
+
   return (
     <div className="page">
       <h1 className="page-title">成長タイムライン</h1>
@@ -91,19 +110,14 @@ export function Timeline() {
               <XAxis
                 dataKey="date"
                 fontSize={11}
-                tickFormatter={(v: string) => {
-                  const day = v.substring(8, 10);
-                  if (day === '01' || day === '15') {
-                    return v.substring(2, 10); // YY-MM-DD
-                  }
-                  return '';
-                }}
-                interval={0}
+                tickFormatter={dateTickFormatter}
+                interval={calcTickInterval(elevationData.length)}
               />
               <YAxis
                 fontSize={12}
                 unit="m"
-                tickCount={10}
+                tickCount={8}
+                domain={['dataMin - 50', 'dataMax + 50']}
               />
               <Tooltip
                 labelFormatter={(label) => `${label}`}
@@ -118,6 +132,7 @@ export function Timeline() {
                 stroke="#444"
                 fill="#d0d0d0"
                 strokeWidth={2}
+                baseValue="dataMin"
               />
               <Area
                 type="monotone"
@@ -158,14 +173,8 @@ export function Timeline() {
             <XAxis
               dataKey="date"
               fontSize={11}
-              tickFormatter={(v: string) => {
-                const day = v.substring(8, 10);
-                if (day === '01' || day === '15') {
-                  return v.substring(2, 10);
-                }
-                return '';
-              }}
-              interval={0}
+              tickFormatter={dateTickFormatter}
+              interval={calcTickInterval(ratioData.length)}
             />
             <YAxis domain={[0, 100]} fontSize={12} />
             <Tooltip />
@@ -174,7 +183,7 @@ export function Timeline() {
               dataKey="ネガティブ比率"
               stroke="#555"
               strokeWidth={2}
-              dot={{ r: 2 }}
+              dot={false}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -188,14 +197,8 @@ export function Timeline() {
             <XAxis
               dataKey="date"
               fontSize={11}
-              tickFormatter={(v: string) => {
-                const day = v.substring(8, 10);
-                if (day === '01' || day === '15') {
-                  return v.substring(2, 10);
-                }
-                return '';
-              }}
-              interval={0}
+              tickFormatter={dateTickFormatter}
+              interval={calcTickInterval(denialData.length)}
             />
             <YAxis fontSize={12} />
             <Tooltip />
@@ -204,7 +207,7 @@ export function Timeline() {
               dataKey="自己否定語"
               stroke="#555"
               strokeWidth={2}
-              dot={{ r: 2 }}
+              dot={false}
             />
           </LineChart>
         </ResponsiveContainer>
