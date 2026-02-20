@@ -1,5 +1,5 @@
 import { getApiKey } from './apiKey';
-import { calcPeriodStats, formatPeriodStatsForPrompt } from './emotionAnalyzer';
+import { calcPeriodStats, formatPeriodStatsForPrompt, calcRecentStateContext } from './emotionAnalyzer';
 import type { DiaryEntry } from '../types';
 
 interface ChatMessage {
@@ -159,6 +159,9 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
     })
     .join('\n\n');
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -172,6 +175,11 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 各年の要約はその年の日記だけに基づけ。他の年のトーンを持ち込むな',
+        '- 最新年が穏やかなら、穏やかな「物語タイトル」を付けろ。過去の辛さを引きずるな',
+        '- 「ドラマチックな要約」を作りたいがために、穏やかな年にも試練を捏造するな',
         '',
         '【禁止フレーズ】以下のような量産型AIフレーズは絶対に使うな：',
         '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」「前を向いて」',
@@ -192,7 +200,7 @@ export async function summarizeByPeriod(entries: DiaryEntry[]): Promise<string> 
         '- 年をまたぐ変化の流れが読み取れるように、前年との差分を意識する',
       ].join('\n'),
     },
-    { role: 'user', content: `以下の日記を年代別に要約してください。各年に「物語タイトル」を付け、登山の旅として描いてください。日記中の具体的な言葉を「」で引用すること：\n\n${truncated}` },
+    { role: 'user', content: `以下の日記を年代別に要約してください。各年に「物語タイトル」を付け、登山の旅として描いてください。日記中の具体的な言葉を「」で引用すること：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}` },
   ]);
 }
 
@@ -299,6 +307,9 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   const periodStats = calcPeriodStats(entries);
   const emotionStats = formatPeriodStatsForPrompt(periodStats);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -311,6 +322,12 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 過去の辛い出来事を、直近の状態と無関係に「今も影響している」と描写するな',
+        '- 直近の日記が穏やかなら、「現在地」はその穏やかさを正確に反映しろ',
+        '- 過去のネガティブな記述を引っ張ってきて、穏やかな現在に無理やりドラマを付け足すな',
+        '- 転機が「過去」にしかない場合、「今は穏やかな尾根を歩いている」と書け。無理に新しい転機を作るな',
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」「前を向いて」は使うな。',
         '代わりに日記の具体的な言葉を「」で引用し、登山の語彙で状況を表現しろ。',
@@ -368,7 +385,7 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
     },
     {
       role: 'user',
-      content: `以下の日記から、大きな転機・変化点を検出してください。各転機が「最新の日記時点（${latestDate}頃）の自分」にどう繋がっているかも分析してください。各転機に標高変動と「未来からの一行」を付与してください。\n\n${emotionStats}\n\n${truncated}`,
+      content: `以下の日記から、大きな転機・変化点を検出してください。各転機が「最新の日記時点（${latestDate}頃）の自分」にどう繋がっているかも分析してください。各転機に標高変動と「未来からの一行」を付与してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${emotionStats}\n\n${truncated}`,
     },
   ], 3000);
 }
@@ -420,6 +437,9 @@ export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promis
   const allText = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n---\n');
   const truncated = allText.slice(0, 10000);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -428,6 +448,12 @@ export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promis
         '書き手が目をそらしている場所に、静かに指を置く。それが仕事。',
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を捏造してはならない。日記に書かれた事実のみを根拠にすること。',
+        '',
+        '【時間的整合性ルール】',
+        '- 問いの根拠は直近の日記にも現れているパターンに基づけ',
+        '- 過去にだけ存在するパターンを「今も続いている」前提で問いを作るな',
+        '- 直近が穏やかな場合、過去の辛い記述を引っ張って「本当は辛いのでは？」と問うのはハルシネーション',
+        '- 穏やかさそのものに対する問い（「この安定は本物か？」）は、直近の日記に不安定さの兆候がある場合のみ許可',
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」は使うな。',
         '',
@@ -460,7 +486,7 @@ export async function generateReflectiveQuestions(entries: DiaryEntry[]): Promis
     },
     {
       role: 'user',
-      content: `以下の日記を分析し、書き手が目をそらしているかもしれない場所に、正確で鋭い問いを生成してください：\n\n${truncated}`,
+      content: `以下の日記を分析し、書き手が目をそらしているかもしれない場所に、正確で鋭い問いを生成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
   ]);
 }
@@ -562,6 +588,9 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
     return sampled.map(e => `[${e.date}] ${e.content.slice(0, 100)}`).join('\n').slice(0, budgetPerPeriod);
   };
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -574,6 +603,11 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 後期が穏やかな場合、その穏やかさを「変化」として正確に反映しろ',
+        '- 初期の辛さを過度に強調して後期とのコントラストを演出するな',
+        '- 後期の日記に問題が書かれていないなら、存在しない問題を作り出すな',
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」は使うな。',
         '',
@@ -596,7 +630,7 @@ export async function analyzeGrowth(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
+      content: `以下の日記から成長・変化の軌跡を分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}【初期：${periodLabels[0]}】\n${samplePeriod(periods[0])}\n\n【中期：${periodLabels[1]}】\n${samplePeriod(periods[1])}\n\n【後期：${periodLabels[2]}】\n${samplePeriod(periods[2])}`,
     },
   ], 1500);
 }
@@ -627,6 +661,9 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
   const periodStats = calcPeriodStats(entries);
   const emotionStats = formatPeriodStatsForPrompt(periodStats);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -638,6 +675,12 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 最新年のフェーズ名は、その年の直近の日記のトーンを正確に反映しろ',
+        '- 直近が穏やかなのに「酸素の薄い稜線」「ビバーク」等のネガティブなフェーズ名を付けるな',
+        '- 過去の辛い年のトーンを現在の年に引きずるな。各年は独立して評価しろ',
+        '- 「今いる場所」は直近の実際のデータに基づけ。穏やかなら穏やかと書け',
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」は使うな。',
         '日記中の具体的な言葉を「」で引用し、山の語彙で語れ。',
@@ -672,7 +715,7 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
     },
     {
       role: 'user',
-      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${emotionStats}\n\n${truncated}`,
+      content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${emotionStats}\n\n${truncated}`,
     },
   ], 1500);
 }
@@ -703,6 +746,9 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
   const truncatedEarly = early.slice(0, 5000);
   const truncatedLate = late.slice(0, 5000);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -715,6 +761,12 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 初期と後期を比較するとき、後期の日記のトーンを正確に反映しろ',
+        '- 後期が穏やかなら、その穏やかさを「変化」として素直に伝えろ',
+        '- 初期のネガティブな記述を過度に強調して「こんなに辛かったのに今は…」という演出をするな',
+        '- 後期に問題がないなら、無理に問題を探すな。穏やかさは穏やかさとして観測しろ',
         '',
         '【禁止フレーズ】以下は絶対に使うな：',
         '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」「前を向いて」',
@@ -753,7 +805,7 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）から、書き手の強みをデータに基づいて宣言してください：\n\n【初期】\n${truncatedEarly}\n\n【後期】\n${truncatedLate}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）から、書き手の強みをデータに基づいて宣言してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}【初期】\n${truncatedEarly}\n\n【後期】\n${truncatedLate}`,
     },
   ], 2000);
 }
@@ -766,6 +818,9 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
   const truncated = texts.join('\n---\n').slice(0, 10000);
   const latestDate = sampled[sampled.length - 1]?.date ?? '不明';
+
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
 
   return callChat([
     {
@@ -780,6 +835,12 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 「実際の因果」を語るとき、直近の日記の実際のトーンに基づくこと',
+        '- 直近の日記が穏やかなら、過去の転機を「今も傷として残っている」と勝手に描写するな',
+        '- 過去の辛い転機が「今」に繋がっているかは、直近の日記にその言及がある場合のみ述べよ',
+        '- 転機が現在に繋がっていない場合は「繋がりは見えない」と正直に書け',
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」は使うな。',
         '代わりに日記の具体的な言葉を「」で引用し、登山の語彙で表現しろ。',
@@ -811,7 +872,7 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
     },
     {
       role: 'user',
-      content: `以下の日記（最新: ${latestDate}頃）から、重大な転機を検出し、「もしこの転機がなかったら今の自分はどうなっていたか」を反事実的に分析してください：\n\n${truncated}`,
+      content: `以下の日記（最新: ${latestDate}頃）から、重大な転機を検出し、「もしこの転機がなかったら今の自分はどうなっていたか」を反事実的に分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
   ], 2000);
 }
@@ -844,6 +905,9 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
   const truncated = texts.join('\n---\n').slice(0, 12000);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -858,6 +922,12 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '「行間を読む」「推測する」「文脈から察する」ことで存在しない出来事を作り出してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 「現在地」は直近の日記の実際のトーンを反映しろ。過去のネガティブな記述を現在に投影するな',
+        '- 直近の日記が穏やかなら、「現在地」は穏やかな尾根・山小屋での休息として描け',
+        '- 過去の辛い時期を「今もまだ影響している」と書くのは、直近の日記にその記述がある場合のみ',
+        '- 物語にドラマが足りないからといって、穏やかな現在を無視して過去の痛みを引っ張るな',
         '',
         '【禁止フレーズ】以下は絶対に使うな：',
         '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」「前を向いて」',
@@ -894,7 +964,7 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}、${yearSummary}）を、一つの大きな人生の物語として再構成してください：\n\n${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}、${yearSummary}）を、一つの大きな人生の物語として再構成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
   ], 2500);
 }
@@ -918,6 +988,9 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
   const sampledTexts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
   const truncated = sampledTexts.join('\n---\n').slice(0, 10000);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -929,6 +1002,12 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '死去・事故・離別・重病・災害などの重大な出来事は、日記本文に明確に記述されている場合のみ言及すること。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 「変化の流れ」を描くとき、直近の状態を正確に反映しろ',
+        '- 直近が穏やかなら、過去のネガティブな記述を引っ張ってレポートをドラマチックにするな',
+        '- 「あなたへの問い」は直近の日記の実態に基づけ。過去の辛い時期の情報で問いを作るな',
+        '- 穏やかな現在を「本当は辛いのでは」と疑うのはハルシネーション。データに従え',
         '',
         '【禁止フレーズ】以下は絶対に使うな：',
         '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」「前を向いて」',
@@ -962,7 +1041,7 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
   ], 2000);
 }
@@ -984,6 +1063,9 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
   const truncated = texts.join('\n---\n').slice(0, 10000);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -996,6 +1078,12 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 「構造的な癖」は直近の日記にも現れているパターンのみ指摘しろ',
+        '- 過去にだけ存在して直近では見られないパターンを「今も続いている」と書くな',
+        '- 根拠として引用する日記は、古いものだけでなく直近のものも含めて「繰り返し」を証明しろ',
+        '- 直近が穏やかな場合に、過去の辛い時期だけを引っ張って「急所」を捏造するな',
         '',
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」「でも大丈夫」は使うな。',
         '',
@@ -1028,7 +1116,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     },
     {
       role: 'user',
-      content: `以下の日記（全${totalCount}件、期間：${dateRange}）を読み、書き手の「急所」を1つだけ、正直に指摘してください：\n\n${truncated}`,
+      content: `以下の日記（全${totalCount}件、期間：${dateRange}）を読み、書き手の「急所」を1つだけ、正直に指摘してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
   ], 1500);
 }
@@ -1041,6 +1129,9 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`);
   const truncated = texts.join('\n---\n').slice(0, 8000);
 
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
   return callChat([
     {
       role: 'system',
@@ -1052,6 +1143,12 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
         '',
         '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
         '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【時間的整合性ルール】',
+        '- 「今日の山岳気象予報」は直近の日記の実際のトーンに基づけ',
+        '- 直近が穏やかなのに「嵐の前兆」「注意報」等の不安を煽る予報を出すな',
+        '- 過去の辛い時期のデータを使って現在の天気予報を歪めるな',
+        '- 穏やかなら「視界良好。風も穏やか」と正直に観測しろ',
         '',
         '【禁止フレーズ】「成長」「進歩」「改善」「向上」「レベル」「素晴らしい」「立派」「頑張った」は使うな。',
         '',
@@ -1086,7 +1183,7 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
     },
     {
       role: 'user',
-      content: `以下の日記を、やさしく観測してください。評価ではなく、観察として：\n\n${truncated}`,
+      content: `以下の日記を、やさしく観測してください。評価ではなく、観察として：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
   ], 1500);
 }

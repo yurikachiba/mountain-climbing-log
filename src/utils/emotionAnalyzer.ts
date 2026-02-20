@@ -321,6 +321,104 @@ export function formatPeriodStatsForPrompt(stats: PeriodEmotionStats[]): string 
   return lines.join('\n');
 }
 
+// 直近の感情状態と過去の平均を比較し、プロンプト注入用テキストを生成
+// ハルシネーション防止: AIが「穏やかな現在」を無視して過去のネガティブ情報を引っ張るのを防ぐ
+export interface RecentStateContext {
+  isRecentCalm: boolean;     // 直近が穏やかかどうか
+  recentNegRatio: number;    // 直近のネガティブ率
+  historicalNegRatio: number; // 全期間のネガティブ率
+  recentSelfDenial: number;  // 直近の自己否定語月平均
+  historicalSelfDenial: number; // 全期間の自己否定語月平均
+  promptText: string;        // プロンプトに注入するテキスト
+}
+
+export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContext {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+
+  if (sorted.length === 0) {
+    return {
+      isRecentCalm: false,
+      recentNegRatio: 0,
+      historicalNegRatio: 0,
+      recentSelfDenial: 0,
+      historicalSelfDenial: 0,
+      promptText: '',
+    };
+  }
+
+  // 最新の日付から3ヶ月以内をrecentとする
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const threeMonthsAgo = new Date(latestDate);
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  const cutoffStr = threeMonthsAgo.toISOString().substring(0, 10);
+
+  const recentEntries = sorted.filter(e => e.date! >= cutoffStr);
+  const olderEntries = sorted.filter(e => e.date! < cutoffStr);
+
+  // 直近のエントリが少なすぎる場合はコンテキストを生成しない
+  if (recentEntries.length < 3 || olderEntries.length < 3) {
+    return {
+      isRecentCalm: false,
+      recentNegRatio: 0,
+      historicalNegRatio: 0,
+      recentSelfDenial: 0,
+      historicalSelfDenial: 0,
+      promptText: '',
+    };
+  }
+
+  const calcStats = (group: DiaryEntry[]) => {
+    const allText = group.map(e => e.content).join('\n');
+    const negCount = countOccurrences(allText, negativeWords);
+    const posCount = countOccurrences(allText, positiveWords);
+    const total = negCount + posCount;
+    const negRatio = total > 0 ? negCount / total : 0;
+    const selfDenial = countOccurrences(allText, selfDenialWords);
+    // 月数で割って月平均を算出
+    const months = new Set(group.map(e => e.date!.substring(0, 7))).size;
+    const selfDenialPerMonth = months > 0 ? selfDenial / months : 0;
+    return { negRatio, selfDenialPerMonth };
+  };
+
+  const recent = calcStats(recentEntries);
+  const historical = calcStats(olderEntries);
+
+  // 直近が穏やかかどうかの判定:
+  // ネガティブ率が全期間平均より10ポイント以上低い、または
+  // ネガティブ率が30%未満かつ自己否定語が月平均2回未満
+  const isRecentCalm =
+    (recent.negRatio < historical.negRatio - 0.10) ||
+    (recent.negRatio < 0.30 && recent.selfDenialPerMonth < 2);
+
+  let promptText = '';
+  if (isRecentCalm) {
+    const recentPct = Math.round(recent.negRatio * 100);
+    const histPct = Math.round(historical.negRatio * 100);
+    promptText = [
+      `【直近の状態（実測値）】直近3ヶ月のネガティブ率は${recentPct}%（全期間平均: ${histPct}%）。自己否定語は月平均${recent.selfDenialPerMonth.toFixed(1)}回（全期間: ${historical.selfDenialPerMonth.toFixed(1)}回）。`,
+      '→ 直近は安定期・穏やかな時期にある。',
+      '',
+      '【穏やかな時期のハルシネーション防止ルール】',
+      '- 直近が穏やかである場合、過去の辛い出来事を「今も続いている」かのように描写するな',
+      '- 過去のネガティブな記述を無理に現在と結びつけてドラマチックな物語を作るな',
+      '- 「何も起きていない穏やかさ」は分析の失敗ではない。それ自体が重要なデータである',
+      '- 穏やかな時期に「実は裏では…」「本当は…」と深読みして存在しない苦悩を作り出すな',
+      '- 過去に辛い時期があったとしても、それが「今」に影響しているかは日記に明記されている場合のみ言及せよ',
+    ].join('\n');
+  }
+
+  return {
+    isRecentCalm,
+    recentNegRatio: recent.negRatio,
+    historicalNegRatio: historical.negRatio,
+    recentSelfDenial: recent.selfDenialPerMonth,
+    historicalSelfDenial: historical.selfDenialPerMonth,
+    promptText,
+  };
+}
+
 // 名前っぽいパターンを匿名化（他人モード用）
 export function anonymize(text: string): string {
   // 「〇〇さん」「〇〇くん」「〇〇ちゃん」パターン
