@@ -4,31 +4,21 @@ import { useHead } from '../hooks/useHead';
 import { useAiCache } from '../hooks/useAiCache';
 import { hasApiKey } from '../utils/apiKey';
 import {
-  summarizeByPeriod,
-  extractEmotionTags,
   analyzeTone,
   detectTurningPoints,
-  extractRecurringThemes,
-  generateReflectiveQuestions,
-  analyzeSeasonalEmotions,
-  analyzeGrowth,
   generateComprehensiveReport,
   analyzeElevationNarrative,
-  declareStrengths,
   analyzeCounterfactual,
   analyzeLifeStory,
   analyzeVitalPoint,
-  analyzeGentleReflection,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
-  | 'summary' | 'tags' | 'tone'
-  | 'turningPoints' | 'themes' | 'questions'
-  | 'seasonal' | 'growth' | 'report'
-  | 'elevation' | 'strengths' | 'counterfactual'
-  | 'lifeStory' | 'vitalPoint' | 'gentleReflection';
+  | 'tone' | 'turningPoints' | 'report'
+  | 'elevation' | 'counterfactual'
+  | 'lifeStory' | 'vitalPoint';
 
 interface AnalysisItem {
   title: string;
@@ -42,69 +32,34 @@ interface AnalysisCategory {
 }
 
 const analysisMap: Record<AnalysisType, AnalysisItem> = {
-  summary: {
-    title: '年代別要約',
-    desc: '年ごとの傾向を500字以内で要約',
-    fn: summarizeByPeriod,
-  },
-  tags: {
-    title: '頻出感情タグ',
-    desc: '日記全体から感情タグを抽出',
-    fn: extractEmotionTags,
-  },
   tone: {
-    title: '文章トーン分析',
-    desc: '前期と後期でトーンの変化を比較',
+    title: '語彙深度分析',
+    desc: '語彙の深度・一人称変化・文体変化を定量的に解剖する',
     fn: analyzeTone,
   },
   turningPoints: {
     title: '転機検出',
-    desc: '変化の時期を見つけて、今の自分につながる線を描く',
+    desc: 'トレンドシフトと実測データに基づく、構造的な変化の検出',
     fn: detectTurningPoints,
-  },
-  themes: {
-    title: '繰り返すテーマ',
-    desc: '時期を超えて繰り返し現れるモチーフを抽出',
-    fn: extractRecurringThemes,
-  },
-  questions: {
-    title: '自分への問い',
-    desc: '日記の中の小さなパターンから、隣に座って差し出すような問い',
-    fn: generateReflectiveQuestions,
-  },
-  seasonal: {
-    title: '季節×感情マップ',
-    desc: '春夏秋冬ごとの感情傾向を分析',
-    fn: analyzeSeasonalEmotions,
-  },
-  growth: {
-    title: '呼吸のリズム',
-    desc: '初期・中期・後期で、あなたのリズムがどう変わったか',
-    fn: analyzeGrowth,
   },
   report: {
     title: '包括レポート',
-    desc: '日記全体を俯瞰した統合分析レポート',
+    desc: '深層分析データを統合した、数値ベースの俯瞰レポート',
     fn: generateComprehensiveReport,
   },
   elevation: {
     title: '標高ナラティブ',
-    desc: '各年を登山の旅として表現 — 登った年も、休んだ年も',
+    desc: '各年を登山の旅として表現 — 登った年も、滑落した年も',
     fn: analyzeElevationNarrative,
-  },
-  strengths: {
-    title: '強みへの気づき',
-    desc: '日記の中にある、あなた自身も気づいていないかもしれない変化',
-    fn: declareStrengths,
   },
   counterfactual: {
     title: '反事実的因果',
-    desc: '「もしあの日がなかったら？」— あなたの歩みを振り返る',
+    desc: '「もしあの日がなかったら？」— 転機の因果を逆算する',
     fn: analyzeCounterfactual,
   },
   lifeStory: {
     title: '人生の物語',
-    desc: '全日記を一つの大きな物語として再構成 — あなたの人生の長編あらすじ',
+    desc: '全日記を一つの登山記として再構成 — 滑落も偽ピークも含む長編',
     fn: analyzeLifeStory,
   },
   vitalPoint: {
@@ -112,56 +67,32 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: 'やさしいだけじゃない。痛いけど本質を突く、たった一つの指摘',
     fn: analyzeVitalPoint,
   },
-  gentleReflection: {
-    title: 'やさしい振り返り',
-    desc: '評価じゃなく、ただ見ている。あなたの日記の中の小さな景色',
-    fn: analyzeGentleReflection,
-  },
 };
 
 // 各分析タイプのサンプリング上限（分析対象として使われる最大件数）
+// 7種に絞った分、各分析のサンプル数を増やして深く分析
 const sampleLimits: Record<AnalysisType, number> = {
-  summary: 80,     // 年ごとに均等分配、全体で概ね80件程度
-  tags: 80,
-  tone: 80,        // 前半40 + 後半40
-  turningPoints: 80,
-  themes: 80,
-  questions: 80,
-  seasonal: 80,    // 季節ごとに均等分配
-  growth: 90,      // 3期×各30件程度
-  report: 50,
-  elevation: 80,
-  strengths: 60,   // 前半30 + 後半30
-  counterfactual: 80,
-  lifeStory: 100,
-  vitalPoint: 80,
-  gentleReflection: 60,
+  tone: 100,           // 前半50 + 後半50
+  turningPoints: 120,  // データ駆動、多めにサンプル
+  report: 80,          // 深層データ統合
+  elevation: 100,      // 各年を厚めにカバー
+  counterfactual: 100, // 転機検出に厚め
+  lifeStory: 120,      // フラッグシップ、最大サンプル
+  vitalPoint: 120,     // 繰り返しパターン検出に多めのデータ
 };
 
 const categories: AnalysisCategory[] = [
   {
-    label: '基本分析',
-    items: ['summary', 'tags', 'tone'],
-  },
-  {
-    label: '深層分析',
-    items: ['turningPoints', 'themes', 'questions'],
-  },
-  {
-    label: '俯瞰分析',
-    items: ['seasonal', 'growth', 'report'],
+    label: '構造分析',
+    items: ['tone', 'turningPoints', 'report'],
   },
   {
     label: '物語分析',
-    items: ['elevation', 'strengths', 'counterfactual', 'lifeStory'],
+    items: ['elevation', 'counterfactual', 'lifeStory'],
   },
   {
     label: '本質分析',
     items: ['vitalPoint'],
-  },
-  {
-    label: 'やさしい分析',
-    items: ['gentleReflection'],
   },
 ];
 
@@ -177,9 +108,9 @@ function formatDate(iso: string): string {
 
 export function Analysis() {
   useHead({
-    title: 'AI分析（15種類）',
-    description: 'OpenAI APIを使って日記を客観的に分析する15種類の機能。年代別要約、頻出感情タグ、文章トーン分析、転機検出、反復テーマ、内省質問、季節別感情、呼吸のリズム、包括レポート、標高ナラティブ、強みへの気づき、反事実的因果、人生の物語、急所、やさしい振り返り。ユーザー自身のAPIキー使用でプライバシー保護。',
-    keywords: 'AI日記分析,感情タグ,トーン分析,転機検出,成長分析,OpenAI,日記AI,標高ナラティブ,自己分析,急所',
+    title: 'AI分析（7種類）',
+    description: '鋭い分析だけを残した7種類のAI分析。語彙深度分析、転機検出、包括レポート、標高ナラティブ、反事実的因果、人生の物語、急所。深層データ統合・定量根拠に基づく分析。',
+    keywords: 'AI日記分析,語彙深度,転機検出,標高ナラティブ,反事実的因果,急所,人生の物語,深層分析',
     path: '/analysis',
   });
 

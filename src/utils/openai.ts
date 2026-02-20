@@ -6,7 +6,10 @@ import {
   calcSeasonalCrossStats,
   calcCurrentStateNumeric,
   calcPredictiveIndicators,
+  calcDailyPredictiveContext,
   calcVocabularyDepth,
+  interpretDepthChange,
+  interpretFirstPersonShift,
   formatDeepStatsForPrompt,
   formatVocabularyDepthForPrompt,
 } from './deepAnalyzer';
@@ -264,18 +267,26 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
     ? `${lateEntries[0].date} 〜 ${lateEntries[lateEntries.length - 1].date}`
     : '不明';
 
-  const earlySampled = sampleSliceFromArray(earlyEntries, 40);
-  const lateSampled = sampleSliceFromArray(lateEntries, 40);
+  const earlySampled = sampleSliceFromArray(earlyEntries, 50);
+  const lateSampled = sampleSliceFromArray(lateEntries, 50);
 
-  const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
-  const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n');
-  const truncatedEarly = early.slice(0, 5000);
-  const truncatedLate = late.slice(0, 5000);
+  const early = earlySampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n');
+  const late = lateSampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n');
+  const truncatedEarly = early.slice(0, 6000);
+  const truncatedLate = late.slice(0, 6000);
 
-  // 語彙深度データを算出
+  // 語彙深度データを算出（正規化版）
   const earlyDepth = calcVocabularyDepth(earlyEntries, earlyRange);
   const lateDepth = calcVocabularyDepth(lateEntries, lateRange);
-  const vocabDepthText = formatVocabularyDepthForPrompt(earlyDepth, lateDepth);
+
+  // 深度比と一人称変化の自動解釈
+  const depthInterp = interpretDepthChange(earlyDepth, lateDepth);
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const earlyMonthly = monthlyDeep.slice(0, Math.floor(monthlyDeep.length / 2));
+  const lateMonthly = monthlyDeep.slice(Math.floor(monthlyDeep.length / 2));
+  const fpInterp = interpretFirstPersonShift(earlyDepth, lateDepth, earlyMonthly, lateMonthly);
+
+  const vocabDepthText = formatVocabularyDepthForPrompt(earlyDepth, lateDepth, depthInterp, fpInterp);
 
   return callChat([
     {
@@ -303,7 +314,7 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
         '- ネガティブ語の「深度」（軽い不満 vs 深い絶望）の変化にも言及しろ',
         '- 一人称率と他者参照率の変化から「誰の視点で書いているか」の変化を分析しろ',
         '- 自己モニタリング語（調子、体調等）の出現変化は、自己認識の変化として重要。無視するな',
-        '- 400字以内で冷静に記述する',
+        '- 800字以内で冷静に記述する',
         '- 事実に基づきつつ、温かい目で見ること',
       ].join('\n'),
     },
@@ -311,19 +322,19 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
       role: 'user',
       content: `以下の日記の前期・後期でトーンの変化を分析してください：\n\n${vocabDepthText}\n【前期：${earlyRange}】\n${truncatedEarly}\n\n【後期：${lateRange}】\n${truncatedLate}`,
     },
-  ]);
+  ], 2000);
 }
 
 // 転機検出 — 日記の中で大きな変化・転換点を特定（高度変動＋未来からの一行つき）
 export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  // 全期間からサンプリング（直近を厚めに）
-  const sampled = sampleWithRecencyBias(entries, 80);
+  // 全期間からサンプリング（直近を厚めに、深く分析するため120件）
+  const sampled = sampleWithRecencyBias(entries, 120);
 
   // 時系列順に日付付きで送る
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
-  const truncated = texts.join('\n---\n').slice(0, 10000);
+  const truncated = texts.join('\n---\n').slice(0, 14000);
 
   // 最新エントリの日付を取得（「今」の基準点として渡す）
   const latestDate = sampled[sampled.length - 1]?.date ?? '不明';
@@ -341,7 +352,8 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   const seasonalStats = calcSeasonalCrossStats(monthlyDeep);
   const currentState = calcCurrentStateNumeric(monthlyDeep);
   const predictive = calcPredictiveIndicators(monthlyDeep, entries);
-  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive);
+  const dailyPredictive = calcDailyPredictiveContext(entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictive);
 
   return callChat([
     {
@@ -405,14 +417,14 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '  - 全部に意味を見出すのはAIの癖であり、人間の現実ではない',
         '- 日記は全期間から均等に抽出されたサンプルである。全期間を対象に転機を探すこと',
         '- 事実に基づくこと。でも、冷たくならないこと',
-        '- 1600字以内で出力する',
+        '- 2500字以内で出力する',
       ].join('\n'),
     },
     {
       role: 'user',
       content: `以下の日記から、大きな転機・変化点を検出してください。各転機が「最新の日記時点（${latestDate}頃）の自分」にどう繋がっているかも分析してください。各転機に標高変動と「未来からの一行」を付与してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${deepStats}\n${emotionStats}\n\n${truncated}`,
     },
-  ], 3000);
+  ], 4000);
 }
 
 // 繰り返すテーマ — 時期を超えて繰り返し現れるモチーフを抽出
@@ -714,9 +726,9 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([y, c]) => `${y}年: ${c}件`).join('、');
 
-  const sampled = sampleWithRecencyBias(entries, 80);
-  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 120)}`);
-  const truncated = texts.join('\n---\n').slice(0, 10000);
+  const sampled = sampleWithRecencyBias(entries, 100);
+  const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
+  const truncated = texts.join('\n---\n').slice(0, 12000);
 
   // 感情データの実測値を算出
   const periodStats = calcPeriodStats(entries);
@@ -778,14 +790,14 @@ export async function analyzeElevationNarrative(entries: DiaryEntry[]): Promise<
         '  フェーズ名は風景を描く。何を達成したかではなく、どんな空気の中にいたか',
         '- 最後に「今いる場所」として、ここまでの旅を2〜3文でやさしく振り返る',
         '- 事実に基づくこと。でも、温かい目で見ること',
-        '- 全体で700字以内',
+        '- 全体で1200字以内',
       ].join('\n'),
     },
     {
       role: 'user',
       content: `以下の日記（${yearSummary}）から、各年を登山の標高として表現してください。\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${currentStateText}\n${emotionStats}\n\n${truncated}`,
     },
-  ], 1500);
+  ], 2500);
 }
 
 // 強みの宣言 — データに基づく客観的な強みの明文化
@@ -882,9 +894,9 @@ export async function declareStrengths(entries: DiaryEntry[]): Promise<string> {
 export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
-  const sampled = sampleWithRecencyBias(entries, 80);
+  const sampled = sampleWithRecencyBias(entries, 100);
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
-  const truncated = texts.join('\n---\n').slice(0, 10000);
+  const truncated = texts.join('\n---\n').slice(0, 12000);
   const latestDate = sampled[sampled.length - 1]?.date ?? '不明';
 
   // 直近の状態コンテキストを算出
@@ -935,14 +947,14 @@ export async function analyzeCounterfactual(entries: DiaryEntry[]): Promise<stri
         '  - 「もしなかったら」に対して「たぶん同じだった」もあり得る。回避するな',
         '  - 全部を因果で回収するのは美化であり、分析ではない',
         '- 最後に、全転機を貫く「一本の因果の線」を2文で描く。ただし線が引けない場合は「線が見えない」と書け',
-        '- 全体で900字以内',
+        '- 全体で1500字以内',
       ].join('\n'),
     },
     {
       role: 'user',
       content: `以下の日記（最新: ${latestDate}頃）から、重大な転機を検出し、「もしこの転機がなかったら今の自分はどうなっていたか」を反事実的に分析してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
-  ], 2000);
+  ], 3000);
 }
 
 // 人生の物語 — 全日記を一つの大きな物語として再構成する
@@ -968,10 +980,10 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([y, c]) => `${y}年: ${c}件`).join('、');
 
-  // 全期間からサンプリング（直近厚め、100件で広くカバー）
-  const sampled = sampleWithRecencyBias(entries, 100);
+  // 全期間からサンプリング（直近厚め、120件で広くカバー）
+  const sampled = sampleWithRecencyBias(entries, 120);
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
-  const truncated = texts.join('\n---\n').slice(0, 12000);
+  const truncated = texts.join('\n---\n').slice(0, 14000);
 
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
@@ -1027,14 +1039,14 @@ export async function analyzeLifeStory(entries: DiaryEntry[]): Promise<string> {
         '  例：「滑落してから、別の山を見つけるまでの山行記」',
         '  例：「荷物を降ろすことを覚えた登山者の話」',
         '- 事実が語る物語を信じる。でもその語り口に、温度を込める',
-        '- 全体で1200字以内',
+        '- 全体で2000字以内',
       ].join('\n'),
     },
     {
       role: 'user',
       content: `以下の日記（全${totalCount}件、期間：${dateRange}、${yearSummary}）を、一つの大きな人生の物語として再構成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
-  ], 2500);
+  ], 4000);
 }
 
 // 一括分析レポート — 全分析を統合した包括レポート
@@ -1065,7 +1077,8 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
   const seasonalStats = calcSeasonalCrossStats(monthlyDeep);
   const currentState = calcCurrentStateNumeric(monthlyDeep);
   const predictive = calcPredictiveIndicators(monthlyDeep, entries);
-  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive);
+  const dailyPredictiveCtx = calcDailyPredictiveContext(entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictiveCtx);
 
   return callChat([
     {
@@ -1117,7 +1130,7 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
         '  - 例：「食べ物のことを書く日は、なんだか穏やかだね」',
         '  - 例：「最近、風のことを書いてるね。外を歩いてるんだなって伝わってくる」',
         '  - 答えなくてもいい。ただ「あ、そういえば」となれば十分',
-        '- 全体で1000字以内',
+        '- 全体で1500字以内',
         '- 冷静さは保ちつつ、温かい目で見ること',
       ].join('\n'),
     },
@@ -1125,7 +1138,7 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
       role: 'user',
       content: `以下の日記（全${totalCount}件、期間：${dateRange}）の包括的レポートを作成してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${deepStats}\n${truncated}`,
     },
-  ], 2000);
+  ], 3000);
 }
 
 // 急所 — やさしいだけじゃない。痛いけど本質を突く一撃
@@ -1141,9 +1154,9 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     ? `${sorted[0].date} 〜 ${sorted[sorted.length - 1].date}`
     : '不明';
 
-  const sampled = sampleWithRecencyBias(entries, 80);
+  const sampled = sampleWithRecencyBias(entries, 120);
   const texts = sampled.map(e => `[${e.date}] ${e.content.slice(0, 150)}`);
-  const truncated = texts.join('\n---\n').slice(0, 10000);
+  const truncated = texts.join('\n---\n').slice(0, 14000);
 
   // 直近の状態コンテキストを算出
   const recentState = calcRecentStateContext(entries);
@@ -1192,15 +1205,17 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '  例：「次に誰かの荷物を持とうとしたとき、一回だけ断ってみたらどうなるだろう？」',
         '',
         '- 1つの急所に集中する。複数指摘しない。一撃が最も効く',
+        '- 根拠は5つ以上の引用で固めろ。時期の異なる日記から、繰り返しを証拠で叩きつける',
+        '- 「これが意味すること」は深く掘れ。表面ではなく構造を見ろ',
         '- 慰めない。でも見捨てない。「ここが痛いのは知ってる。でも見ないふりはしない」の温度',
-        '- 全体で500字以内',
+        '- 全体で1000字以内',
       ].join('\n'),
     },
     {
       role: 'user',
       content: `以下の日記（全${totalCount}件、期間：${dateRange}）を読み、書き手の「急所」を1つだけ、正直に指摘してください：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${truncated}`,
     },
-  ], 1500);
+  ], 2500);
 }
 
 // やさしい振り返り — 観測データに基づくやさしい省察

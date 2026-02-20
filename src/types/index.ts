@@ -37,18 +37,20 @@ export interface StabilityIndex {
   selfDenialAvg: number; // 月平均自己否定語数
 }
 
-// 標高（累積的な成長の高さ）— 年単位
+// 標高 — 年単位（滑落あり）
 export interface ElevationPoint {
   year: string; // YYYY
   elevation: number; // 累積標高（m）
-  climb: number; // その年の登攀量（m）
+  climb: number; // その年の変動量（m）— マイナスは滑落
+  isSlide: boolean; // 滑落した年かどうか
 }
 
-// 標高（累積的な成長の高さ）— 月単位
+// 標高 — 月単位（滑落あり）
 export interface ElevationPointMonthly {
   month: string; // YYYY-MM
   elevation: number; // 累積標高（m）
-  climb: number; // その月の登攀量（m）
+  climb: number; // その月の変動量（m）— マイナスは滑落
+  isSlide: boolean;
 }
 
 // 感情分析 — 日単位（1日おき）
@@ -59,11 +61,26 @@ export interface EmotionAnalysisDaily {
   topEmotionWords: { word: string; count: number }[];
 }
 
-// 標高（累積的な成長の高さ）— 1日おき
+// 標高 — 1日おき（滑落あり）
 export interface ElevationPointDaily {
   date: string; // YYYY-MM-DD
   elevation: number; // 累積標高（m）
-  climb: number; // その日の登攀量（m）
+  climb: number; // その日の変動量（m）— マイナスは滑落
+  isSlide: boolean;
+}
+
+// 回復力（レジリエンス）指標
+export interface ResilienceMetrics {
+  // 最大滑落
+  deepestSlide: { period: string; depth: number } | null;
+  // 滑落後の回復速度（滑落からプラスに転じるまでの期間数）
+  avgRecoveryPeriods: number | null;
+  // 回復率（滑落の何%を取り戻したか）
+  recoveryRatio: number | null;
+  // 滑落回数
+  slideCount: number;
+  // 総滑落量
+  totalSlideDepth: number;
 }
 
 // AI分析キャッシュ: 各分析タイプの最新結果を保持
@@ -107,13 +124,17 @@ export interface MonthlyDeepAnalysis {
   seasonalBaseline: number | null; // 同月の季節ベースライン
   seasonalDeviation: number | null; // 季節補正後の偏差
   entryCount: number;
+  textLength: number; // 月間総文字数（正規化の母数）
   avgSentenceLength: number; // 平均文長（文字数）
-  firstPersonRate: number; // 一人称出現率
-  otherPersonRate: number; // 他者固有名詞出現率
-  taskWordRate: number; // タスク関連語出現率
-  selfMonitorRate: number; // 自己モニタリング語出現率
-  physicalSymptomCount: number; // 身体症状語の出現数
-  workWordRate: number; // 仕事関連語出現率
+  firstPersonRate: number; // 一人称出現率（/1000字）
+  otherPersonRate: number; // 他者固有名詞出現率（/1000字）
+  taskWordRate: number; // タスク関連語出現率（/1000字）
+  selfMonitorRate: number; // 自己モニタリング語出現率（/1000字）
+  physicalSymptomCount: number; // 身体症状語の出現数（後方互換）
+  physicalSymptomRate: number; // 身体症状語の出現率（/1000字）
+  workWordRate: number; // 仕事関連語出現率（/1000字）
+  negativeRate: number; // ネガティブ語出現率（/1000字）— negativeRatioとは別。絶対頻度
+  positiveRate: number; // ポジティブ語出現率（/1000字）
 }
 
 // トレンドベースの転機検出
@@ -140,10 +161,17 @@ export interface SeasonalCrossStats {
   avgSentenceLength: number;
   avgWorkWordRate: number;
   avgPhysicalSymptoms: number;
+  avgPhysicalSymptomRate: number; // /1000字で統一
   avgFirstPersonRate: number;
   avgSelfMonitorRate: number;
+  avgNegativeRate: number; // ネガ語/1000字
+  avgPositiveRate: number; // ポジ語/1000字
   entryCount: number;
   monthCount: number;
+  totalTextLength: number; // 季節内の総文字数
+  // 統計検定結果
+  pValue: number | null; // 他季節との比較におけるp値（カイ二乗）
+  isSignificant: boolean; // p < 0.05
 }
 
 // 数値ベースの現在地評価
@@ -189,16 +217,69 @@ export interface PredictiveIndicator {
 // 語彙深度分析
 export interface VocabularyDepth {
   period: string;
+  textLength: number; // 総文字数（正規化の母数）
   // ネガティブ語の「深度」（軽い不満 vs 深い絶望）
-  lightNegCount: number; // 疲れ、だるい等
-  deepNegCount: number; // 死にたい、消えたい等
+  lightNegCount: number; // 疲れ、だるい等（後方互換）
+  deepNegCount: number; // 死にたい、消えたい等（後方互換）
+  lightNegRate: number; // /1000字
+  deepNegRate: number; // /1000字
   depthRatio: number; // deep / (light + deep)
   // 主語の変化
-  firstPersonCount: number;
-  otherPersonCount: number;
+  firstPersonCount: number; // （後方互換）
+  otherPersonCount: number; // （後方互換）
+  firstPersonRate: number; // /1000字
+  otherPersonRate: number; // /1000字
   subjectRatio: number; // other / (first + other)
   // 文章の構造変化
   avgSentenceLength: number;
-  questionCount: number; // 疑問文の数
-  exclamationCount: number; // 感嘆文の数
+  questionCount: number; // 疑問文の数（後方互換）
+  exclamationCount: number; // 感嘆文の数（後方互換）
+  questionRate: number; // /1000字
+  exclamationRate: number; // /1000字
+}
+
+// 深度比の解釈結果
+export interface DepthInterpretation {
+  pattern: 'frequency_down_depth_up' | 'frequency_down_depth_down' | 'frequency_up_depth_up' | 'stable' | 'other';
+  label: string;
+  description: string;
+  riskNote: string;
+}
+
+// 一人称変化の解釈結果
+export interface FirstPersonShiftInterpretation {
+  pattern: 'role_persona' | 'outward_adaptation' | 'self_disclosure_decrease' | 'genuine_growth' | 'insufficient_data';
+  label: string;
+  description: string;
+  evidence: string[];
+}
+
+// 統計検定結果
+export interface StatisticalTest {
+  testName: string; // 'chi_square' | 'z_test'
+  statistic: number;
+  pValue: number;
+  significant: boolean; // p < 0.05
+  effectSize: number; // クラメールのV or コーエンのh
+  description: string;
+}
+
+// 日次レベルの予測用コンテキスト
+export interface DailyPredictiveContext {
+  // ネガ急上昇前N日間の共通語
+  precursorWindowDays: number;
+  dailyPrecursors: { word: string; frequency: number; occurrencesBeforeSpike: number }[];
+  // 睡眠崩壊→ネガの遅延相関
+  sleepDisruptionCorrelation: {
+    lag: number; // 日数
+    strength: number; // 相関強度 0-1
+    sampleSize: number;
+  } | null;
+  // 感覚症状×対人イベント
+  sensoryInterpersonalCorrelation: {
+    sensorySymptom: string;
+    interpersonalWord: string;
+    coOccurrenceRate: number; // 同時出現率
+    sampleSize: number;
+  }[];
 }

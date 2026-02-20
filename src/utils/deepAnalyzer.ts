@@ -6,6 +6,10 @@ import type {
   CurrentStateNumeric,
   PredictiveIndicator,
   VocabularyDepth,
+  DepthInterpretation,
+  FirstPersonShiftInterpretation,
+  StatisticalTest,
+  DailyPredictiveContext,
 } from '../types';
 
 // ── 辞書定義 ──
@@ -163,12 +167,17 @@ export function calcMonthlyDeepAnalysis(entries: DiaryEntry[]): MonthlyDeepAnaly
     const monitorCount = countWords(allText, selfMonitorWords);
     const selfMonitorRate = textLength > 0 ? (monitorCount / textLength) * 1000 : 0;
 
-    // 身体症状カウント
+    // 身体症状カウント＋レート
     const physicalSymptomCount = countWords(allText, physicalSymptomWords);
+    const physicalSymptomRate = textLength > 0 ? (physicalSymptomCount / textLength) * 1000 : 0;
 
     // 仕事関連語率（1000文字あたり）
     const workCount = countWords(allText, workWords);
     const workWordRate = textLength > 0 ? (workCount / textLength) * 1000 : 0;
+
+    // ネガ語/ポジ語の絶対出現率（/1000字）— ratioとは別に頻度を正規化
+    const negativeRate = textLength > 0 ? (negCount / textLength) * 1000 : 0;
+    const positiveRate = textLength > 0 ? (posCount / textLength) * 1000 : 0;
 
     rawResults.push({
       month,
@@ -178,13 +187,17 @@ export function calcMonthlyDeepAnalysis(entries: DiaryEntry[]): MonthlyDeepAnaly
       seasonalBaseline: null,
       seasonalDeviation: null,
       entryCount: monthEntries.length,
+      textLength,
       avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
       firstPersonRate: Math.round(firstPersonRate * 100) / 100,
       otherPersonRate: Math.round(otherPersonRate * 100) / 100,
       taskWordRate: Math.round(taskWordRate * 100) / 100,
       selfMonitorRate: Math.round(selfMonitorRate * 100) / 100,
       physicalSymptomCount,
+      physicalSymptomRate: Math.round(physicalSymptomRate * 100) / 100,
       workWordRate: Math.round(workWordRate * 100) / 100,
+      negativeRate: Math.round(negativeRate * 100) / 100,
+      positiveRate: Math.round(positiveRate * 100) / 100,
     });
   }
 
@@ -332,7 +345,131 @@ function buildShiftDescription(
   return parts.join('。') || '変化検出';
 }
 
-// ── 季節×指標クロス集計 ──
+// ── 統計検定ユーティリティ ──
+
+// カイ二乗検定: 2つの季節のネガ語/ポジ語の出現頻度を比較
+function chiSquareTest(
+  negA: number, posA: number, negB: number, posB: number,
+): StatisticalTest {
+  const totalA = negA + posA;
+  const totalB = negB + posB;
+  const total = totalA + totalB;
+  const totalNeg = negA + negB;
+  const totalPos = posA + posB;
+
+  if (total === 0 || totalA === 0 || totalB === 0) {
+    return { testName: 'chi_square', statistic: 0, pValue: 1, significant: false, effectSize: 0, description: 'データ不足' };
+  }
+
+  // 期待度数
+  const eNegA = totalA * totalNeg / total;
+  const ePosA = totalA * totalPos / total;
+  const eNegB = totalB * totalNeg / total;
+  const ePosB = totalB * totalPos / total;
+
+  // 期待度数が5未満の場合は検定の信頼性が低い
+  const minExpected = Math.min(eNegA, ePosA, eNegB, ePosB);
+
+  // カイ二乗統計量
+  const chi2 =
+    ((negA - eNegA) ** 2) / eNegA +
+    ((posA - ePosA) ** 2) / ePosA +
+    ((negB - eNegB) ** 2) / eNegB +
+    ((posB - ePosB) ** 2) / ePosB;
+
+  // p値の近似計算（自由度1のカイ二乗分布）
+  const pValue = chi2PValue(chi2);
+
+  // クラメールのV（効果量）
+  const effectSize = Math.sqrt(chi2 / total);
+
+  let description: string;
+  if (minExpected < 5) {
+    description = `期待度数不足（最小${minExpected.toFixed(1)}）。結果は参考値`;
+  } else if (pValue < 0.01) {
+    description = `高度に有意（χ²=${chi2.toFixed(2)}, p=${pValue.toFixed(4)}, V=${effectSize.toFixed(3)}）`;
+  } else if (pValue < 0.05) {
+    description = `有意（χ²=${chi2.toFixed(2)}, p=${pValue.toFixed(4)}, V=${effectSize.toFixed(3)}）`;
+  } else {
+    description = `有意差なし（χ²=${chi2.toFixed(2)}, p=${pValue.toFixed(4)}）`;
+  }
+
+  return {
+    testName: 'chi_square',
+    statistic: Math.round(chi2 * 100) / 100,
+    pValue: Math.round(pValue * 10000) / 10000,
+    significant: pValue < 0.05 && minExpected >= 5,
+    effectSize: Math.round(effectSize * 1000) / 1000,
+    description,
+  };
+}
+
+// カイ二乗分布（自由度1）のp値近似
+function chi2PValue(x: number): number {
+  if (x <= 0) return 1;
+  // 正規分布の上側確率を使った近似
+  const z = Math.sqrt(x);
+  return 2 * (1 - normalCDF(z));
+}
+
+// 標準正規分布の累積分布関数（近似）
+function normalCDF(z: number): number {
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
+  const sign = z < 0 ? -1 : 1;
+  const absZ = Math.abs(z);
+  const t = 1 / (1 + p * absZ);
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absZ * absZ / 2);
+  return 0.5 * (1 + sign * y);
+}
+
+// 比率のz検定（2つの比率の差の検定）
+export function proportionZTest(
+  p1: number, n1: number, p2: number, n2: number,
+): StatisticalTest {
+  if (n1 === 0 || n2 === 0) {
+    return { testName: 'z_test', statistic: 0, pValue: 1, significant: false, effectSize: 0, description: 'データ不足' };
+  }
+
+  const pPooled = (p1 * n1 + p2 * n2) / (n1 + n2);
+  if (pPooled === 0 || pPooled === 1) {
+    return { testName: 'z_test', statistic: 0, pValue: 1, significant: false, effectSize: 0, description: '分散なし' };
+  }
+
+  const se = Math.sqrt(pPooled * (1 - pPooled) * (1 / n1 + 1 / n2));
+  const z = se > 0 ? (p1 - p2) / se : 0;
+  const pValue = 2 * (1 - normalCDF(Math.abs(z)));
+
+  // コーエンのh（効果量）
+  const h = 2 * Math.asin(Math.sqrt(p1)) - 2 * Math.asin(Math.sqrt(p2));
+  const effectSize = Math.abs(h);
+
+  let description: string;
+  if (n1 < 30 || n2 < 30) {
+    description = `サンプルサイズ不足（n1=${n1}, n2=${n2}）。結果は参考値`;
+  } else if (pValue < 0.01) {
+    description = `高度に有意（z=${z.toFixed(2)}, p=${pValue.toFixed(4)}, h=${effectSize.toFixed(3)}）`;
+  } else if (pValue < 0.05) {
+    description = `有意（z=${z.toFixed(2)}, p=${pValue.toFixed(4)}, h=${effectSize.toFixed(3)}）`;
+  } else {
+    description = `有意差なし（z=${z.toFixed(2)}, p=${pValue.toFixed(4)}）`;
+  }
+
+  return {
+    testName: 'z_test',
+    statistic: Math.round(z * 100) / 100,
+    pValue: Math.round(pValue * 10000) / 10000,
+    significant: pValue < 0.05,
+    effectSize: Math.round(effectSize * 1000) / 1000,
+    description,
+  };
+}
+
+// ── 季節×指標クロス集計（統計検定付き） ──
 
 export function calcSeasonalCrossStats(monthly: MonthlyDeepAnalysis[]): SeasonalCrossStats[] {
   const seasonMap: Record<string, MonthlyDeepAnalysis[]> = {
@@ -354,26 +491,62 @@ export function calcSeasonalCrossStats(monthly: MonthlyDeepAnalysis[]): Seasonal
     winter: '冬（12-2月）',
   };
 
-  const results: SeasonalCrossStats[] = [];
+  // まず各季節の集計値を算出
+  const rawResults: (SeasonalCrossStats & { _totalNeg: number; _totalPos: number })[] = [];
 
   for (const [season, months] of Object.entries(seasonMap)) {
     if (months.length === 0) continue;
     const n = months.length;
-    results.push({
+    const totalTextLength = months.reduce((s, m) => s + m.textLength, 0);
+
+    // ネガ語/ポジ語の1000字あたり平均を集計
+    const avgNegativeRate = n > 0 ? months.reduce((s, m) => s + m.negativeRate, 0) / n : 0;
+    const avgPositiveRate = n > 0 ? months.reduce((s, m) => s + m.positiveRate, 0) / n : 0;
+
+    // 身体症状もレートで統一
+    const avgPhysicalSymptomRate = n > 0 ? months.reduce((s, m) => s + m.physicalSymptomRate, 0) / n : 0;
+
+    // 検定用の合計ネガ/ポジ語数（テキスト量に基づく近似値）
+    const totalNeg = Math.round(avgNegativeRate * totalTextLength / 1000);
+    const totalPos = Math.round(avgPositiveRate * totalTextLength / 1000);
+
+    rawResults.push({
       season: season as SeasonalCrossStats['season'],
       seasonLabel: labels[season],
       avgNegativeRatio: Math.round(months.reduce((s, m) => s + m.negativeRatio, 0) / n * 1000) / 1000,
       avgSentenceLength: Math.round(months.reduce((s, m) => s + m.avgSentenceLength, 0) / n * 10) / 10,
       avgWorkWordRate: Math.round(months.reduce((s, m) => s + m.workWordRate, 0) / n * 100) / 100,
       avgPhysicalSymptoms: Math.round(months.reduce((s, m) => s + m.physicalSymptomCount, 0) / n * 10) / 10,
+      avgPhysicalSymptomRate: Math.round(avgPhysicalSymptomRate * 100) / 100,
       avgFirstPersonRate: Math.round(months.reduce((s, m) => s + m.firstPersonRate, 0) / n * 100) / 100,
       avgSelfMonitorRate: Math.round(months.reduce((s, m) => s + m.selfMonitorRate, 0) / n * 100) / 100,
+      avgNegativeRate: Math.round(avgNegativeRate * 100) / 100,
+      avgPositiveRate: Math.round(avgPositiveRate * 100) / 100,
       entryCount: months.reduce((s, m) => s + m.entryCount, 0),
       monthCount: n,
+      totalTextLength,
+      pValue: null,
+      isSignificant: false,
+      _totalNeg: totalNeg,
+      _totalPos: totalPos,
     });
   }
 
-  return results;
+  // 各季節を「その他全季節」と比較してカイ二乗検定を実行
+  for (const target of rawResults) {
+    const others = rawResults.filter(r => r.season !== target.season);
+    if (others.length === 0) continue;
+
+    const othersNeg = others.reduce((s, r) => s + r._totalNeg, 0);
+    const othersPos = others.reduce((s, r) => s + r._totalPos, 0);
+
+    const test = chiSquareTest(target._totalNeg, target._totalPos, othersNeg, othersPos);
+    target.pValue = test.pValue;
+    target.isSignificant = test.significant;
+  }
+
+  // 内部用フィールドを除去して返す
+  return rawResults.map(({ _totalNeg: _n, _totalPos: _p, ...rest }) => rest);
 }
 
 // ── 数値ベースの現在地評価 ──
@@ -603,10 +776,228 @@ export function calcPredictiveIndicators(
   return { precursorWords, activeSignals, symptomCorrelations };
 }
 
-// ── 語彙深度分析（期間比較用） ──
+// ── 日次レベル予測コンテキスト ──
+
+// 睡眠関連語
+const sleepDisruptionWords = [
+  '眠れない', '不眠', '寝れない', '寝つけない', '早朝覚醒', '中途覚醒',
+  '寝すぎ', '過眠', '悪夢', '夜中に目', '3時に', '4時に', '5時に',
+  '寝不足', '睡眠', '寝落ち',
+];
+
+// 感覚症状語（幻嗅・幻聴等）
+const sensorySymptomWords = [
+  '幻嗅', '幻聴', '幻覚', '耳鳴り', '匂い', 'におい',
+  '聞こえる', '見える', '感じる', '気配',
+];
+
+// 対人イベント語
+const interpersonalWords = [
+  '会った', '話した', '電話', '約束', '誘われ', '断った', '断られ',
+  '喧嘩', 'ケンカ', '怒られ', '叱られ', '無視', '避け',
+  '会議', '面談', '飲み会', '食事', 'ランチ', '遊び', '集まり',
+  '人前', '発表', 'プレゼン', '面接',
+];
+
+export function calcDailyPredictiveContext(entries: DiaryEntry[]): DailyPredictiveContext {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+
+  const result: DailyPredictiveContext = {
+    precursorWindowDays: 3,
+    dailyPrecursors: [],
+    sleepDisruptionCorrelation: null,
+    sensoryInterpersonalCorrelation: [],
+  };
+
+  if (sorted.length < 10) return result;
+
+  // 日付ごとにグループ化
+  const byDate = new Map<string, DiaryEntry[]>();
+  for (const e of sorted) {
+    const d = e.date!.substring(0, 10);
+    const list = byDate.get(d) ?? [];
+    list.push(e);
+    byDate.set(d, list);
+  }
+
+  const dates = [...byDate.keys()].sort();
+
+  // 各日のネガ率を計算
+  const dailyNegRates = new Map<string, number>();
+  for (const [date, dayEntries] of byDate) {
+    const text = dayEntries.map(e => e.content).join('\n');
+    const neg = countWords(text, allNegativeWords);
+    const pos = countWords(text, allPositiveWords);
+    const total = neg + pos;
+    dailyNegRates.set(date, total > 0 ? neg / total : 0);
+  }
+
+  // 1. ネガ急上昇前3日間の共通語
+  const allCandidates = [
+    ...physicalSymptomWords.slice(0, 20),
+    ...sleepDisruptionWords,
+    ...sensorySymptomWords,
+    '不安', '疲れ', 'だるい', 'イライラ', 'ストレス', '仕事', '残業', '締切',
+  ];
+  const uniqueCandidates = [...new Set(allCandidates)];
+
+  // ネガ率の上位20%を「スパイク」と定義
+  const allRates = [...dailyNegRates.values()].filter(r => r > 0);
+  if (allRates.length === 0) return result;
+  const sortedRates = [...allRates].sort((a, b) => a - b);
+  const spikeThreshold = sortedRates[Math.floor(sortedRates.length * 0.8)];
+
+  // スパイク日の前3日に出現した語を集計
+  const precursorCounts = new Map<string, { total: number; beforeSpike: number }>();
+
+  for (let i = 3; i < dates.length; i++) {
+    const rate = dailyNegRates.get(dates[i]) ?? 0;
+    if (rate < spikeThreshold) continue;
+
+    // 前3日間のテキストを結合
+    const windowDates = dates.slice(Math.max(0, i - 3), i);
+    const windowText = windowDates
+      .flatMap(d => byDate.get(d) ?? [])
+      .map(e => e.content)
+      .join('\n');
+
+    for (const word of uniqueCandidates) {
+      const count = countWords(windowText, [word]);
+      if (count > 0) {
+        const existing = precursorCounts.get(word) ?? { total: 0, beforeSpike: 0 };
+        existing.beforeSpike += count;
+        precursorCounts.set(word, existing);
+      }
+    }
+  }
+
+  // 全テキストでの出現頻度（ベースライン）
+  const totalText = sorted.map(e => e.content).join('\n');
+  for (const word of uniqueCandidates) {
+    const count = countWords(totalText, [word]);
+    if (count > 0) {
+      const existing = precursorCounts.get(word) ?? { total: 0, beforeSpike: 0 };
+      existing.total = count;
+      precursorCounts.set(word, existing);
+    }
+  }
+
+  // スパイク前出現頻度が全体比率より高い語を前兆語として抽出
+  for (const [word, counts] of precursorCounts) {
+    if (counts.total === 0 || counts.beforeSpike === 0) continue;
+    result.dailyPrecursors.push({
+      word,
+      frequency: counts.total,
+      occurrencesBeforeSpike: counts.beforeSpike,
+    });
+  }
+  result.dailyPrecursors.sort((a, b) => b.occurrencesBeforeSpike - a.occurrencesBeforeSpike);
+  result.dailyPrecursors = result.dailyPrecursors.slice(0, 15);
+
+  // 2. 睡眠崩壊→ネガの遅延相関
+  // 睡眠語が出現した日の翌日〜3日後のネガ率を、そうでない日と比較
+  const sleepDays: number[] = [];
+  const nonSleepDays: number[] = [];
+
+  for (let i = 0; i < dates.length - 3; i++) {
+    const text = (byDate.get(dates[i]) ?? []).map(e => e.content).join('\n');
+    const hasSleep = countWords(text, sleepDisruptionWords) > 0;
+
+    // 1-3日後のネガ率平均
+    const futureRates: number[] = [];
+    for (let j = 1; j <= 3 && i + j < dates.length; j++) {
+      const r = dailyNegRates.get(dates[i + j]);
+      if (r !== undefined) futureRates.push(r);
+    }
+    if (futureRates.length === 0) continue;
+    const avgFuture = futureRates.reduce((s, v) => s + v, 0) / futureRates.length;
+
+    if (hasSleep) sleepDays.push(avgFuture);
+    else nonSleepDays.push(avgFuture);
+  }
+
+  if (sleepDays.length >= 3 && nonSleepDays.length >= 3) {
+    const sleepAvg = sleepDays.reduce((s, v) => s + v, 0) / sleepDays.length;
+    const nonSleepAvg = nonSleepDays.reduce((s, v) => s + v, 0) / nonSleepDays.length;
+    const diff = sleepAvg - nonSleepAvg;
+
+    if (diff > 0.03) {
+      result.sleepDisruptionCorrelation = {
+        lag: 2, // 1-3日の中央値
+        strength: Math.min(1, Math.round(diff * 5 * 100) / 100),
+        sampleSize: sleepDays.length,
+      };
+    }
+  }
+
+  // 3. 感覚症状×対人イベントの同時出現率
+  let sensoryDays = 0;
+  let coOccurrenceDays = 0;
+  const sensoryCounts = new Map<string, { total: number; withInterpersonal: number }>();
+
+  for (const date of dates) {
+    const text = (byDate.get(date) ?? []).map(e => e.content).join('\n');
+    const hasSensory = countWords(text, sensorySymptomWords) > 0;
+    const hasInterpersonal = countWords(text, interpersonalWords) > 0;
+
+    if (hasSensory) {
+      sensoryDays++;
+      if (hasInterpersonal) coOccurrenceDays++;
+
+      // 個別の感覚症状ごとに集計
+      for (const word of sensorySymptomWords) {
+        if (countWords(text, [word]) > 0) {
+          const existing = sensoryCounts.get(word) ?? { total: 0, withInterpersonal: 0 };
+          existing.total++;
+          if (hasInterpersonal) existing.withInterpersonal++;
+          sensoryCounts.set(word, existing);
+        }
+      }
+    }
+  }
+
+  // ±2日のウィンドウも含めてチェック（同日だけでなく前後2日の対人イベントとの関連）
+  for (const [symptom, counts] of sensoryCounts) {
+    if (counts.total < 2) continue;
+    const rate = counts.withInterpersonal / counts.total;
+
+    // 最も関連の強い対人語を特定
+    let topInterpersonal = '';
+    let topCount = 0;
+    for (const date of dates) {
+      const text = (byDate.get(date) ?? []).map(e => e.content).join('\n');
+      if (countWords(text, [symptom]) === 0) continue;
+      for (const iw of interpersonalWords) {
+        const c = countWords(text, [iw]);
+        if (c > topCount) {
+          topCount = c;
+          topInterpersonal = iw;
+        }
+      }
+    }
+
+    if (rate > 0.3 && topInterpersonal) {
+      result.sensoryInterpersonalCorrelation.push({
+        sensorySymptom: symptom,
+        interpersonalWord: topInterpersonal,
+        coOccurrenceRate: Math.round(rate * 100) / 100,
+        sampleSize: counts.total,
+      });
+    }
+  }
+
+  result.sensoryInterpersonalCorrelation.sort((a, b) => b.coOccurrenceRate - a.coOccurrenceRate);
+
+  return result;
+}
+
+// ── 語彙深度分析（期間比較用・正規化対応） ──
 
 export function calcVocabularyDepth(entries: DiaryEntry[], periodLabel: string): VocabularyDepth {
   const allText = entries.map(e => e.content).join('\n');
+  const textLength = allText.length;
   const sentences = splitSentences(allText);
 
   const lightNeg = countWords(allText, lightNegativeWords);
@@ -617,19 +1008,187 @@ export function calcVocabularyDepth(entries: DiaryEntry[], periodLabel: string):
   const questionCount = (allText.match(/？/g) ?? []).length + (allText.match(/\?/g) ?? []).length;
   const exclamationCount = (allText.match(/！/g) ?? []).length + (allText.match(/!/g) ?? []).length;
 
+  const per1k = (count: number) => textLength > 0 ? Math.round((count / textLength) * 1000 * 100) / 100 : 0;
+
   return {
     period: periodLabel,
+    textLength,
     lightNegCount: lightNeg,
     deepNegCount: deepNeg,
+    lightNegRate: per1k(lightNeg),
+    deepNegRate: per1k(deepNeg),
     depthRatio: (lightNeg + deepNeg) > 0 ? deepNeg / (lightNeg + deepNeg) : 0,
     firstPersonCount: fp,
     otherPersonCount: op,
+    firstPersonRate: per1k(fp),
+    otherPersonRate: per1k(op),
     subjectRatio: (fp + op) > 0 ? op / (fp + op) : 0,
     avgSentenceLength: sentences.length > 0
       ? Math.round(sentences.reduce((s, sent) => s + sent.length, 0) / sentences.length * 10) / 10
       : 0,
     questionCount,
     exclamationCount,
+    questionRate: per1k(questionCount),
+    exclamationRate: per1k(exclamationCount),
+  };
+}
+
+// ── 深度比の解釈ロジック ──
+
+export function interpretDepthChange(early: VocabularyDepth, late: VocabularyDepth): DepthInterpretation {
+  const earlyTotalRate = early.lightNegRate + early.deepNegRate;
+  const lateTotalRate = late.lightNegRate + late.deepNegRate;
+  const frequencyChange = earlyTotalRate > 0 ? (lateTotalRate - earlyTotalRate) / earlyTotalRate : 0;
+  const depthChange = late.depthRatio - early.depthRatio;
+
+  // 頻度は減ったが深度比が上がった → 最も危険なパターン
+  if (frequencyChange < -0.15 && depthChange > 0.05) {
+    return {
+      pattern: 'frequency_down_depth_up',
+      label: '頻度減少×深度上昇',
+      description: `ネガティブ語の総量は${Math.round(Math.abs(frequencyChange) * 100)}%減少したが、深度比は${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。「愚痴は減ったが、来る時は深い」パターン。軽度の不満が減り、重い言葉だけが残っている。`,
+      riskNote: '表面的な改善に見えるが、深層のリスクは残存。むしろ軽度ネガが「フィルタリング」されている可能性（本音を書かなくなった／書けなくなった）。',
+    };
+  }
+
+  // 頻度も深度も減った → 本質的な回復
+  if (frequencyChange < -0.15 && depthChange < -0.05) {
+    return {
+      pattern: 'frequency_down_depth_down',
+      label: '頻度減少×深度低下',
+      description: `ネガティブ語の総量が${Math.round(Math.abs(frequencyChange) * 100)}%減少し、深度比も${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に低下。深い苦悩も軽い不満も共に減っている。`,
+      riskNote: '回復傾向として最も信頼性が高いパターン。ただし記述量自体の減少による見かけの改善でないか確認が必要。',
+    };
+  }
+
+  // 頻度も深度も上がった → 悪化
+  if (frequencyChange > 0.15 && depthChange > 0.05) {
+    return {
+      pattern: 'frequency_up_depth_up',
+      label: '頻度増加×深度上昇',
+      description: `ネガティブ語が${Math.round(frequencyChange * 100)}%増加し、深度比も${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。量も質も悪化。`,
+      riskNote: '注意を要する。身体症状との並行を確認せよ。',
+    };
+  }
+
+  // 安定
+  if (Math.abs(frequencyChange) <= 0.15 && Math.abs(depthChange) <= 0.05) {
+    return {
+      pattern: 'stable',
+      label: '安定',
+      description: `ネガティブ語の頻度・深度ともに大きな変化なし。深度比 ${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%。`,
+      riskNote: '変化がないこと自体は中立。現状の水準が高い場合は持続的リスク。',
+    };
+  }
+
+  return {
+    pattern: 'other',
+    label: 'その他のパターン',
+    description: `頻度変化${Math.round(frequencyChange * 100)}%、深度比${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%。分類に収まらない複合変化。`,
+    riskNote: '個別判断が必要。',
+  };
+}
+
+// ── 一人称激減の解釈ロジック ──
+
+export function interpretFirstPersonShift(
+  early: VocabularyDepth,
+  late: VocabularyDepth,
+  earlyMonthly: MonthlyDeepAnalysis[],
+  lateMonthly: MonthlyDeepAnalysis[],
+): FirstPersonShiftInterpretation {
+  const fpChange = early.firstPersonRate > 0
+    ? (late.firstPersonRate - early.firstPersonRate) / early.firstPersonRate
+    : 0;
+
+  // 変化が小さければデータ不足扱い
+  if (Math.abs(fpChange) < 0.3) {
+    return {
+      pattern: 'insufficient_data',
+      label: '有意な変化なし',
+      description: `一人称出現率の変化が${Math.round(Math.abs(fpChange) * 100)}%で、解釈に必要な閾値（30%）に達していない。`,
+      evidence: [],
+    };
+  }
+
+  // 減少方向の解釈
+  if (fpChange < -0.3) {
+    const evidence: string[] = [];
+    evidence.push(`一人称率: ${early.firstPersonRate}/1000字 → ${late.firstPersonRate}/1000字（${Math.round(fpChange * 100)}%変化）`);
+
+    // タスク語の変化を確認
+    const earlyTaskAvg = earlyMonthly.length > 0
+      ? earlyMonthly.reduce((s, m) => s + m.taskWordRate, 0) / earlyMonthly.length : 0;
+    const lateTaskAvg = lateMonthly.length > 0
+      ? lateMonthly.reduce((s, m) => s + m.taskWordRate, 0) / lateMonthly.length : 0;
+
+    // 他者参照の変化
+    const opChange = early.otherPersonRate > 0
+      ? (late.otherPersonRate - early.otherPersonRate) / early.otherPersonRate : 0;
+
+    // 自己モニタリング語の変化
+    const earlySmAvg = earlyMonthly.length > 0
+      ? earlyMonthly.reduce((s, m) => s + m.selfMonitorRate, 0) / earlyMonthly.length : 0;
+    const lateSmAvg = lateMonthly.length > 0
+      ? lateMonthly.reduce((s, m) => s + m.selfMonitorRate, 0) / lateMonthly.length : 0;
+
+    // 仕事語の変化
+    const earlyWorkAvg = earlyMonthly.length > 0
+      ? earlyMonthly.reduce((s, m) => s + m.workWordRate, 0) / earlyMonthly.length : 0;
+    const lateWorkAvg = lateMonthly.length > 0
+      ? lateMonthly.reduce((s, m) => s + m.workWordRate, 0) / lateMonthly.length : 0;
+
+    // 仮説1: 役割人格化 — タスク語・仕事語が増えている場合
+    if (lateTaskAvg > earlyTaskAvg * 1.3 || lateWorkAvg > earlyWorkAvg * 1.3) {
+      evidence.push(`タスク語率: ${earlyTaskAvg.toFixed(2)} → ${lateTaskAvg.toFixed(2)}/1000字`);
+      evidence.push(`仕事語率: ${earlyWorkAvg.toFixed(2)} → ${lateWorkAvg.toFixed(2)}/1000字`);
+      return {
+        pattern: 'role_persona',
+        label: '役割人格化',
+        description: '一人称が減少し、タスク・仕事関連語が増加。「私」ではなく「役割」として書くようになった可能性。日記が内省の場から業務報告に変質している兆候。',
+        evidence,
+      };
+    }
+
+    // 仮説2: 外向き適応強化 — 他者参照が増えている場合
+    if (opChange > 0.3) {
+      evidence.push(`他者参照率: ${early.otherPersonRate}/1000字 → ${late.otherPersonRate}/1000字（${Math.round(opChange * 100)}%増加）`);
+      return {
+        pattern: 'outward_adaptation',
+        label: '外向き適応強化',
+        description: '一人称が減少し、他者への言及が増加。対人関係への意識が強まり、自己を語る言葉が相対的に減っている。社会的適応の強化か、自己を他者の目で見るようになった変化。',
+        evidence,
+      };
+    }
+
+    // 仮説3: 自己開示減少 — 自己モニタリング語も減っている場合
+    if (lateSmAvg < earlySmAvg * 0.5) {
+      evidence.push(`自己モニタリング語率: ${earlySmAvg.toFixed(2)} → ${lateSmAvg.toFixed(2)}/1000字`);
+      return {
+        pattern: 'self_disclosure_decrease',
+        label: '自己開示の減少',
+        description: '一人称・自己モニタリング語が共に減少。自分の状態を言語化すること自体が減っている。日記に本音を書かなくなった、または自分を観察する余裕がなくなった可能性。',
+        evidence,
+      };
+    }
+
+    // デフォルト: 仮説の確定に至らない
+    evidence.push(`他者参照変化: ${Math.round(opChange * 100)}%`);
+    evidence.push(`自己モニタリング: ${earlySmAvg.toFixed(2)} → ${lateSmAvg.toFixed(2)}/1000字`);
+    return {
+      pattern: 'genuine_growth',
+      label: '視点の拡張（仮説）',
+      description: '一人称の減少に対し、特定の代替パターン（役割化・外向化・閉鎖化）が検出されなかった。自己と外界のバランスが変化した可能性があるが、断定はできない。',
+      evidence,
+    };
+  }
+
+  // 増加方向
+  return {
+    pattern: 'insufficient_data',
+    label: '一人称増加',
+    description: `一人称出現率が${Math.round(fpChange * 100)}%増加。内省の深化、または社会的撤退の可能性。`,
+    evidence: [`一人称率: ${early.firstPersonRate}/1000字 → ${late.firstPersonRate}/1000字`],
   };
 }
 
@@ -641,13 +1200,14 @@ export function formatDeepStatsForPrompt(
   seasonal: SeasonalCrossStats[],
   currentState: CurrentStateNumeric | null,
   predictive: PredictiveIndicator,
+  dailyPredictive?: DailyPredictiveContext,
 ): string {
   const lines: string[] = [];
 
   // 1. トレンドベースの転機データ
   if (shifts.length > 0) {
     lines.push('【実測データ: トレンドベースの変化検出】');
-    lines.push('以下は3ヶ月移動ウィンドウで検出した統計的に有意な変化。単発の文章ではなく、傾向として確認済み：');
+    lines.push('以下は3ヶ月移動ウィンドウで検出した変化。単発の文章ではなく、傾向として確認済み：');
     for (const s of shifts) {
       lines.push(`  ${s.startMonth}〜${s.endMonth}: ${s.description}（変化量 ${s.magnitude}σ）`);
       lines.push(`    ネガ率 ${Math.round(s.metrics.negRatioBefore * 100)}%→${Math.round(s.metrics.negRatioAfter * 100)}% / 一人称変化 ${s.metrics.firstPersonChange > 0 ? '+' : ''}${s.metrics.firstPersonChange} / 文長変化 ${s.metrics.sentenceLengthChange > 0 ? '+' : ''}${s.metrics.sentenceLengthChange}字`);
@@ -656,14 +1216,18 @@ export function formatDeepStatsForPrompt(
     lines.push('');
   }
 
-  // 2. 季節クロス集計
+  // 2. 季節クロス集計（統計検定結果付き）
   if (seasonal.length > 0) {
-    lines.push('【実測データ: 季節×指標クロス集計】');
+    lines.push('【実測データ: 季節×指標クロス集計（全指標1000字あたりで正規化済み）】');
     for (const s of seasonal) {
-      lines.push(`  ${s.seasonLabel}（${s.monthCount}ヶ月分）:`);
-      lines.push(`    ネガ率 ${Math.round(s.avgNegativeRatio * 100)}% / 仕事語率 ${s.avgWorkWordRate}/1000字 / 身体症状 ${s.avgPhysicalSymptoms}件/月 / 一人称率 ${s.avgFirstPersonRate}/1000字 / 自己モニタリング率 ${s.avgSelfMonitorRate}/1000字`);
+      const sigMark = s.isSignificant ? '★有意差あり' : '';
+      const pText = s.pValue !== null ? `p=${s.pValue.toFixed(4)}` : '';
+      lines.push(`  ${s.seasonLabel}（${s.monthCount}ヶ月分, ${s.totalTextLength.toLocaleString()}字）${sigMark ? ` ${sigMark}` : ''}:`);
+      lines.push(`    ネガ率 ${Math.round(s.avgNegativeRatio * 100)}%（ネガ語${s.avgNegativeRate}/1000字, ポジ語${s.avgPositiveRate}/1000字）${pText ? ` [カイ二乗検定: ${pText}]` : ''}`);
+      lines.push(`    仕事語${s.avgWorkWordRate}/1000字 / 身体症状${s.avgPhysicalSymptomRate}/1000字 / 一人称${s.avgFirstPersonRate}/1000字 / 自己モニタリング${s.avgSelfMonitorRate}/1000字`);
     }
-    lines.push('→ 季節分析はこの数値に基づくこと。「春は芽吹き」のような詩的表現に逃げるな。数字が語る季節を見ろ。');
+    lines.push('→ 季節分析はこの数値に基づくこと。★がない季節差は「有意差なし」として扱え。');
+    lines.push('→ 「統計的に有意」はカイ二乗検定（p<0.05）で確認済みの場合のみ使え。それ以外では「傾向がある」に留めろ。');
     lines.push('');
   }
 
@@ -700,38 +1264,80 @@ export function formatDeepStatsForPrompt(
     lines.push('');
   }
 
+  // 5. 日次レベル予測（新規追加）
+  if (dailyPredictive) {
+    if (dailyPredictive.sleepDisruptionCorrelation) {
+      const sc = dailyPredictive.sleepDisruptionCorrelation;
+      lines.push('【実測データ: 睡眠崩壊→ネガティブの遅延相関】');
+      lines.push(`  睡眠関連語の出現後${sc.lag}日以内にネガ率上昇（相関強度 ${sc.strength}, サンプル${sc.sampleSize}日）`);
+      lines.push('');
+    }
+
+    if (dailyPredictive.sensoryInterpersonalCorrelation.length > 0) {
+      lines.push('【実測データ: 感覚症状×対人イベントの関連】');
+      for (const corr of dailyPredictive.sensoryInterpersonalCorrelation) {
+        lines.push(`  「${corr.sensorySymptom}」出現日の${Math.round(corr.coOccurrenceRate * 100)}%で「${corr.interpersonalWord}」が共起（n=${corr.sampleSize}）`);
+      }
+      lines.push('');
+    }
+
+    if (dailyPredictive.dailyPrecursors.length > 0) {
+      lines.push('【実測データ: ネガ急上昇前3日間の前兆語（日次解析）】');
+      for (const p of dailyPredictive.dailyPrecursors.slice(0, 8)) {
+        lines.push(`  「${p.word}」: スパイク前出現${p.occurrencesBeforeSpike}回（全体${p.frequency}回）`);
+      }
+      lines.push('');
+    }
+  }
+
   return lines.join('\n');
 }
 
-// 語彙深度の比較テキスト生成（AIプロンプト注入用）
-export function formatVocabularyDepthForPrompt(early: VocabularyDepth, late: VocabularyDepth): string {
+// 語彙深度の比較テキスト生成（AIプロンプト注入用・正規化版）
+export function formatVocabularyDepthForPrompt(
+  early: VocabularyDepth,
+  late: VocabularyDepth,
+  depthInterpretation?: DepthInterpretation,
+  fpInterpretation?: FirstPersonShiftInterpretation,
+): string {
   const lines: string[] = [];
-  lines.push('【実測データ: 語彙深度の変化】');
-  lines.push(`  前期（${early.period}）:`);
-  lines.push(`    軽度ネガ語 ${early.lightNegCount}回 / 深度ネガ語 ${early.deepNegCount}回 / 深度比 ${Math.round(early.depthRatio * 100)}%`);
-  lines.push(`    一人称 ${early.firstPersonCount}回 / 他者参照 ${early.otherPersonCount}回 / 他者比率 ${Math.round(early.subjectRatio * 100)}%`);
-  lines.push(`    平均文長 ${early.avgSentenceLength}字 / 疑問文 ${early.questionCount}回 / 感嘆文 ${early.exclamationCount}回`);
-  lines.push(`  後期（${late.period}）:`);
-  lines.push(`    軽度ネガ語 ${late.lightNegCount}回 / 深度ネガ語 ${late.deepNegCount}回 / 深度比 ${Math.round(late.depthRatio * 100)}%`);
-  lines.push(`    一人称 ${late.firstPersonCount}回 / 他者参照 ${late.otherPersonCount}回 / 他者比率 ${Math.round(late.subjectRatio * 100)}%`);
-  lines.push(`    平均文長 ${late.avgSentenceLength}字 / 疑問文 ${late.questionCount}回 / 感嘆文 ${late.exclamationCount}回`);
+  lines.push('【実測データ: 語彙深度の変化（1000字あたりで正規化済み）】');
+  lines.push(`  前期（${early.period}）: 総文字数 ${early.textLength.toLocaleString()}字`);
+  lines.push(`    軽度ネガ語 ${early.lightNegRate}/1000字 / 深度ネガ語 ${early.deepNegRate}/1000字 / 深度比 ${Math.round(early.depthRatio * 100)}%`);
+  lines.push(`    一人称 ${early.firstPersonRate}/1000字 / 他者参照 ${early.otherPersonRate}/1000字 / 他者比率 ${Math.round(early.subjectRatio * 100)}%`);
+  lines.push(`    平均文長 ${early.avgSentenceLength}字 / 疑問文 ${early.questionRate}/1000字 / 感嘆文 ${early.exclamationRate}/1000字`);
+  lines.push(`  後期（${late.period}）: 総文字数 ${late.textLength.toLocaleString()}字`);
+  lines.push(`    軽度ネガ語 ${late.lightNegRate}/1000字 / 深度ネガ語 ${late.deepNegRate}/1000字 / 深度比 ${Math.round(late.depthRatio * 100)}%`);
+  lines.push(`    一人称 ${late.firstPersonRate}/1000字 / 他者参照 ${late.otherPersonRate}/1000字 / 他者比率 ${Math.round(late.subjectRatio * 100)}%`);
+  lines.push(`    平均文長 ${late.avgSentenceLength}字 / 疑問文 ${late.questionRate}/1000字 / 感嘆文 ${late.exclamationRate}/1000字`);
 
-  // 変化の解釈ガイド
-  const depthChange = late.depthRatio - early.depthRatio;
-  const subjectChange = late.subjectRatio - early.subjectRatio;
+  // テキスト量の差異に注意喚起
+  const textRatio = early.textLength > 0 ? late.textLength / early.textLength : 0;
+  if (textRatio < 0.3 || textRatio > 3) {
+    lines.push(`  ⚠ テキスト量の差: 前期${early.textLength.toLocaleString()}字 vs 後期${late.textLength.toLocaleString()}字（${Math.round(textRatio * 100)}%）。生カウントでの比較は不適切。1000字あたりの出現率で判断せよ。`);
+  }
 
-  lines.push('  変化のポイント:');
-  if (Math.abs(depthChange) > 0.1) {
-    lines.push(depthChange > 0
-      ? '    → ネガティブ語が「深く」なっている（軽い不満→深い苦悩）。単純な「ポジティブ増＝成長」判定は危険'
-      : '    → ネガティブ語が「浅く」なっている（深い苦悩→軽い不満）。これは回復の可能性');
+  // 深度比の解釈（自動判定結果）
+  if (depthInterpretation) {
+    lines.push('');
+    lines.push(`  【深度比の自動解釈: ${depthInterpretation.label}】`);
+    lines.push(`    ${depthInterpretation.description}`);
+    lines.push(`    リスク評価: ${depthInterpretation.riskNote}`);
   }
-  if (Math.abs(subjectChange) > 0.1) {
-    lines.push(subjectChange > 0
-      ? '    → 他者参照が増加。社会的役割意識の強化、または本音を書かなくなった可能性'
-      : '    → 一人称優位に変化。内省の深化、または社会的撤退の可能性');
+
+  // 一人称変化の解釈
+  if (fpInterpretation && fpInterpretation.pattern !== 'insufficient_data') {
+    lines.push('');
+    lines.push(`  【一人称変化の自動解釈: ${fpInterpretation.label}】`);
+    lines.push(`    ${fpInterpretation.description}`);
+    for (const ev of fpInterpretation.evidence) {
+      lines.push(`    根拠: ${ev}`);
+    }
   }
-  lines.push('→ ポジティブ語の増加＝成長と安易に結論づけるな。上記データで質を検証せよ。');
+
+  lines.push('');
+  lines.push('→ ポジティブ語の増加＝成長と安易に結論づけるな。上記の正規化データと自動解釈で質を検証せよ。');
+  lines.push('→ 生カウントの比較は期間のテキスト量が異なるため無効。必ず/1000字の出現率で判断すること。');
   lines.push('');
 
   return lines.join('\n');
