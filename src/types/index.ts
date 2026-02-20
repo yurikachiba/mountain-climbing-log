@@ -256,7 +256,7 @@ export interface DepthInterpretation {
 
 // 一人称変化の解釈結果
 export interface FirstPersonShiftInterpretation {
-  pattern: 'role_persona' | 'outward_adaptation' | 'self_disclosure_decrease' | 'genuine_growth' | 'insufficient_data';
+  pattern: 'role_persona' | 'outward_adaptation' | 'self_disclosure_decrease' | 'genuine_growth' | 'insufficient_data' | 'self_axis_shift' | 'introspection_deepening' | 'first_person_increase';
   label: string;
   description: string;
   alternativeReading: string;
