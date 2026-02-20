@@ -292,7 +292,8 @@ export function calcPeriodStats(entries: DiaryEntry[]): PeriodEmotionStats[] {
   return results;
 }
 
-// 期間統計を簡潔なテキストに変換（プロンプト注入用）
+// 期間統計をやわらかいテキストに変換（プロンプト注入用）
+// 数値を直接出さず、天気や空気感として表現する
 export function formatPeriodStatsForPrompt(stats: PeriodEmotionStats[]): string {
   if (stats.length === 0) return '';
 
@@ -307,15 +308,31 @@ export function formatPeriodStatsForPrompt(stats: PeriodEmotionStats[]): string 
     byHalf.set(half, list);
   }
 
-  const lines: string[] = ['【感情データ（実測値）】'];
+  // ネガティブ率を天気に変換
+  const toWeather = (negRatio: number): string => {
+    if (negRatio >= 0.6) return '嵐の日が多かった';
+    if (negRatio >= 0.45) return '曇りがちだった';
+    if (negRatio >= 0.3) return '雲と晴れ間が交互だった';
+    if (negRatio >= 0.15) return '晴れ間が増えてきた';
+    return '穏やかな空が続いた';
+  };
+
+  // 記述頻度を活動量に変換
+  const toActivity = (avgEntries: number): string => {
+    if (avgEntries >= 15) return 'よく書いていた';
+    if (avgEntries >= 8) return 'ときどき書いていた';
+    if (avgEntries >= 3) return '静かに書いていた';
+    return '筆が止まりがちだった';
+  };
+
+  const lines: string[] = ['【この山の天気の移り変わり】'];
   for (const [half, periods] of [...byHalf.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const avgNeg = periods.reduce((s, p) => s + p.negativeRatio, 0) / periods.length;
-    const avgSelfDenial = periods.reduce((s, p) => s + p.selfDenialCount, 0) / periods.length;
     const totalEntries = periods.reduce((s, p) => s + p.entryCount, 0);
     const avgEntries = totalEntries / periods.length;
 
     lines.push(
-      `${half}: ネガティブ率${Math.round(avgNeg * 100)}%, 自己否定語月平均${avgSelfDenial.toFixed(1)}回, 月平均${avgEntries.toFixed(1)}件記述`
+      `${half}: ${toWeather(avgNeg)}。${toActivity(avgEntries)}`
     );
   }
   return lines.join('\n');

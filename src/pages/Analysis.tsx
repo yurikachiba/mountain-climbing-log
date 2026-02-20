@@ -69,7 +69,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   questions: {
     title: '自分への問い',
-    desc: '日記のパターンから内省的な問いかけを生成',
+    desc: '日記の中の小さなパターンから、隣に座って差し出すような問い',
     fn: generateReflectiveQuestions,
   },
   seasonal: {
