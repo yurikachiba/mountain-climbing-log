@@ -1,4 +1,4 @@
-import type { DiaryEntry, EmotionAnalysis, StabilityIndex, ElevationPoint, ElevationPointMonthly } from '../types';
+import type { DiaryEntry, EmotionAnalysis, EmotionAnalysisDaily, StabilityIndex, ElevationPoint, ElevationPointMonthly, ElevationPointDaily } from '../types';
 
 // 感情ワード辞書（日本語）
 const negativeWords = [
@@ -229,6 +229,94 @@ export function calcElevationByMonth(
 
     cumulative += climb;
     results.push({ month: a.month, elevation: cumulative, climb });
+  }
+
+  return results;
+}
+
+// 1日おきの感情分析
+// 日記がある日を抽出し、1日おきにサンプリングして分析する
+export function analyzeEntriesEveryOtherDay(entries: DiaryEntry[]): EmotionAnalysisDaily[] {
+  const byDate = new Map<string, DiaryEntry[]>();
+
+  for (const entry of entries) {
+    if (!entry.date) continue;
+    const date = entry.date.substring(0, 10); // YYYY-MM-DD
+    const existing = byDate.get(date) ?? [];
+    existing.push(entry);
+    byDate.set(date, existing);
+  }
+
+  const sortedDates = [...byDate.keys()].sort();
+  const results: EmotionAnalysisDaily[] = [];
+
+  for (let i = 0; i < sortedDates.length; i += 2) { // 1日おき
+    const date = sortedDates[i];
+    const dateEntries = byDate.get(date)!;
+    const allText = dateEntries.map(e => e.content).join('\n');
+    const negCount = countOccurrences(allText, negativeWords);
+    const posCount = countOccurrences(allText, positiveWords);
+    const total = negCount + posCount;
+    const negativeRatio = total > 0 ? negCount / total : 0;
+    const selfDenialCount = countOccurrences(allText, selfDenialWords);
+    const topEmotionWords = getEmotionWordCounts(allText).slice(0, 10);
+
+    results.push({ date, negativeRatio, selfDenialCount, topEmotionWords });
+  }
+
+  return results;
+}
+
+// 1日おきの累積標高を算出
+// 月単位を日単位にスケールダウン（月の約1/15）
+export function calcElevationEveryOtherDay(
+  dailyAnalysis: EmotionAnalysisDaily[],
+  entries: DiaryEntry[],
+): ElevationPointDaily[] {
+  if (dailyAnalysis.length === 0) return [];
+
+  const countByDate = new Map<string, number>();
+  for (const e of entries) {
+    if (!e.date) continue;
+    const d = e.date.substring(0, 10);
+    countByDate.set(d, (countByDate.get(d) ?? 0) + 1);
+  }
+
+  const sorted = [...dailyAnalysis].sort((a, b) => a.date.localeCompare(b.date));
+  const results: ElevationPointDaily[] = [];
+  let cumulative = 1000; // 基準点 1000m
+
+  for (let i = 0; i < sorted.length; i++) {
+    const a = sorted[i];
+    const entryCount = countByDate.get(a.date) ?? 0;
+
+    // 書いた量（最大0.5m）
+    const writingBonus = Math.min(0.5, Math.max(0, entryCount * 0.3));
+
+    // ポジティブ比率（最大0.8m）
+    const positiveRatio = 1 - a.negativeRatio;
+    const positiveClimb = positiveRatio * 0.8;
+
+    // 自己否定語が少ないほどボーナス（最大0.15m）
+    const denialScore = Math.max(0, 0.15 - a.selfDenialCount * 0.02);
+
+    // 前回比の改善ボーナス
+    let improvementBonus = 0;
+    if (i > 0) {
+      const prev = sorted[i - 1];
+      const prevPositive = 1 - prev.negativeRatio;
+      const diff = positiveRatio - prevPositive;
+      if (diff > 0) {
+        improvementBonus = diff * 0.7;
+      }
+    }
+
+    // 登攀量 = 最低0.3m + 各要素（最大約1.7m）
+    const rawClimb = 0.3 + writingBonus + positiveClimb + denialScore + improvementBonus;
+    const climb = Math.round(Math.min(1.7, rawClimb) * 10) / 10;
+
+    cumulative = Math.round((cumulative + climb) * 10) / 10;
+    results.push({ date: a.date, elevation: cumulative, climb });
   }
 
   return results;

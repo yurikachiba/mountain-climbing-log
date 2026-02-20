@@ -51,6 +51,21 @@ export interface ElevationPointMonthly {
   climb: number; // その月の登攀量（m）
 }
 
+// 感情分析 — 日単位（1日おき）
+export interface EmotionAnalysisDaily {
+  date: string; // YYYY-MM-DD
+  negativeRatio: number;
+  selfDenialCount: number;
+  topEmotionWords: { word: string; count: number }[];
+}
+
+// 標高（累積的な成長の高さ）— 1日おき
+export interface ElevationPointDaily {
+  date: string; // YYYY-MM-DD
+  elevation: number; // 累積標高（m）
+  climb: number; // その日の登攀量（m）
+}
+
 // AI分析キャッシュ: 各分析タイプの最新結果を保持
 export interface AiCache {
   type: string; // AnalysisType のキー
