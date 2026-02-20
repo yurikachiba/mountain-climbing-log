@@ -7,35 +7,24 @@ import { useAiCache } from '../hooks/useAiCache';
 import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
-  | 'summary' | 'tags' | 'tone'
-  | 'turningPoints' | 'themes' | 'questions'
-  | 'seasonal' | 'growth' | 'report'
-  | 'elevation' | 'strengths' | 'counterfactual'
-  | 'lifeStory' | 'gentleReflection';
+  | 'tone' | 'turningPoints' | 'report'
+  | 'elevation' | 'counterfactual'
+  | 'lifeStory' | 'vitalPoint';
 
 const typeLabels: Record<AnalysisType, string> = {
-  summary: '年代別要約',
-  tags: '頻出感情タグ',
-  tone: '文章トーン分析',
+  tone: '語彙深度分析',
   turningPoints: '転機検出',
-  themes: '繰り返すテーマ',
-  questions: '自分への問い',
-  seasonal: '季節×感情マップ',
-  growth: '呼吸のリズム',
   report: '包括レポート',
   elevation: '標高ナラティブ',
-  strengths: '強みへの気づき',
   counterfactual: '反事実的因果',
   lifeStory: '人生の物語',
-  gentleReflection: 'やさしい振り返り',
+  vitalPoint: '急所',
 };
 
 const allTypes: AnalysisType[] = [
-  'summary', 'tags', 'tone',
-  'turningPoints', 'themes', 'questions',
-  'seasonal', 'growth', 'report',
-  'elevation', 'strengths', 'counterfactual',
-  'lifeStory', 'gentleReflection',
+  'tone', 'turningPoints', 'report',
+  'elevation', 'counterfactual',
+  'lifeStory', 'vitalPoint',
 ];
 
 function formatDate(iso: string): string {
