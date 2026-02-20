@@ -412,12 +412,12 @@ function buildShiftDescription(
 
   if (vocabShift > 1.5) {
     if (rates.fpAfter > rates.fpBefore * 1.3) {
-      parts.push('一人称の増加（内向化）');
+      parts.push('一人称の増加（自己軸への移行 or 内向化）');
     } else if (rates.fpAfter < rates.fpBefore * 0.7) {
       parts.push('一人称の減少（外向化・役割意識の強化）');
     }
     if (rates.smAfter < rates.smBefore * 0.5) {
-      parts.push('自己モニタリング語の消失');
+      parts.push('自己モニタリング語の減少（内面統合 or 観察余裕の低下）');
     } else if (rates.smAfter > rates.smBefore * 1.5) {
       parts.push('自己モニタリング語の増加');
     }
@@ -800,7 +800,7 @@ export function calcPredictiveIndicators(
     // 一人称率の急変
     if (Math.abs(latest.firstPersonRate - prev.firstPersonRate) > prev.firstPersonRate * 0.5) {
       activeSignals.push({
-        signal: latest.firstPersonRate > prev.firstPersonRate ? '内向性の増大' : '自己参照の減少',
+        signal: latest.firstPersonRate > prev.firstPersonRate ? '自己軸の変動（自立化 or 内向化）' : '自己参照の減少',
         severity: 'watch',
         evidence: `一人称率 ${prev.firstPersonRate.toFixed(1)}→${latest.firstPersonRate.toFixed(1)}（/1000字）`,
       });
@@ -824,12 +824,12 @@ export function calcPredictiveIndicators(
       });
     }
 
-    // 自己モニタリング語の消失（④の指摘）
+    // 自己モニタリング語の減少（統合 or 余裕低下の両義性）
     if (prev.selfMonitorRate > 0.5 && latest.selfMonitorRate < 0.1) {
       activeSignals.push({
-        signal: '自己モニタリング語の消失',
+        signal: '自己モニタリング語の減少（内面統合 or 観察余裕低下）',
         severity: 'watch',
-        evidence: `「調子」等の語が消失（${prev.selfMonitorRate.toFixed(1)}→${latest.selfMonitorRate.toFixed(1)}/1000字）`,
+        evidence: `「調子」等の語が減少（${prev.selfMonitorRate.toFixed(1)}→${latest.selfMonitorRate.toFixed(1)}/1000字）。揺れが減って記録不要になった可能性と、観察余裕がなくなった可能性の両方あり`,
       });
     }
 
@@ -1209,9 +1209,9 @@ export function interpretDepthChange(early: VocabularyDepth, late: VocabularyDep
     return {
       pattern: 'frequency_down_depth_up',
       label: '頻度減少×深度上昇',
-      description: `ネガティブ語の総量は${Math.round(Math.abs(frequencyChange) * 100)}%減少したが、深度比は${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。軽度の不満が減り、重い言葉だけが残っている。`,
-      riskNote: '読み方A: 軽い愚痴を流せるようになり、本当に深い感情だけが残った（感情の成熟）。読み方B: 本音を書かなくなり、書けなくなったときだけ深い言葉が漏れている（抑圧の兆候）。どちらかは日記の文脈で判断せよ。',
-      alternativeReading: '「愚痴が減った」は安定の証かもしれないし、感情の出口が狭まった兆候かもしれない。両方の可能性を提示すること。',
+      description: `ネガティブ語の総量は${Math.round(Math.abs(frequencyChange) * 100)}%減少したが、深度比は${Math.round(early.depthRatio * 100)}%→${Math.round(late.depthRatio * 100)}%に上昇。軽度の不満（「調子微妙」「だるい」等）が減り、言うときは核心に触れている。`,
+      riskNote: '読み方A（有力）: 抽象化能力の向上。軽い愚痴を流せるようになり、言語化するときは本質を突けるようになった。量が減って質が濃くなったパターン。読み方B: 本音を書かなくなり、書けなくなったときだけ深い言葉が漏れている（抑圧の兆候）。判別基準: 直近で深い自己分析や感情の言語化ができているなら読み方A寄り。表面的な記述しかなく突然深い語が出るなら読み方B寄り。',
+      alternativeReading: '「量が減って質が濃くなった」は未熟化ではなく成熟の可能性が高い。ただし、記述量自体の極端な減少を伴う場合は注意。感情を書く力が残っているかどうかで判断せよ。',
     };
   }
 
@@ -1332,14 +1332,14 @@ export function interpretFirstPersonShift(
       };
     }
 
-    // 仮説3: 自己開示減少 — 自己モニタリング語も減っている場合
+    // 仮説3: 内面の統合 or 自己開示減少 — 自己モニタリング語も減っている場合
     if (lateSmAvg < earlySmAvg * 0.5) {
       evidence.push(`自己モニタリング語率: ${earlySmAvg.toFixed(2)} → ${lateSmAvg.toFixed(2)}/1000字`);
       return {
         pattern: 'self_disclosure_decrease',
-        label: '自己開示の減少（有力仮説）',
-        description: '一人称・自己モニタリング語が共に減少。自分の状態を言語化すること自体が減っている。',
-        alternativeReading: '別の読み方: 自分の状態をいちいち確認する必要がなくなるほど安定した可能性。「調子」を書かなくなったのは、調子が安定しているからかもしれない。',
+        label: '内面の統合 or 自己開示の減少',
+        description: '一人称・自己モニタリング語が共に減少。前期は「揺れていたから観察していた」が、後期は「揺れが減ったから逐一記録しなくなった」可能性がある。',
+        alternativeReading: '読み方A（統合仮説）: 内面が統合されてきたため、「調子」「体調」「気分」等を逐一記録する必要がなくなった。観察不要になった安定。読み方B（抑圧仮説）: 自分の状態を言語化する余裕がなくなった。判別基準: 直近で深い感情の言語化や自己分析ができているなら統合寄り。表面的な業務記述のみで感情語が消えているなら抑圧寄り。',
         evidence,
       };
     }
@@ -1356,13 +1356,64 @@ export function interpretFirstPersonShift(
     };
   }
 
-  // 増加方向
+  // 増加方向の解釈
+  if (fpChange >= 0.3) {
+    const evidence: string[] = [];
+    evidence.push(`一人称率: ${early.firstPersonRate}/1000字 → ${late.firstPersonRate}/1000字（${Math.round(fpChange * 100)}%変化）`);
+
+    // 他者参照の変化を確認
+    const opChange = early.otherPersonRate > 0
+      ? (late.otherPersonRate - early.otherPersonRate) / early.otherPersonRate : 0;
+
+    // 自己モニタリング語の変化
+    const earlySmAvg = earlyMonthly.length > 0
+      ? earlyMonthly.reduce((s, m) => s + m.selfMonitorRate, 0) / earlyMonthly.length : 0;
+    const lateSmAvg = lateMonthly.length > 0
+      ? lateMonthly.reduce((s, m) => s + m.selfMonitorRate, 0) / lateMonthly.length : 0;
+
+    // 仮説1: 自己軸への移行（自立） — 一人称増加＋他者参照減少
+    if (opChange < -0.3) {
+      evidence.push(`他者参照率: ${early.otherPersonRate}/1000字 → ${late.otherPersonRate}/1000字（${Math.round(opChange * 100)}%変化）`);
+      return {
+        pattern: 'self_axis_shift',
+        label: '他者軸から自己軸への移行（有力仮説）',
+        description: '一人称が増加し、他者参照（家族・友人・先生等）が減少。前期は他者との関係の中で揺れていたが、後期は自分の軸で動いている可能性。',
+        alternativeReading: '別の読み方: 対人関係が希薄化し、自分の世界に閉じた可能性。ただし判別基準がある。直近で怒りの制御・尊厳の言語化・視座の上昇が見られるなら「自立」寄り。他者への言及が完全に消え、内容が単調になっているなら「孤立」寄り。',
+        evidence,
+      };
+    }
+
+    // 仮説2: 内省深化（自己モニタリングが維持or増加している場合）
+    if (lateSmAvg >= earlySmAvg * 0.8) {
+      evidence.push(`自己モニタリング語率: ${earlySmAvg.toFixed(2)} → ${lateSmAvg.toFixed(2)}/1000字（維持）`);
+      return {
+        pattern: 'introspection_deepening',
+        label: '内省の深化',
+        description: '一人称が増加し、自己モニタリング語も維持。自分の内面をより丁寧に言語化するようになっている。',
+        alternativeReading: '別の読み方: 自分のことばかり考える状態に入った可能性。ただし自己モニタリング語が維持されていることは、観察力が保たれている証拠でもある。',
+        evidence,
+      };
+    }
+
+    // デフォルト: 複合解釈
+    evidence.push(`他者参照変化: ${Math.round(opChange * 100)}%`);
+    evidence.push(`自己モニタリング: ${earlySmAvg.toFixed(2)} → ${lateSmAvg.toFixed(2)}/1000字`);
+    return {
+      pattern: 'first_person_increase',
+      label: '一人称増加（複数仮説あり）',
+      description: `一人称出現率が${Math.round(fpChange * 100)}%増加。自己軸の確立、内省の深化、または対人関係の変化のいずれかが背景にある。`,
+      alternativeReading: '読み方A: 他者軸から自己軸に戻り、自分の視点で世界を捉えるようになった（自立）。読み方B: 社会的な関係が薄れ、自分のことしか書けなくなった（孤立）。直近の記述の質で判断せよ。',
+      evidence,
+    };
+  }
+
+  // 変化が閾値未満
   return {
     pattern: 'insufficient_data',
-    label: '一人称増加',
-    description: `一人称出現率が${Math.round(fpChange * 100)}%増加。`,
-    alternativeReading: '読み方A: 内省が深まり、自分と向き合う力が増した。読み方B: 社会的な関係が薄れ、自分のことしか書けなくなった。どちらの可能性もある。',
-    evidence: [`一人称率: ${early.firstPersonRate}/1000字 → ${late.firstPersonRate}/1000字`],
+    label: '有意な変化なし',
+    description: `一人称出現率の変化が${Math.round(Math.abs(fpChange) * 100)}%で、解釈に必要な閾値（30%）に達していない。`,
+    alternativeReading: '',
+    evidence: [],
   };
 }
 
