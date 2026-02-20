@@ -17,6 +17,7 @@ import {
   declareStrengths,
   analyzeCounterfactual,
   analyzeLifeStory,
+  analyzeVitalPoint,
   analyzeGentleReflection,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
@@ -27,7 +28,7 @@ type AnalysisType =
   | 'turningPoints' | 'themes' | 'questions'
   | 'seasonal' | 'growth' | 'report'
   | 'elevation' | 'strengths' | 'counterfactual'
-  | 'lifeStory' | 'gentleReflection';
+  | 'lifeStory' | 'vitalPoint' | 'gentleReflection';
 
 interface AnalysisItem {
   title: string;
@@ -106,6 +107,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '全日記を一つの大きな物語として再構成 — あなたの人生の長編あらすじ',
     fn: analyzeLifeStory,
   },
+  vitalPoint: {
+    title: '急所',
+    desc: 'やさしいだけじゃない。痛いけど本質を突く、たった一つの指摘',
+    fn: analyzeVitalPoint,
+  },
   gentleReflection: {
     title: 'やさしい振り返り',
     desc: '評価じゃなく、ただ見ている。あなたの日記の中の小さな景色',
@@ -128,6 +134,7 @@ const sampleLimits: Record<AnalysisType, number> = {
   strengths: 60,   // 前半30 + 後半30
   counterfactual: 80,
   lifeStory: 100,
+  vitalPoint: 80,
   gentleReflection: 60,
 };
 
@@ -149,6 +156,10 @@ const categories: AnalysisCategory[] = [
     items: ['elevation', 'strengths', 'counterfactual', 'lifeStory'],
   },
   {
+    label: '本質分析',
+    items: ['vitalPoint'],
+  },
+  {
     label: 'やさしい分析',
     items: ['gentleReflection'],
   },
@@ -166,9 +177,9 @@ function formatDate(iso: string): string {
 
 export function Analysis() {
   useHead({
-    title: 'AI分析（14種類）',
-    description: 'OpenAI APIを使って日記を客観的に分析する13種類の機能。年代別要約、頻出感情タグ、文章トーン分析、転機検出、反復テーマ、内省質問、季節別感情、成長分析、包括レポート、標高ナラティブ、強みの宣言、反事実的因果、人生の物語。ユーザー自身のAPIキー使用でプライバシー保護。',
-    keywords: 'AI日記分析,感情タグ,トーン分析,転機検出,成長分析,OpenAI,日記AI,標高ナラティブ,自己分析',
+    title: 'AI分析（15種類）',
+    description: 'OpenAI APIを使って日記を客観的に分析する15種類の機能。年代別要約、頻出感情タグ、文章トーン分析、転機検出、反復テーマ、内省質問、季節別感情、呼吸のリズム、包括レポート、標高ナラティブ、強みへの気づき、反事実的因果、人生の物語、急所、やさしい振り返り。ユーザー自身のAPIキー使用でプライバシー保護。',
+    keywords: 'AI日記分析,感情タグ,トーン分析,転機検出,成長分析,OpenAI,日記AI,標高ナラティブ,自己分析,急所',
     path: '/analysis',
   });
 
