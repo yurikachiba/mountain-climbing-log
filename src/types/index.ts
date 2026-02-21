@@ -281,6 +281,7 @@ export interface ExistentialDensity {
     identity: number; // 自己同一性テーマ率
     completion: number; // 完成/未完テーマ率
     intensity: number; // 存在的強度テーマ率
+    dignity: number; // 尊厳テーマ率（対等・境界線・軽く扱われることへの過敏さ）
   };
   recentEntryCount: number;
   highlightWords: string[]; // 実際に出現した存在論的語

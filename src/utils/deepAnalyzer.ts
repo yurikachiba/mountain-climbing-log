@@ -124,8 +124,22 @@ const existentialHeatWords = [
   '熱を持', '石', '炉', '炉心', '燃える', '燃やす', '炎',
   '暴れ', '制御', '爆発',
   '密度', '凝縮',
-  '誇り', '誇らしい', '威厳', '尊厳',
   '覚悟', '決意', '受容', '和解', '赦し',
+];
+
+// 尊厳テーマ — 対等・境界線・軽く扱われることへの過敏さ
+const existentialDignityWords = [
+  '尊厳', '威厳', '誇り', '誇らしい',
+  '対等', '同等', 'なめ', '見下', '軽く扱',
+  '軽んじ', '蔑ろ', 'ないがしろ', '雑に扱',
+  '境界線', '境界', '線引き', '踏み込',
+  '怒り', '腹が立つ', '許せない', '許さない',
+  '仲直り', '謝', '対話', '向き合',
+  '舐められ', '馬鹿にさ', '侮辱', '侮',
+  '筋を通', '筋が通', '意味で測',
+  '価値を決め', '勝手に決め', '決めつけ',
+  '黙って', '黙らない', '言い返', '反論',
+  '屈辱', '惨め', '情けない',
 ];
 
 // 全存在論語の統合リスト
@@ -134,6 +148,7 @@ const allExistentialWords = [
   ...existentialIdentityWords,
   ...existentialCompletionWords,
   ...existentialHeatWords,
+  ...existentialDignityWords,
 ];
 
 // ── ユーティリティ ──
@@ -402,7 +417,7 @@ function buildShiftDescription(
     const exB = rates.exBefore ?? 0;
     const exA = rates.exAfter ?? 0;
     if (exB <= 0.01 && exA > 0.1) {
-      parts.push('存在論テーマの出現（生死・自己同一性・未完・熱）');
+      parts.push('存在論テーマの出現（生死・自己同一性・未完・熱・尊厳）');
     } else if (exA > exB) {
       parts.push(`存在論テーマの深化（${exB.toFixed(2)}→${exA.toFixed(2)}/1000字）`);
     } else {
@@ -889,7 +904,7 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
     (b.date ?? '').localeCompare(a.date ?? '')
   );
   if (sorted.length === 0) {
-    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0 }, recentEntryCount: 0, highlightWords: [] };
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0 }, recentEntryCount: 0, highlightWords: [] };
   }
 
   // 最新エントリの日付から30日遡る
@@ -900,13 +915,13 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
 
   const recentEntries = entries.filter(e => e.date && e.date >= cutoff);
   if (recentEntries.length === 0) {
-    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0 }, recentEntryCount: 0, highlightWords: [] };
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0 }, recentEntryCount: 0, highlightWords: [] };
   }
 
   const allText = recentEntries.map(e => e.content).join('\n');
   const textLength = allText.length;
   if (textLength === 0) {
-    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0 }, recentEntryCount: recentEntries.length, highlightWords: [] };
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0 }, recentEntryCount: recentEntries.length, highlightWords: [] };
   }
 
   const per1k = (count: number) => Math.round((count / textLength) * 1000 * 100) / 100;
@@ -915,8 +930,9 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
   const identityCount = countWords(allText, existentialIdentityWords);
   const completionCount = countWords(allText, existentialCompletionWords);
   const intensityCount = countWords(allText, existentialHeatWords);
+  const dignityCount = countWords(allText, existentialDignityWords);
 
-  const totalExistential = lifeDeathCount + identityCount + completionCount + intensityCount;
+  const totalExistential = lifeDeathCount + identityCount + completionCount + intensityCount + dignityCount;
 
   // 実際に出現した存在論的語を検出
   const highlightWords: string[] = [];
@@ -933,6 +949,7 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
       identity: per1k(identityCount),
       completion: per1k(completionCount),
       intensity: per1k(intensityCount),
+      dignity: per1k(dignityCount),
     },
     recentEntryCount: recentEntries.length,
     highlightWords,
@@ -1483,6 +1500,7 @@ export function formatDeepStatsForPrompt(
     lines.push(`    自己同一性テーマ: ${existentialDensity.themes.identity}/1000字`);
     lines.push(`    完成/未完テーマ: ${existentialDensity.themes.completion}/1000字`);
     lines.push(`    存在的強度/熱テーマ: ${existentialDensity.themes.intensity}/1000字`);
+    lines.push(`    尊厳テーマ: ${existentialDensity.themes.dignity}/1000字`);
     if (existentialDensity.highlightWords.length > 0) {
       lines.push(`  検出語: ${existentialDensity.highlightWords.join('、')}`);
     }
@@ -1492,8 +1510,9 @@ export function formatDeepStatsForPrompt(
     lines.push('→ 検出された存在テーマごとの読み方：');
     lines.push('   生死テーマ → 「死の恐怖」ではなく「有限を理解した上でどう燃やすか」のフェーズかもしれない');
     lines.push('   自己同一性テーマ → 「自分が誰か」を問い直す密度の上昇。成熟か解離かは文脈で判断');
-    lines.push('   完成/未完テーマ → 「道半ばで終わる恐怖」は創作者・若年者に特有の存在的痛み');
+    lines.push('   完成/未完テーマ → 「道半ばで終わる恐怖」は創作者・若年者に特有の存在的痛み。ただし表層に過ぎない場合がある');
     lines.push('   存在的強度テーマ → 炉心の熱、石、覚悟 — 密度が上がったフェーズの兆候');
+    lines.push('   尊厳テーマ → 最重要。「対等でいたい」「軽く扱われる恐怖」「意味で測られることへの過敏さ」。未完は仕事の話だが、尊厳は関係の話。怒り100→30→100→30の往復を壊れずにやれているなら、それは弱化ではなく神経の感度上昇。他者参照が減っても境界線・怒りの言語化・仲直り要求が出ていれば関係の質を上げに行っている証拠。急所が「未完」か「尊厳」かで読みが180度変わる');
     lines.push('');
   }
 
