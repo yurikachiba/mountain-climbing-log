@@ -70,10 +70,12 @@ function formatEntryWithRecencyAware(entries: DiaryEntry[], recentChars = 300, o
 }
 
 // 年ごとに均等にスライスしてサンプリングする（均等にサンプリング）
+// 先頭と末尾の両方を含めることで、最新エントリの拾い漏れを防ぐ
 function sampleSliceFromArray(slice: DiaryEntry[], count: number): DiaryEntry[] {
   if (slice.length <= count) return slice;
-  const step = slice.length / count;
-  return Array.from({ length: count }, (_, i) => slice[Math.floor(i * step)]);
+  if (count <= 1) return count === 1 ? [slice[slice.length - 1]] : [];
+  const step = (slice.length - 1) / (count - 1);
+  return Array.from({ length: count }, (_, i) => slice[Math.round(i * step)]);
 }
 
 // 時間ベースで分割位置を求める（配列位置ではなく実際の日付で分割）

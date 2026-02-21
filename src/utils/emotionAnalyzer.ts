@@ -613,7 +613,15 @@ export function formatRecentEntriesHighlight(entries: DiaryEntry[], maxChars = 5
 
   const lines = recentEntries.map(e => `[${e.date}] ${e.content.slice(0, 500)}`);
   let text = lines.join('\n---\n');
-  if (text.length > maxChars) text = text.slice(0, maxChars);
+  if (text.length > maxChars) {
+    // 最新エントリを優先: 末尾（最新）を残し、先頭（古い方）を切る
+    text = text.slice(text.length - maxChars);
+    // 切断された先頭の不完全エントリを除去
+    const firstSep = text.indexOf('\n---\n');
+    if (firstSep >= 0) {
+      text = text.slice(firstSep + 5);
+    }
+  }
 
   return [
     '【直近30日の日記（全文に近い抜粋）— 最重要】',
