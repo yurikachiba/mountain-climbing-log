@@ -161,6 +161,32 @@ const existentialDignityWords = [
   '言いなり', '従わされ',
 ];
 
+// 選択権テーマ — 選べない・縛られる・自由がないことへの反応
+// 尊厳のさらに下にある層。怒りの正体は「選べないこと」
+const existentialAgencyWords = [
+  // 直接的な選択権表現
+  '選べない', '選べなかった', '選択肢', '選択権', '選ぶ権利',
+  '自由', '不自由', '自由がない', '自由じゃない',
+  '縛られ', '束縛', '拘束', '強制', '強いられ',
+  '逃げられ', '逃げ場', '逃げたい', '離れたい', '離れられない',
+  // 基準・ルールを押し付けられる
+  '基準', '評価軸', 'ルール', '規範', '押し付け',
+  '多数派', 'デフォルト', '標準', '普通という',
+  '勝手に決め', '決められた', '決まっている', '従うしかない',
+  '変えられない', '変えたい', '変えていい',
+  // 経済的選択権
+  '稼ぎ', '貯金', '貯蓄', '経済的', '金銭的',
+  '辞められ', '辞めたい', '仕事変え', '転職',
+  '依存', '依存しない', '自立',
+  // 構造への怒り
+  '構造', '仕組み', 'システム', '枠組み',
+  '合わせるしかない', '合わせないと', '従わないと',
+  '黙って従', '言いなり',
+  // 内的選択権（自分で制御できる感覚）
+  '自分で決め', '自分で選', '自分の意思',
+  '距離を取', '距離を置', '離れる',
+];
+
 // 全存在論語の統合リスト
 const allExistentialWords = [
   ...existentialLifeDeathWords,
@@ -168,6 +194,7 @@ const allExistentialWords = [
   ...existentialCompletionWords,
   ...existentialHeatWords,
   ...existentialDignityWords,
+  ...existentialAgencyWords,
 ];
 
 // ── ユーティリティ ──
@@ -923,7 +950,7 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
     (b.date ?? '').localeCompare(a.date ?? '')
   );
   if (sorted.length === 0) {
-    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0 }, recentEntryCount: 0, highlightWords: [] };
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0, agency: 0 }, recentEntryCount: 0, highlightWords: [] };
   }
 
   // 最新エントリの日付から30日遡る
@@ -934,13 +961,13 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
 
   const recentEntries = entries.filter(e => e.date && e.date >= cutoff);
   if (recentEntries.length === 0) {
-    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0 }, recentEntryCount: 0, highlightWords: [] };
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0, agency: 0 }, recentEntryCount: 0, highlightWords: [] };
   }
 
   const allText = recentEntries.map(e => e.content).join('\n');
   const textLength = allText.length;
   if (textLength === 0) {
-    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0 }, recentEntryCount: recentEntries.length, highlightWords: [] };
+    return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0, agency: 0 }, recentEntryCount: recentEntries.length, highlightWords: [] };
   }
 
   const per1k = (count: number) => Math.round((count / textLength) * 1000 * 100) / 100;
@@ -950,8 +977,9 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
   const completionCount = countWords(allText, existentialCompletionWords);
   const intensityCount = countWords(allText, existentialHeatWords);
   const dignityCount = countWords(allText, existentialDignityWords);
+  const agencyCount = countWords(allText, existentialAgencyWords);
 
-  const totalExistential = lifeDeathCount + identityCount + completionCount + intensityCount + dignityCount;
+  const totalExistential = lifeDeathCount + identityCount + completionCount + intensityCount + dignityCount + agencyCount;
 
   // 実際に出現した存在論的語を検出
   const highlightWords: string[] = [];
@@ -969,6 +997,7 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
       completion: per1k(completionCount),
       intensity: per1k(intensityCount),
       dignity: per1k(dignityCount),
+      agency: per1k(agencyCount),
     },
     recentEntryCount: recentEntries.length,
     highlightWords,
@@ -1520,6 +1549,7 @@ export function formatDeepStatsForPrompt(
     lines.push(`    完成/未完テーマ: ${existentialDensity.themes.completion}/1000字`);
     lines.push(`    存在的強度/熱テーマ: ${existentialDensity.themes.intensity}/1000字`);
     lines.push(`    尊厳テーマ: ${existentialDensity.themes.dignity}/1000字`);
+    lines.push(`    選択権テーマ: ${existentialDensity.themes.agency}/1000字`);
     if (existentialDensity.highlightWords.length > 0) {
       lines.push(`  検出語: ${existentialDensity.highlightWords.join('、')}`);
     }
@@ -1531,7 +1561,8 @@ export function formatDeepStatsForPrompt(
     lines.push('   自己同一性テーマ → 「自分が誰か」を問い直す密度の上昇。成熟か解離かは文脈で判断');
     lines.push('   完成/未完テーマ → 「道半ばで終わる恐怖」は創作者・若年者に特有の存在的痛み。ただし表層に過ぎない場合がある');
     lines.push('   存在的強度テーマ → 炉心の熱、石、覚悟 — 密度が上がったフェーズの兆候');
-    lines.push('   尊厳テーマ → 最重要。「対等でいたい」「軽く扱われる恐怖」「意味で測られることへの過敏さ」。未完は仕事の話だが、尊厳は関係の話。怒り100→30→100→30の往復を壊れずにやれているなら、それは弱化ではなく神経の感度上昇。他者参照が減っても境界線・怒りの言語化・仲直り要求が出ていれば関係の質を上げに行っている証拠。急所が「未完」か「尊厳」かで読みが180度変わる');
+    lines.push('   尊厳テーマ → 重要。「対等でいたい」「軽く扱われる恐怖」「意味で測られることへの過敏さ」。未完は仕事の話だが、尊厳は関係の話。怒り100→30→100→30の往復を壊れずにやれているなら、それは弱化ではなく神経の感度上昇。他者参照が減っても境界線・怒りの言語化・仲直り要求が出ていれば関係の質を上げに行っている証拠。急所が「未完」か「尊厳」かで読みが180度変わる');
+    lines.push('   選択権テーマ → 最深層。尊厳のさらに下にある構造。怒りの正体は「選べないこと」。基準を選べない、評価軸を選べない、ルールを選べない。お金が欲しいのは贅沢ではなく選択肢（嫌なら離れられる、仕事変えられる、距離取れる）。支配したいのではなく縛られたくない。尊厳と選択権が同時に検出されたら、選択権の方が深い。「測られる恐怖」の下に「選べない焦り」がある');
     lines.push('');
   }
 

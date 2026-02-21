@@ -282,6 +282,7 @@ export interface ExistentialDensity {
     completion: number; // 完成/未完テーマ率
     intensity: number; // 存在的強度テーマ率
     dignity: number; // 尊厳テーマ率（対等・境界線・軽く扱われることへの過敏さ）
+    agency: number; // 選択権テーマ率（選べない・縛られる・自由・逃げられないことへの反応）
   };
   recentEntryCount: number;
   highlightWords: string[]; // 実際に出現した存在論的語
