@@ -1572,6 +1572,121 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
   ], 2500);
 }
 
+// 今日の分析 — 直近のエントリを全体の文脈から読み解く
+export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length === 0) return '';
+
+  // 直近7日のエントリを「今日」として扱う（当日にエントリがない場合への対応）
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const weekAgo = new Date(latestDate);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekAgoStr = weekAgo.toISOString().substring(0, 10);
+  const todayEntries = sorted.filter(e => e.date! >= weekAgoStr);
+
+  if (todayEntries.length === 0) return '';
+
+  // 今日のエントリは全文で渡す
+  const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
+
+  // 直近30日のコンテキスト（今日のエントリを除く）
+  const monthAgo = new Date(latestDate);
+  monthAgo.setDate(monthAgo.getDate() - 30);
+  const monthAgoStr = monthAgo.toISOString().substring(0, 10);
+  const recentContext = sorted.filter(e => e.date! >= monthAgoStr && e.date! < weekAgoStr);
+  const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 200)}`).join('\n---\n').slice(0, 4000);
+
+  // 全体から過去の文脈をサンプリング（薄めに）
+  const olderEntries = sorted.filter(e => e.date! < monthAgoStr);
+  const olderSampled = sampleSliceFromArray(olderEntries, 40);
+  const olderTexts = olderSampled.map(e => `[${e.date}] ${e.content.slice(0, 100)}`).join('\n---\n').slice(0, 4000);
+
+  // 直近の状態コンテキストを算出
+  const recentState = calcRecentStateContext(entries);
+
+  // 深層分析データ
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+  const existentialDensity = calcExistentialDensity30d(entries);
+
+  const stateDataText = [
+    currentState ? `安定度: ${currentState.overallStability}/100 / ネガ比傾向: ${currentState.negRatioTrend === 'improving' ? '改善' : currentState.negRatioTrend === 'worsening' ? '悪化' : '安定'}` : '',
+    existentialDensity.density > 0 ? `存在テーマ密度(30日): ${existentialDensity.density}/1000字 [${existentialDensity.highlightWords.join('、')}]` : '',
+  ].filter(Boolean).join('\n');
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは登山の同行者。今日の一歩を、ここまでの道のりの中に位置づける。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
+        '【最重要ルール】日記に明示的に書かれていない出来事を絶対に捏造してはならない。',
+        '日記に書かれた事実のみを根拠にすること。書かれていないことは存在しないものとして扱え。',
+        '',
+        '【この分析の目的】',
+        '直近の日記を、全体の文脈から読み解く。',
+        '「今日」が、ここまでの旅のどこにあるのかを見せる。',
+        '統計レポートではない。「今日の自分」に向けた、短く静かな観測。',
+        '',
+        '【内基準 vs 外基準の軸】',
+        '今日の日記は「自分の内側」から書かれているか、「外側の尺度」で書かれているか。',
+        '過去と比べてその比率はどう動いているか。断定はするな。観測しろ。',
+        '',
+        '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」は使うな。',
+        '',
+        '【両義性の提示】すべての変化に対して、最低2つの読み方を提示しろ。単一解釈で閉じるな。',
+        '',
+        '以下の形式で出力する：',
+        '',
+        '  ■ 今日の現在地',
+        '  [直近の日記を一言で表す。登山メタファーで。]',
+        '  [例：「尾根に出た。風は穏やか」「樹林帯の中。視界はまだ開けない」「偽ピークの先に、もう一つ稜線が見える」]',
+        '',
+        '  ■ ここまでの道のりとの対比',
+        '  [過去の日記と比較して、今日の記述にどんな変化・継続が見えるか。2〜3文。]',
+        '  [具体的な言葉を「」で引用。過去と今日の両方から引用すること。]',
+        '  [変化があるなら2つの読みを示せ。変化がないなら「同じ場所にいる」とそのまま観測しろ。]',
+        '',
+        '  ■ 今日の言葉の体温',
+        '  [今日の日記の中で最も体温を感じる言葉・表現を1〜2つ拾い、それが何を映しているか。]',
+        '  [「体温」= 義務的でない、借り物でない、この人自身の声が出ている瞬間。]',
+        '  [業務報告の引用は却下。「完了」「対応」「確認」ではなく、その人だけの言葉を拾え。]',
+        '',
+        '  ■ 一つだけ',
+        '  [今日の日記を読んで、一つだけ返すとしたらこれ、という短い観測。1〜2文。]',
+        '  [アドバイスではない。問いでもいい。ただの観測でもいい。]',
+        '  [例：「『まぁいいか』が自然に出てきている。前はなかった言葉だ」]',
+        '  [例：「忙しいのに、景色のことを書いている。それは余裕なのか、逃避なのか。どちらにしても、目は外を向いている」]',
+        '',
+        '- 全体で500字以内。短く、静かに。',
+        '- 温度は「隣を歩いている人」。前にも後ろにもいない。横にいる。',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: [
+        `以下の直近の日記を、全体の文脈から読み解いてください。`,
+        '',
+        recentState.promptText ? recentState.promptText : '',
+        stateDataText ? `【実測データ】\n${stateDataText}` : '',
+        '',
+        `【直近の日記 — 分析の主対象】`,
+        todayTexts,
+        '',
+        recentTexts ? `【直近30日の文脈】\n${recentTexts}` : '',
+        '',
+        olderTexts ? `【過去の文脈（サンプル）】\n${olderTexts}` : '',
+      ].filter(Boolean).join('\n\n'),
+    },
+  ], 1500);
+}
+
 // やさしい振り返り — 観測データに基づくやさしい省察
 export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
