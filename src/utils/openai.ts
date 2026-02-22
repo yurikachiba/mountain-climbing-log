@@ -1581,12 +1581,10 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   );
   if (sorted.length === 0) return '';
 
-  // 直近7日のエントリを「今日」として扱う（当日にエントリがない場合への対応）
+  // 最新日のエントリのみを「今日」として扱う
   const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const weekAgo = new Date(latestDate);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekAgoStr = weekAgo.toISOString().substring(0, 10);
-  const todayEntries = sorted.filter(e => e.date! >= weekAgoStr);
+  const latestDateStr = latestDate.toISOString().substring(0, 10);
+  const todayEntries = sorted.filter(e => e.date === latestDateStr);
 
   if (todayEntries.length === 0) return '';
 
@@ -1597,7 +1595,7 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   const monthAgo = new Date(latestDate);
   monthAgo.setDate(monthAgo.getDate() - 30);
   const monthAgoStr = monthAgo.toISOString().substring(0, 10);
-  const recentContext = sorted.filter(e => e.date! >= monthAgoStr && e.date! < weekAgoStr);
+  const recentContext = sorted.filter(e => e.date! >= monthAgoStr && e.date! < latestDateStr);
   const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 200)}`).join('\n---\n').slice(0, 4000);
 
   // 全体から過去の文脈をサンプリング（薄めに）
@@ -1671,12 +1669,12 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
     {
       role: 'user',
       content: [
-        `以下の直近の日記を、全体の文脈から読み解いてください。`,
+        `以下の今日の日記を、全体の文脈から読み解いてください。`,
         '',
         recentState.promptText ? recentState.promptText : '',
         stateDataText ? `【実測データ】\n${stateDataText}` : '',
         '',
-        `【直近の日記 — 分析の主対象】`,
+        `【今日の日記 — 分析の主対象】`,
         todayTexts,
         '',
         recentTexts ? `【直近30日の文脈】\n${recentTexts}` : '',
