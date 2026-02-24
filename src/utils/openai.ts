@@ -419,7 +419,7 @@ export async function analyzeTone(entries: DiaryEntry[]): Promise<string> {
   ], 2000);
 }
 
-// 転機検出 — 直近3ヶ月で何が動いたか
+// 転機検出 — 直近1週間で何が動いたか
 export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
@@ -428,9 +428,9 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
   );
   if (sorted.length === 0) return '';
 
-  // 直近90日に絞る
-  const recentOnly = getRecentEntries(sorted, 90);
-  if (recentOnly.length === 0) return '直近3ヶ月の日記がありません。';
+  // 直近7日に絞る
+  const recentOnly = getRecentEntries(sorted, 7);
+  if (recentOnly.length === 0) return '直近1週間の日記がありません。';
 
   // 直近エントリは全文に近い形で渡す
   const texts = recentOnly.map(e => `[${e.date}] ${e.content.slice(0, 400)}`);
@@ -448,13 +448,13 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
     {
       role: 'system',
       content: [
-        'あなたは日記の観察者。直近3ヶ月の中で何が動いたかを見る。',
+        'あなたは日記の観察者。直近1週間の中で何が動いたかを見る。',
         '',
         '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】',
         '- 日記に書かれていない出来事を捏造するな',
-        '- 過去の年（2020年、2021年…）を引用するな。直近3ヶ月だけが材料',
+        '- 過去の年（2020年、2021年…）を引用するな。直近1週間だけが材料',
         '- 登山メタファーは使うな。標高もコンパスもいらない',
         '- 「重要度マックス」「タスク」のような業務フレームで感情を語るな',
         '',
@@ -473,8 +473,8 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」',
         '',
         '以下のルールに従ってください：',
-        '- 直近3ヶ月の日記だけを読み、感情が動いた瞬間を検出する',
-        '- 質的に本当に動いたものだけ。数を埋めるな。2〜3個で十分',
+        '- 直近1週間の日記だけを読み、感情が動いた瞬間を検出する',
+        '- 質的に本当に動いたものだけ。数を埋めるな。1〜2個で十分',
         '- 各転機について以下の形式で記述する：',
         '',
         '  ■ 転機N：[時期] [何が起きたか]',
@@ -485,17 +485,18 @@ export async function detectTurningPoints(entries: DiaryEntry[]): Promise<string
         '- 最後に「今の状態」を2〜3文で。メタファーなしで、そのまま。',
         '- 全部を「成長物語」に回収するな。ただ痛かっただけのこともある',
         '- 矛盾する感情が同時にあるならそのまま書け',
-        '- 1200字以内',
+        '- 1週間分しかないから、短い期間の中の微細な動きを丁寧に拾え',
+        '- 800字以内',
       ].join('\n'),
     },
     {
       role: 'user',
       content: [
-        `以下の直近3ヶ月の日記（最新: ${latestDate}頃）から、感情が動いた転機を検出してください。過去は見なくていい。`,
+        `以下の直近1週間の日記（最新: ${latestDate}頃）から、感情が動いた転機を検出してください。過去は見なくていい。`,
         '',
         stateHint ? `【参考データ】\n${stateHint}` : '',
         '',
-        '【直近3ヶ月の日記】',
+        '【直近1週間の日記】',
         truncated,
       ].filter(Boolean).join('\n\n'),
     },
@@ -1388,9 +1389,9 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
   );
   if (sorted.length === 0) return '';
 
-  // 直近90日に絞る
-  const recentOnly = getRecentEntries(sorted, 90);
-  if (recentOnly.length === 0) return '直近3ヶ月の日記がありません。';
+  // 直近7日に絞る
+  const recentOnly = getRecentEntries(sorted, 7);
+  if (recentOnly.length === 0) return '直近1週間の日記がありません。';
 
   // 直近エントリは全文に近い形で渡す
   const texts = recentOnly.map(e => `[${e.date}] ${e.content.slice(0, 400)}`);
@@ -1418,7 +1419,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '',
         '【最重要ルール】',
         '- 日記に書かれていない出来事を捏造するな',
-        '- 過去の年（2020年、2021年…）を引用するな。直近3ヶ月だけが材料',
+        '- 過去の年（2020年、2021年…）を引用するな。直近1週間だけが材料',
         '- 登山メタファーは使うな。標高もコンパスもいらない',
         '- 「重要度マックス」「タスク」のような業務フレームで感情を語るな',
         '',
@@ -1430,7 +1431,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '急所 = ここに触れられると尊厳が動く一点。',
         '',
         '急所は「統計的な傾向」じゃない。「仕事の問題点」でもない。',
-        '急所は時期によって変わる。過去の急所を今に貼り付けるな。今の日記だけを聴け。',
+        '急所は時期によって変わる。過去の急所を今に貼り付けるな。直近1週間の日記だけを聴け。',
         '',
         '【深さの層 — ただし答えを決めつけるな】',
         '',
@@ -1476,7 +1477,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '  NG例：「他人の基準で測られる恐怖」「他人の地図で登らされる嫌悪」— これは古いフェーズの急所。今の日記を聴け',
         '',
         '  ■ 根拠',
-        '  直近3ヶ月の日記から具体的な表現を5つ以上「」で引用。',
+        '  直近1週間の日記から具体的な表現を3つ以上「」で引用。',
         '  引用は具体的な場面の記述を選べ。状態記述（「調子が悪い」）じゃなくて、',
         '  「○○に△△と言われた」「○○の態度が嫌だった」のような記述を。',
         '',
@@ -1496,11 +1497,11 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     {
       role: 'user',
       content: [
-        '以下の直近3ヶ月の日記だけを読み、今の「急所」を1つだけ指摘してください。過去は見なくていい。',
+        '以下の直近1週間の日記だけを読み、今の「急所」を1つだけ指摘してください。過去は見なくていい。',
         '',
         existentialHint ? `【参考データ】\n${existentialHint}` : '',
         '',
-        '【直近3ヶ月の日記】',
+        '【直近1週間の日記】',
         truncated,
       ].filter(Boolean).join('\n\n'),
     },
