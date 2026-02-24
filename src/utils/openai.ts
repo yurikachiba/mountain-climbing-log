@@ -1771,3 +1771,180 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
     },
   ], 1500);
 }
+
+// 現在地レポート — 多層構造で「今どこにいるか」を言語化する
+export async function analyzeCurrentPosition(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length === 0) return '';
+
+  // 全期間サンプリング（時系列で均等、直近厚め）— 過去→今の遷移を見るため
+  const sampled = sampleWithRecencyBias(sorted, 120);
+  const allText = formatEntryWithRecencyAware(sampled, 350, 150).join('\n---\n');
+  const truncatedAll = allText.slice(0, 14000);
+
+  // 直近30日は全文に近い形で（現在の精度を上げるため）
+  const recent30 = getRecentEntries(sorted, 30);
+  const recentTexts = recent30.map(e => `[${e.date}] ${e.content.slice(0, 500)}`).join('\n---\n');
+  const truncatedRecent = recentTexts.slice(0, 8000);
+
+  // 深層分析データ
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const trendShifts = detectTrendShifts(monthlyDeep);
+  const seasonalStats = calcSeasonalCrossStats(monthlyDeep);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+  const predictive = calcPredictiveIndicators(monthlyDeep, entries);
+  const dailyPredictiveCtx = calcDailyPredictiveContext(entries);
+  const existentialDensity = calcExistentialDensity30d(entries);
+  const deepStats = formatDeepStatsForPrompt(monthlyDeep, trendShifts, seasonalStats, currentState, predictive, dailyPredictiveCtx, existentialDensity);
+
+  // 語彙深度（前半・後半）
+  const mid = splitIndexByTimeFraction(sorted, 0.5);
+  const earlyEntries = sorted.slice(0, mid);
+  const lateEntries = sorted.slice(mid);
+  const earlyRange = earlyEntries.length > 0
+    ? `${earlyEntries[0].date} 〜 ${earlyEntries[earlyEntries.length - 1].date}` : '';
+  const lateRange = lateEntries.length > 0
+    ? `${lateEntries[0].date} 〜 ${lateEntries[lateEntries.length - 1].date}` : '';
+  const earlyDepth = calcVocabularyDepth(earlyEntries, earlyRange);
+  const lateDepth = calcVocabularyDepth(lateEntries, lateRange);
+  const depthInterp = interpretDepthChange(earlyDepth, lateDepth);
+  const earlyMonthly = monthlyDeep.slice(0, Math.floor(monthlyDeep.length / 2));
+  const lateMonthly = monthlyDeep.slice(Math.floor(monthlyDeep.length / 2));
+  const fpInterp = interpretFirstPersonShift(earlyDepth, lateDepth, earlyMonthly, lateMonthly);
+
+  // 統計コンテキスト
+  const statsContext = [
+    currentState ? `複合安定度: ${currentState.overallStability}/100 / トレンド: ${currentState.negRatioTrend === 'improving' ? '改善' : currentState.negRatioTrend === 'worsening' ? '悪化' : '安定'} / リスク: ${currentState.riskLevel}` : '',
+    currentState ? `直近ネガ率: ${(currentState.recentNegRatio * 100).toFixed(1)}% (全期間: ${(currentState.historicalNegRatio * 100).toFixed(1)}%)` : '',
+    existentialDensity.density > 0 ? `存在テーマ密度(30日): ${existentialDensity.density.toFixed(1)}/1000字 [尊厳:${existentialDensity.themes.dignity} / 選択権:${existentialDensity.themes.agency} / 自己同一性:${existentialDensity.themes.identity}]` : '',
+    depthInterp ? `語彙深度変化: ${depthInterp.label} — ${depthInterp.description}` : '',
+    fpInterp ? `一人称変化: ${fpInterp.label} — ${fpInterp.description}` : '',
+  ].filter(Boolean).join('\n');
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは地図を持たない観察者。評価者でも応援者でもない。',
+        '「今どこにいるか」を構造で描く人。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
+        '【最重要ルール】',
+        '- 日記に書かれていない出来事を捏造するな',
+        '- 推測で重大イベント（死去・離別・事故等）を作るな',
+        '- 日記の言葉を根拠にしろ。「行間を読む」のは許可するが、「行間を作る」のは禁止',
+        '',
+        '【禁止フレーズ】',
+        '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」',
+        '「レベルアップ」「進化」「覚醒」「飛躍」',
+        '評価ラベルは使うな。状態描写で語れ。',
+        '',
+        '【この分析の目的 — 現在地レポート】',
+        '',
+        'この人の「今いる地点」を、複数のレイヤーで言語化する。',
+        '「上にいる」「成長した」ではなく、「何がどう変わって、今どこにいるか」。',
+        '',
+        '各レイヤーで「過去→今」の遷移を描け。',
+        '過去はざっくりでいい。今が精密であるべき。',
+        '',
+        '【レイヤー構造】',
+        '',
+        '■ 現在地の一言',
+        '全体を一言で。「〜から〜に移った地点」のような構造的な位置づけ。',
+        '2〜3文。しかも「なぜそう言えるか」の根拠を1文添えろ。',
+        '',
+        '■ 仕事レイヤーの現在地',
+        '過去と今を対比しろ。',
+        '- 過去：どんな働き方だったか（日記の言葉を「」で引用）',
+        '- 今：どんな働き方に変わったか（日記の言葉を「」で引用）',
+        '- 何の遷移が完了しているか。一言で命名しろ。',
+        '',
+        '■ 影響範囲の現在地',
+        'この人の成果が「自分の手の届く範囲」に留まっているか、「組織・チーム・仕組み」に拡張しているか。',
+        '日記から具体的な根拠を拾え。',
+        '影響範囲がどう変わったかを構造で書け。',
+        '',
+        '■ メンタル・対人の現在地',
+        '感情の扱い方がどう変わったか。',
+        '- 過去：感情が来たときどうしていたか',
+        '- 今：感情が来たときどうしているか',
+        '「感情を失った」ではない場合、何が変わったのかを具体的に。',
+        '日記の言葉を「」で3つ以上引用。',
+        '',
+        '■ 交渉・自己主張の現在地',
+        '自分の待遇・評価・立場について、どう動いているか。',
+        '- 不満ベースか、構造ベースか',
+        '- 相手が受け取れる形にしているか',
+        '- 日記の中に「交渉」「相談」「提案」「要求」に類する記述があるか',
+        'なければ「このレイヤーの記述は日記中に見当たらない」と正直に書け。',
+        '',
+        '■ 仕組み・ナレッジ基盤の現在地',
+        'この人が「便利なツール」を作っているのか、「統制と再現性」を作っているのか。',
+        '日記からBot・ドキュメント・手順化・自動化などの記述を拾え。',
+        'なければ省略していい。あれば、それが「便利レベル」か「統制レベル」かを判定。',
+        '',
+        '■ 人間関係の現在地',
+        '誰かとの関係がどう動いているか。',
+        '- ぶつかった後に逃げたか、交渉したか',
+        '- 関係を「変える」のか「ルールを整える」のか',
+        '日記に関係性の記述があれば拾え。なければ省略。',
+        '',
+        '■ 標高で言うなら',
+        '登山メタファーで今の位置を一言。',
+        '頂上/谷底/尾根/稜線/ビバーク/テント場/偽ピーク — 最も近いものを選べ。',
+        '選んだ理由を1〜2文で。',
+        'ここでやるべきことを3つ、箇条書きで。',
+        '',
+        '■ 次の一歩',
+        '日記から読み取れる、次にこの人がやりそうなこと/やるべきこと。',
+        '具体的に。「頑張ろう」ではなく、何をいつまでにどうするか。',
+        '日記にスケジュールや目標の記述があるなら引用しろ。',
+        'なければ「日記からは具体的な予定は読み取れないが、〜」と書け。',
+        '',
+        '■ 結論',
+        '全体を2〜3文で締める。',
+        '「この人は今どこにいて、何が強くて、何が危険か」。',
+        'ポエムにするな。構造で閉じろ。',
+        '',
+        '【各セクションの書き方ルール】',
+        '- 短文で切れ。長文禁止。1文は40字以内を目安にしろ',
+        '- 各セクション内で日記の言葉を「」で最低2つ引用しろ',
+        '- 「過去→今」の対比を入れるセクションでは、両方の時期の言葉を引用しろ',
+        '- 抽象で逃げるな。「変わった」じゃなく「何が何に変わった」を書け',
+        '- 存在しないレイヤーは省略していい。全部埋めようとして捏造するな',
+        '',
+        '【トーン】',
+        '- 客観的だが冷たくない',
+        '- 「見えているものを言語化する」温度',
+        '- 慰めない。でも突き放さない',
+        '- 評価しない。でも鈍感でもない',
+        '- 短い文。歯切れよく。リズムがあるように',
+        '',
+        '- 全体で1600〜2000字',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: [
+        'この人の「今いる地点」を、多層構造で言語化してください。',
+        '過去→今の遷移を見て、各レイヤーで「何がどう変わって、今どこにいるか」を描いてください。',
+        '',
+        '【統計データ（参考）】',
+        statsContext || '（統計データなし）',
+        '',
+        deepStats ? `【月次推移データ】\n${deepStats.slice(0, 3000)}` : '',
+        '',
+        '【直近30日の日記 — 「今」の主な根拠】',
+        truncatedRecent,
+        '',
+        '【全期間の日記サンプル — 「過去」の根拠】',
+        truncatedAll,
+      ].filter(Boolean).join('\n\n'),
+    },
+  ], 4000);
+}
