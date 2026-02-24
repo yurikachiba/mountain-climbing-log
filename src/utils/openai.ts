@@ -1685,6 +1685,107 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   ], 1500);
 }
 
+// 今の体温 — 直近1〜2週間だけを切り出した超短距離分析
+// 過去の総括なし、物語化なし、登山メタファーなし。今ここで何が起きているかだけ。
+export async function analyzePresentEmotion(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length === 0) return '';
+
+  // 直近14日間のエントリだけを対象にする
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const twoWeeksAgo = new Date(latestDate);
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const cutoffStr = twoWeeksAgo.toISOString().substring(0, 10);
+  const recentEntries = sorted.filter(e => e.date! >= cutoffStr);
+
+  if (recentEntries.length === 0) return '直近2週間の日記がありません。';
+
+  // 直近エントリは全文に近い形で渡す（体温を拾うため文脈を厚く）
+  const recentTexts = recentEntries.map(e => `[${e.date}] ${e.content.slice(0, 500)}`).join('\n---\n');
+  const truncated = recentTexts.slice(0, 12000);
+
+  // 存在テーマ密度（直近の深さだけ）
+  const existentialDensity = calcExistentialDensity30d(entries);
+
+  const stateHint = existentialDensity.density > 0
+    ? `存在テーマ密度(30日): ${existentialDensity.density.toFixed(1)}/1000字 [${existentialDensity.highlightWords.slice(0, 5).join('、')}]`
+    : '';
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは、今この瞬間の感情を読む人。',
+        '',
+        '【この分析の目的】',
+        '直近1〜2週間の日記だけを見て、今の感情の温度を伝える。',
+        '過去との比較はしない。物語にしない。登山メタファーは使わない。コンパスも地図もいらない。',
+        '「今ここで何が起きているか」だけを、そのまま言葉にする。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
+        '【最重要ルール】',
+        '- 日記に書かれていない出来事を捏造するな',
+        '- 過去の年（2020年、2021年…）を引用するな。今の日記だけが材料',
+        '- 「重要度マックス」「タスク」「優先度」のような業務フレームで感情を語るな',
+        '- 総括するな。まとめるな。物語にするな',
+        '- この人は「昔の延長線上にいる人」ではない。「今ここで揺れている人」として見ろ',
+        '',
+        '【禁止フレーズ】',
+        '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」',
+        '「重要度マックス」「タスク」「アクションプラン」「振り返り」',
+        '',
+        '【見るべきもの】',
+        '- 怒り、悲しみ、混乱、愛、誇り、自己嫌悪が同時にあるならそのまま並べろ',
+        '- 矛盾する感情が共存しているならそれを言え。整理するな',
+        '- 身体に出ているもの（泣く、眠れない、食べられない）があれば拾え',
+        '- 誰かとの関係で揺れているなら、その揺れの形を描け',
+        '- 被害的になっている自覚と、それでも愛がある、みたいな複雑さをそのまま書け',
+        '',
+        '以下の形式で出力する：',
+        '',
+        '  ■ 今の体温',
+        '  [この2週間の感情の状態を、体温を測るように。2〜3文。]',
+        '  [例：「熱い。怒りが先に来て、その後で泣いている」]',
+        '  [例：「低体温。何も感じないふりをしている。でも日記には書いている」]',
+        '',
+        '  ■ 何が起きているか',
+        '  [日記から見える具体的な出来事・感情の動き。3〜5文。]',
+        '  [日記の言葉を「」で3つ以上引用すること。]',
+        '  [感情を整理するな。混ざっているなら混ざったまま伝えろ。]',
+        '',
+        '  ■ 矛盾しているもの',
+        '  [同時に存在している矛盾する感情や態度を、そのまま並べる。]',
+        '  [例：「自分を責めている。でも相手が悪いとも思っている。どちらも本当」]',
+        '  [矛盾がなければこのセクションは省略していい。]',
+        '',
+        '  ■ 一言',
+        '  [今の状態に対して一言だけ返すなら。アドバイスじゃない。ただの観測。]',
+        '  [短く。1文。]',
+        '',
+        '- 全体で400字以内。短く。',
+        '- 温度は「今そこにいる人」に向けて。歴史家じゃない。',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: [
+        '以下の直近2週間の日記だけを見て、今の感情の温度を読んでください。',
+        '過去は見なくていい。今だけ。',
+        '',
+        stateHint ? `【参考データ】\n${stateHint}` : '',
+        '',
+        `【直近2週間の日記】`,
+        truncated,
+      ].filter(Boolean).join('\n\n'),
+    },
+  ], 1200);
+}
+
 // やさしい振り返り — 観測データに基づくやさしい省察
 export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';

@@ -12,12 +12,13 @@ import {
   analyzeLifeStory,
   analyzeVitalPoint,
   analyzeTodaysEntry,
+  analyzePresentEmotion,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
-  | 'todaysEntry'
+  | 'todaysEntry' | 'presentEmotion'
   | 'tone' | 'turningPoints' | 'report'
   | 'elevation' | 'counterfactual'
   | 'lifeStory' | 'vitalPoint';
@@ -38,6 +39,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     title: '今日の分析',
     desc: '直近の日記を、ここまでの道のりの文脈から読み解く',
     fn: analyzeTodaysEntry,
+  },
+  presentEmotion: {
+    title: '今の体温',
+    desc: '直近1〜2週間だけ。過去なし、物語なし。今ここの感情をそのまま',
+    fn: analyzePresentEmotion,
   },
   tone: {
     title: '語彙深度分析',
@@ -80,6 +86,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
 // 7種に絞った分、各分析のサンプル数を増やして深く分析
 const sampleLimits: Record<AnalysisType, number> = {
   todaysEntry: 60,     // 直近重視 + 過去文脈
+  presentEmotion: 30,  // 直近2週間のみ（過去参照なし）
   tone: 100,           // 前半50 + 後半50
   turningPoints: 120,  // データ駆動、多めにサンプル
   report: 80,          // 深層データ統合
@@ -91,8 +98,8 @@ const sampleLimits: Record<AnalysisType, number> = {
 
 const categories: AnalysisCategory[] = [
   {
-    label: '今日',
-    items: ['todaysEntry'],
+    label: '今ここ',
+    items: ['presentEmotion', 'todaysEntry'],
   },
   {
     label: '構造分析',
@@ -120,9 +127,9 @@ function formatDate(iso: string): string {
 
 export function Analysis() {
   useHead({
-    title: 'AI分析（8種類）',
-    description: '鋭い分析だけを残した8種類のAI分析。今日の分析、語彙深度分析、転機検出、包括レポート、標高ナラティブ、反事実的因果、人生の物語、急所。深層データ統合・定量根拠に基づく分析。',
-    keywords: 'AI日記分析,今日の分析,語彙深度,転機検出,標高ナラティブ,反事実的因果,急所,人生の物語,深層分析',
+    title: 'AI分析（9種類）',
+    description: '鋭い分析だけを残した9種類のAI分析。今の体温、今日の分析、語彙深度分析、転機検出、包括レポート、標高ナラティブ、反事実的因果、人生の物語、急所。深層データ統合・定量根拠に基づく分析。',
+    keywords: 'AI日記分析,今の体温,今日の分析,語彙深度,転機検出,標高ナラティブ,反事実的因果,急所,人生の物語,深層分析',
     path: '/analysis',
   });
 
