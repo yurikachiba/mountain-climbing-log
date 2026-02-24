@@ -9,7 +9,7 @@ import { AiResultBody } from '../components/AiResultBody';
 type AnalysisType =
   | 'tone' | 'turningPoints' | 'report'
   | 'elevation' | 'counterfactual'
-  | 'lifeStory' | 'vitalPoint';
+  | 'lifeStory' | 'vitalPoint' | 'emotionalTriggers';
 
 const typeLabels: Record<AnalysisType, string> = {
   tone: '語彙深度分析',
@@ -19,12 +19,13 @@ const typeLabels: Record<AnalysisType, string> = {
   counterfactual: '反事実的因果',
   lifeStory: '人生の物語',
   vitalPoint: '急所',
+  emotionalTriggers: '感情の急所',
 };
 
 const allTypes: AnalysisType[] = [
   'tone', 'turningPoints', 'report',
   'elevation', 'counterfactual',
-  'lifeStory', 'vitalPoint',
+  'lifeStory', 'vitalPoint', 'emotionalTriggers',
 ];
 
 function formatDate(iso: string): string {

@@ -11,6 +11,7 @@ import type {
   StatisticalTest,
   DailyPredictiveContext,
   ExistentialDensity,
+  EmotionalTriggerContext,
 } from '../types';
 
 // ── 辞書定義 ──
@@ -185,6 +186,77 @@ const existentialAgencyWords = [
   // 内的選択権（自分で制御できる感覚）
   '自分で決め', '自分で選', '自分の意思',
   '距離を取', '距離を置', '離れる',
+];
+
+// ── 感情トリガー辞書 ──
+
+// 怒り爆発語 — 怒りが100になる瞬間の言語化
+const angerExplosionWords = [
+  '怒り', '激怒', '爆発', 'ブチ切れ', 'ブチギレ', 'キレ', 'キレた', 'キレそう',
+  '許せない', '許さない', '許せなかった',
+  '腹が立つ', '腹が立った', '腹立つ', '腹立た',
+  '我慢の限界', '限界', '堪忍袋', '怒り100',
+  'ありえない', 'ありえなかった', 'ふざけるな', 'ふざけんな',
+  '信じられない', '信じられなかった',
+  '頭に来', '頭にき', 'むかつく', 'むかついた',
+  'イライラ', 'カッとな', 'カッとし',
+  '怒鳴', '叫び', '叫んだ', '声が出',
+  '震え', '手が震え', '体が震え',
+  '泣き怒り', '悔し泣き', '悔しくて',
+];
+
+// 軽視・軽く扱われる語 — 怒りのトリガーとなる「雑に扱われた」表現
+const dismissalTriggerWords = [
+  '軽く扱', '軽く見', '軽んじ', '軽視',
+  '雑に扱', '雑に', '適当に',
+  'なめ', '舐め', 'ナメ',
+  '見下', '上から', '上から目線',
+  '馬鹿にさ', 'バカにさ', 'バカにし', '馬鹿にし',
+  '侮辱', '侮', '蔑ろ', 'ないがしろ',
+  '笑われ', '笑い者',
+  '無視', '空気扱い', '透明',
+  '決めつけ', '勝手に決め', '勝手に',
+  '押し付け', '一方的に',
+  '聞いてくれない', '聞こうとしない',
+  '分かってない', 'わかってない',
+  '嫌な言い方', '嫌な態度', '言い方が',
+  '態度が', '失礼', '非常識',
+  '曖昧に', '曖昧な', '適当な返事',
+  '説明もなく', '理由もなく',
+  '黙殺', 'スルー', '既読スルー',
+  '約束を破', '約束守らない',
+];
+
+// 自己防衛努力語 — 「自分を軽く扱わない」ための行動の言語化
+const selfProtectionEffortWords = [
+  '逃げない', '逃げなかった', '逃げずに',
+  '対等', '対等に', '対等でいたい',
+  '向き合', '向き合った', '向き合う',
+  '言葉にする', '言葉にした', '言語化',
+  '伝えた', '伝える', '言い返',
+  '明文化', '文書化', '書面で',
+  '境界線', '線引き', '線を引',
+  '役割を', '役割定義', '範囲を',
+  'ルールを', '条件を', '条件提示',
+  '交渉', '相談', '提案',
+  '自分を守', '自分を大事', '自分を大切',
+  '筋を通', '筋が通', '正直に',
+  '嘘をつかない', '嘘つかない', '嘘はつかない',
+  '我慢しない', '黙らない', '言うべきこと',
+  '距離を取', '距離を置', '距離を決め',
+  '要求', '主張', '意見を言',
+  '断る', '断った', 'NOと', 'Noと',
+  '選ぶ', '選んだ', '自分で決め',
+];
+
+// 関係性コンテキスト語 — 怒りの対象となりうる関係性
+const relationshipContextWords = [
+  '母', '父', '親', '家族', '兄', '姉', '弟', '妹',
+  '彼', '彼女', '恋人', 'パートナー', '夫', '妻',
+  '上司', '先輩', '後輩', '同僚', '部下',
+  '営業', '取引先', 'クライアント', '客',
+  '友達', '友人', '知人',
+  '先生', '医者', '医師',
 ];
 
 // 全存在論語の統合リスト
@@ -1035,6 +1107,59 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
     },
     recentEntryCount: recentEntries.length,
     highlightWords,
+  };
+}
+
+// ── 感情トリガーコンテキスト（直近14日） ──
+
+export function calcEmotionalTriggerContext(entries: DiaryEntry[]): EmotionalTriggerContext {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (b.date ?? '').localeCompare(a.date ?? '')
+  );
+  const empty: EmotionalTriggerContext = {
+    angerExplosionRate: 0, dismissalRate: 0, selfProtectionRate: 0, relationshipRate: 0,
+    angerWords: [], dismissalWords: [], selfProtectionWords: [], relationshipWords: [],
+    recentEntryCount: 0,
+  };
+  if (sorted.length === 0) return empty;
+
+  const latestDate = sorted[0].date!.substring(0, 10);
+  const cutoffDate = new Date(latestDate);
+  cutoffDate.setDate(cutoffDate.getDate() - 14);
+  const cutoff = cutoffDate.toISOString().substring(0, 10);
+
+  const recentEntries = entries.filter(e => e.date && e.date >= cutoff);
+  if (recentEntries.length === 0) return empty;
+
+  const allText = recentEntries.map(e => e.content).join('\n');
+  const textLength = allText.length;
+  if (textLength === 0) return empty;
+
+  const per1k = (count: number) => Math.round((count / textLength) * 1000 * 100) / 100;
+
+  const angerCount = countWords(allText, angerExplosionWords);
+  const dismissalCount = countWords(allText, dismissalTriggerWords);
+  const selfProtectionCount = countWords(allText, selfProtectionEffortWords);
+  const relationshipCount = countWords(allText, relationshipContextWords);
+
+  const findPresent = (words: string[]) => {
+    const found: string[] = [];
+    for (const w of words) {
+      if (allText.includes(w) && !found.includes(w)) found.push(w);
+    }
+    return found;
+  };
+
+  return {
+    angerExplosionRate: per1k(angerCount),
+    dismissalRate: per1k(dismissalCount),
+    selfProtectionRate: per1k(selfProtectionCount),
+    relationshipRate: per1k(relationshipCount),
+    angerWords: findPresent(angerExplosionWords),
+    dismissalWords: findPresent(dismissalTriggerWords),
+    selfProtectionWords: findPresent(selfProtectionEffortWords),
+    relationshipWords: findPresent(relationshipContextWords),
+    recentEntryCount: recentEntries.length,
   };
 }
 

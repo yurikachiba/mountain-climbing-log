@@ -288,6 +288,25 @@ export interface ExistentialDensity {
   highlightWords: string[]; // 実際に出現した存在論的語
 }
 
+// 感情トリガーコンテキスト（直近14日）
+export interface EmotionalTriggerContext {
+  // 怒り爆発語の密度（/1000字）
+  angerExplosionRate: number;
+  // 軽視・軽く扱われた語の密度（/1000字）
+  dismissalRate: number;
+  // 自己防衛努力語の密度（/1000字）
+  selfProtectionRate: number;
+  // 関係性への言及（/1000字）
+  relationshipRate: number;
+  // 実際に検出された語
+  angerWords: string[];
+  dismissalWords: string[];
+  selfProtectionWords: string[];
+  relationshipWords: string[];
+  // 対象エントリ数
+  recentEntryCount: number;
+}
+
 // 日次レベルの予測用コンテキスト
 export interface DailyPredictiveContext {
   // ネガ急上昇前N日間の共通語

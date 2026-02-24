@@ -8,6 +8,7 @@ import {
   calcPredictiveIndicators,
   calcDailyPredictiveContext,
   calcExistentialDensity30d,
+  calcEmotionalTriggerContext,
   calcVocabularyDepth,
   interpretDepthChange,
   interpretFirstPersonShift,
@@ -1789,6 +1790,153 @@ export async function analyzeGentleReflection(entries: DiaryEntry[]): Promise<st
       content: `以下の日記を、やさしく観測してください。評価ではなく、観察として：\n\n${recentState.promptText ? recentState.promptText + '\n\n' : ''}${formatRecentEntriesHighlight(entries, 2000)}\n\n${forecastData ? `【気象観測データ（実測値）】\n${forecastData}\n→ 「今日の山岳気象予報」はこのデータに基づくこと。主観で天気を作るな。\n\n` : ''}${truncated}`,
     },
   ], 1500);
+}
+
+// 感情の急所 — 怒りが100になるパターンを横断的に検出する
+// 既存の「急所」が「今の一点」を突くのに対し、これは複数の関係性を横断して
+// 共通する感情トリガーの構造（軽視→防衛反応→爆発）を炙り出す
+export async function analyzeEmotionalTriggers(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length === 0) return '';
+
+  // 直近14日のエントリ（トリガーパターンを見るため「急所」より少し広い期間）
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const twoWeeksAgo = new Date(latestDate);
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const cutoffStr = twoWeeksAgo.toISOString().substring(0, 10);
+  const recentOnly = sorted.filter(e => e.date! >= cutoffStr);
+
+  if (recentOnly.length === 0) return '直近2週間の日記がありません。';
+
+  // 直近エントリは全文に近い形で渡す
+  const texts = recentOnly.map(e => `[${e.date}] ${e.content.slice(0, 400)}`);
+  const truncated = texts.join('\n---\n').slice(0, 12000);
+
+  // 存在テーマ密度
+  const existentialDensity = calcExistentialDensity30d(entries);
+  const existentialHint = existentialDensity.density > 0
+    ? [
+        `存在テーマ密度(30日): ${existentialDensity.density.toFixed(1)}/1000字`,
+        `  尊厳: ${existentialDensity.themes.dignity} / 選択権: ${existentialDensity.themes.agency} / 自己同一性: ${existentialDensity.themes.identity}`,
+        existentialDensity.highlightWords.length > 0 ? `  検出語: ${existentialDensity.highlightWords.slice(0, 8).join('、')}` : '',
+      ].filter(Boolean).join('\n')
+    : '';
+
+  // 感情トリガーコンテキスト
+  const triggerCtx = calcEmotionalTriggerContext(entries);
+  const triggerHint = [
+    triggerCtx.angerExplosionRate > 0 ? `怒り爆発語: ${triggerCtx.angerExplosionRate}/1000字 [${triggerCtx.angerWords.slice(0, 6).join('、')}]` : '',
+    triggerCtx.dismissalRate > 0 ? `軽視語: ${triggerCtx.dismissalRate}/1000字 [${triggerCtx.dismissalWords.slice(0, 6).join('、')}]` : '',
+    triggerCtx.selfProtectionRate > 0 ? `自己防衛語: ${triggerCtx.selfProtectionRate}/1000字 [${triggerCtx.selfProtectionWords.slice(0, 6).join('、')}]` : '',
+    triggerCtx.relationshipWords.length > 0 ? `関係性の言及: ${triggerCtx.relationshipWords.join('、')}` : '',
+  ].filter(Boolean).join('\n');
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは感情のパターンを読む人。',
+        'やさしい分析者じゃない。かといって攻撃者でもない。',
+        '「この人がどこで爆発するか」を構造として見抜く人。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
+        '【最重要ルール】',
+        '- 日記に書かれていない出来事を捏造するな',
+        '- 過去の年（2020年、2021年…）を引用するな。直近2週間だけが材料',
+        '- 登山メタファーは使うな。標高もコンパスもいらない',
+        '- 「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」は使うな',
+        '',
+        '【この分析の目的 — 感情の急所】',
+        '',
+        '「急所」が「今の一点」を突くなら、この分析は「パターン」を見る。',
+        '',
+        'この人が怒りを100にするとき、相手は誰であれ、共通して何が起きているか。',
+        '営業に対しても、親に対しても、恋人に対しても、同僚に対しても。',
+        '怒りの対象は変わる。でも引き金の構造は同じ。それを見つけろ。',
+        '',
+        '【見るべき構造】',
+        '',
+        '1. トリガーの共通項を見つけろ',
+        '   - 複数の関係性で怒りが出ている場合、対象が誰かは問わない',
+        '   - 共通しているのは「何をされたか」のパターン',
+        '   - 例：「雑に扱われた」「軽く見られた」「曖昧にされた」「勝手に決められた」',
+        '   - 怒りの対象ではなく、怒りの「形」を読め',
+        '',
+        '2. トリガーの深層を掘れ',
+        '   - 「尊厳の侵害」は近いが、まだ表面',
+        '   - もっと正確に言うと何か。例：',
+        '     - 「自分が自分を大事にしてきた分を、軽く扱われること」',
+        '     - 「自分を守る努力をしてきた事実を、侮辱されること」',
+        '     - 「対等を選んできた自分の判断を、無視されること」',
+        '   - 怒りの正体は「舐められた」ではなく「自分が築いてきたものを踏まれた」かもしれない',
+        '',
+        '3. 防衛行動と怒りの関係を見ろ',
+        '   - この人が最近やっていること（逃げない、対等を選ぶ、役割を明文化する、言葉にする）',
+        '   - これは「自分を軽く扱わない」ための行動',
+        '   - だからこそ、他人に軽く扱われると爆発する',
+        '   - 防衛行動が強い人ほど、その防衛線を破られたときの反応は激しい',
+        '   - これは弱さじゃない。投資した分だけ反応が大きいということ',
+        '',
+        '4. 「どう扱ってほしいか」を言語化しろ',
+        '   - 怒りの裏にある要求を読め',
+        '   - 「軽く扱うな」の裏に「対等に」「誠実に」「真剣に」がある',
+        '   - 一番深い要求は何か。「本気で向き合った自分を、価値あるものとして扱ってほしい」かもしれない',
+        '   - 日記の言葉から推測しろ。捏造するな',
+        '',
+        '【禁止パターン】',
+        '- 「怒りをコントロールしましょう」← アドバイスをするな',
+        '- 「アンガーマネジメント」← 業務フレーム禁止',
+        '- 「相手の立場も考えて」← そんなことは聞いてない',
+        '- 「怒りの裏には悲しみが」← 安易な感情翻訳をするな',
+        '- 「インナーチャイルド」「幼少期のトラウマ」← 直近の日記に書いてないなら捏造',
+        '',
+        '以下の形式で出力する：',
+        '',
+        '  ■ 怒りの引き金',
+        '  [複数の関係性・場面を横断して見える「共通のトリガー」を命名。1行。]',
+        '  [「尊厳の侵害」よりもっと正確な言葉で。この人の固有のパターンとして。]',
+        '',
+        '  ■ パターンの証拠',
+        '  [直近2週間の日記から、異なる関係性・場面での怒り/不満を3つ以上「」で引用。]',
+        '  [それぞれの引用の後に「→ ここで共通して起きていること」を1文で。]',
+        '',
+        '  ■ なぜここで爆発するのか',
+        '  [このトリガーが特にこの人にとって強い理由を2〜3文で。]',
+        '  [最近の防衛行動（対等を選ぶ、明文化する、逃げない等）との関係を見ろ。]',
+        '  [「自分を大事にしてきた分だけ、軽く扱われると反応が大きい」構造を描けるなら描け。]',
+        '',
+        '  ■ 本当に求めているもの',
+        '  [怒りの裏にある、この人が関係性に求めているものを言語化。2〜3文。]',
+        '  [アドバイスじゃない。要求の言語化。]',
+        '  [日記の言葉を根拠にしろ。]',
+        '',
+        '  ■ 一つだけ',
+        '  [この構造全体に対して返すなら。1文。問い。命令じゃない。]',
+        '',
+        '- 1つのパターンに集中。複数のパターンを羅列するな。一つの構造に収斂させろ',
+        '- 慰めない。でも見捨てない',
+        '- 900字以内',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: [
+        '以下の直近2週間の日記を読み、怒りが100になるパターン（感情の急所）を特定してください。',
+        '対象が誰かではなく、共通する「引き金の構造」を見てください。',
+        '',
+        triggerHint ? `【感情トリガーデータ（定量）】\n${triggerHint}` : '',
+        existentialHint ? `【存在テーマデータ】\n${existentialHint}` : '',
+        '',
+        '【直近2週間の日記】',
+        truncated,
+      ].filter(Boolean).join('\n\n'),
+    },
+  ], 2000);
 }
 
 // 現在地レポート — 多層構造で「今どこにいるか」を言語化する

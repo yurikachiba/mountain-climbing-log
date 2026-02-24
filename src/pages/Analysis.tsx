@@ -8,6 +8,7 @@ import {
   analyzeVitalPoint,
   analyzeTodaysEntry,
   analyzePresentEmotion,
+  analyzeEmotionalTriggers,
   analyzeCurrentPosition,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
@@ -15,7 +16,7 @@ import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
   | 'presentEmotion' | 'todaysEntry'
-  | 'turningPoints' | 'vitalPoint'
+  | 'turningPoints' | 'vitalPoint' | 'emotionalTriggers'
   | 'currentPosition';
 
 interface AnalysisItem {
@@ -50,6 +51,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '直近1週間から本質を突く、たった一つの指摘',
     fn: analyzeVitalPoint,
   },
+  emotionalTriggers: {
+    title: '感情の急所',
+    desc: '怒りが100になるパターン。関係性を横断して、共通する引き金の構造を炙り出す',
+    fn: analyzeEmotionalTriggers,
+  },
   currentPosition: {
     title: '現在地',
     desc: '仕事・影響範囲・メンタル・交渉・仕組み・人間関係。多層構造で今いる地点を言語化する',
@@ -62,6 +68,7 @@ const sampleLimits: Record<AnalysisType, number> = {
   todaysEntry: 40,     // 直近30日
   turningPoints: 30,   // 直近7日
   vitalPoint: 30,      // 直近7日
+  emotionalTriggers: 40, // 直近14日
   currentPosition: 120, // 全期間（直近厚め120件サンプル）
 };
 
@@ -72,7 +79,7 @@ const categories: AnalysisCategory[] = [
   },
   {
     label: '深く',
-    items: ['turningPoints', 'vitalPoint', 'currentPosition'],
+    items: ['turningPoints', 'vitalPoint', 'emotionalTriggers', 'currentPosition'],
   },
 ];
 
