@@ -40,12 +40,12 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   turningPoints: {
     title: '転機検出',
-    desc: '直近3ヶ月で何が動いたか。今の揺れの構造を見る',
+    desc: '直近1週間で何が動いたか。今の揺れの構造を見る',
     fn: detectTurningPoints,
   },
   vitalPoint: {
     title: '急所',
-    desc: 'やさしいだけじゃない。痛いけど本質を突く、たった一つの指摘',
+    desc: '直近1週間から本質を突く、たった一つの指摘',
     fn: analyzeVitalPoint,
   },
 };
@@ -53,8 +53,8 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
 const sampleLimits: Record<AnalysisType, number> = {
   presentEmotion: 30,  // 直近2週間のみ
   todaysEntry: 40,     // 直近30日
-  turningPoints: 60,   // 直近90日
-  vitalPoint: 60,      // 直近90日
+  turningPoints: 30,   // 直近7日
+  vitalPoint: 30,      // 直近7日
 };
 
 const categories: AnalysisCategory[] = [
