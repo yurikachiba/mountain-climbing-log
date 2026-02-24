@@ -4,19 +4,21 @@ import { useHead } from '../hooks/useHead';
 import { useAiCache } from '../hooks/useAiCache';
 import { hasApiKey } from '../utils/apiKey';
 import {
-  detectTurningPoints,
   analyzeVitalPoint,
-  analyzeTodaysEntry,
   analyzePresentEmotion,
   analyzeCurrentPosition,
+  analyzeDiscontinuityMap,
+  analyzeAngerQuality,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
-  | 'presentEmotion' | 'todaysEntry'
-  | 'turningPoints' | 'vitalPoint'
-  | 'currentPosition';
+  | 'presentEmotion'
+  | 'vitalPoint'
+  | 'currentPosition'
+  | 'discontinuityMap'
+  | 'angerQuality';
 
 interface AnalysisItem {
   title: string;
@@ -35,16 +37,6 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '直近1〜2週間だけ。過去なし、物語なし。今ここの感情をそのまま',
     fn: analyzePresentEmotion,
   },
-  todaysEntry: {
-    title: '今日の分析',
-    desc: '直近の日記を、最近の流れの中で読む',
-    fn: analyzeTodaysEntry,
-  },
-  turningPoints: {
-    title: '転機検出',
-    desc: '直近1週間で何が動いたか。今の揺れの構造を見る',
-    fn: detectTurningPoints,
-  },
   vitalPoint: {
     title: '急所',
     desc: '直近1週間から本質を突く、たった一つの指摘',
@@ -55,24 +47,38 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '仕事・影響範囲・メンタル・交渉・仕組み・人間関係。多層構造で今いる地点を言語化する',
     fn: analyzeCurrentPosition,
   },
+  discontinuityMap: {
+    title: '断絶マップ',
+    desc: 'バージョン分岐図。壊れた場所、再定義した場所、別系統になった場所を構造で描く',
+    fn: analyzeDiscontinuityMap,
+  },
+  angerQuality: {
+    title: '怒りの質',
+    desc: '怒りの変換段階を構造的に分析。爆発→分析→交渉文→構造整理→設計',
+    fn: analyzeAngerQuality,
+  },
 };
 
 const sampleLimits: Record<AnalysisType, number> = {
-  presentEmotion: 30,  // 直近2週間のみ
-  todaysEntry: 40,     // 直近30日
-  turningPoints: 30,   // 直近7日
-  vitalPoint: 30,      // 直近7日
+  presentEmotion: 30,   // 直近2週間のみ
+  vitalPoint: 30,       // 直近7日
   currentPosition: 120, // 全期間（直近厚め120件サンプル）
+  discontinuityMap: 100, // 全期間（直近厚め100件サンプル）
+  angerQuality: 80,     // 全期間（直近厚め80件サンプル）
 };
 
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
-    items: ['presentEmotion', 'todaysEntry'],
+    items: ['presentEmotion'],
   },
   {
     label: '深く',
-    items: ['turningPoints', 'vitalPoint', 'currentPosition'],
+    items: ['vitalPoint', 'currentPosition'],
+  },
+  {
+    label: '構造',
+    items: ['discontinuityMap', 'angerQuality'],
   },
 ];
 
@@ -89,8 +95,8 @@ function formatDate(iso: string): string {
 export function Analysis() {
   useHead({
     title: 'AI分析',
-    description: '今ここの感情を読む4種類のAI分析。今の体温、今日の分析、転機検出、急所。直近重視・定量根拠に基づく分析。',
-    keywords: 'AI日記分析,今の体温,今日の分析,転機検出,急所,直近分析',
+    description: '5種類のAI分析。今の体温、急所、現在地、断絶マップ、怒りの質。直近重視・構造分析。',
+    keywords: 'AI日記分析,今の体温,急所,現在地,断絶マップ,怒りの質,直近分析',
     path: '/analysis',
   });
 
