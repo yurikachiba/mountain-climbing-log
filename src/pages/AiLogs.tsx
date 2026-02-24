@@ -9,22 +9,28 @@ import { AiResultBody } from '../components/AiResultBody';
 type AnalysisType =
   | 'tone' | 'turningPoints' | 'report'
   | 'elevation' | 'counterfactual'
-  | 'lifeStory' | 'vitalPoint';
+  | 'lifeStory' | 'vitalPoint'
+  | 'presentEmotion' | 'todaysEntry' | 'currentPosition';
 
 const typeLabels: Record<AnalysisType, string> = {
+  presentEmotion: '今の体温',
+  vitalPoint: '急所',
+  currentPosition: '現在地',
+  todaysEntry: '今日の分析',
   tone: '語彙深度分析',
   turningPoints: '転機検出',
   report: '包括レポート',
   elevation: '標高ナラティブ',
   counterfactual: '反事実的因果',
   lifeStory: '人生の物語',
-  vitalPoint: '急所',
 };
 
 const allTypes: AnalysisType[] = [
+  'presentEmotion', 'vitalPoint', 'currentPosition',
+  'todaysEntry',
   'tone', 'turningPoints', 'report',
   'elevation', 'counterfactual',
-  'lifeStory', 'vitalPoint',
+  'lifeStory',
 ];
 
 function formatDate(iso: string): string {

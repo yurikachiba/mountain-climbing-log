@@ -281,7 +281,7 @@ export interface ExistentialDensity {
     identity: number; // 自己同一性テーマ率
     completion: number; // 完成/未完テーマ率
     intensity: number; // 存在的強度テーマ率
-    dignity: number; // 尊厳テーマ率（対等・境界線・軽く扱われることへの過敏さ）
+    dignity: number; // 尊厳テーマ率（対等性への志向・境界線の設計・関係の再定義）
     agency: number; // 選択権テーマ率（選べない・縛られる・自由・逃げられないことへの反応）
   };
   recentEntryCount: number;
