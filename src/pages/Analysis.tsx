@@ -8,13 +8,15 @@ import {
   analyzeVitalPoint,
   analyzeTodaysEntry,
   analyzePresentEmotion,
+  analyzeCurrentPosition,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
   | 'presentEmotion' | 'todaysEntry'
-  | 'turningPoints' | 'vitalPoint';
+  | 'turningPoints' | 'vitalPoint'
+  | 'currentPosition';
 
 interface AnalysisItem {
   title: string;
@@ -48,6 +50,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '直近1週間から本質を突く、たった一つの指摘',
     fn: analyzeVitalPoint,
   },
+  currentPosition: {
+    title: '現在地',
+    desc: '仕事・影響範囲・メンタル・交渉・仕組み・人間関係。多層構造で今いる地点を言語化する',
+    fn: analyzeCurrentPosition,
+  },
 };
 
 const sampleLimits: Record<AnalysisType, number> = {
@@ -55,6 +62,7 @@ const sampleLimits: Record<AnalysisType, number> = {
   todaysEntry: 40,     // 直近30日
   turningPoints: 30,   // 直近7日
   vitalPoint: 30,      // 直近7日
+  currentPosition: 120, // 全期間（直近厚め120件サンプル）
 };
 
 const categories: AnalysisCategory[] = [
@@ -64,7 +72,7 @@ const categories: AnalysisCategory[] = [
   },
   {
     label: '深く',
-    items: ['turningPoints', 'vitalPoint'],
+    items: ['turningPoints', 'vitalPoint', 'currentPosition'],
   },
 ];
 
