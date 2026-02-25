@@ -11,7 +11,8 @@ type AnalysisType =
   | 'elevation' | 'counterfactual'
   | 'lifeStory' | 'vitalPoint'
   | 'presentEmotion' | 'todaysEntry' | 'currentPosition'
-  | 'discontinuityMap' | 'angerQuality';
+  | 'discontinuityMap' | 'angerQuality'
+  | 'externalStandardsMastery';
 
 const typeLabels: Record<AnalysisType, string> = {
   presentEmotion: '今の体温',
@@ -26,11 +27,13 @@ const typeLabels: Record<AnalysisType, string> = {
   elevation: '標高ナラティブ',
   counterfactual: '反事実的因果',
   lifeStory: '人生の物語',
+  externalStandardsMastery: '外基準の統合',
 };
 
 // 包括レポートは除外（過去のログは表示可能だが、新規生成対象から除外）
 const allTypes: AnalysisType[] = [
-  'presentEmotion', 'vitalPoint', 'currentPosition',
+  'presentEmotion', 'vitalPoint', 'externalStandardsMastery',
+  'currentPosition',
   'discontinuityMap', 'angerQuality',
   'todaysEntry',
   'tone', 'turningPoints',
