@@ -1,22 +1,22 @@
 セクション,項目,内容
 概要,日付,2026/02/25
-概要,学習テーマ,React + TypeScript Webアプリケーションの構造理解と機能開発
-概要,学習概要,登山ログアプリ（React + TypeScript + Vite）のコードベース全体を調査・理解し、新機能の設計・実装・修正を行った。ルーティング構成、コンポーネント設計、カスタムフック、IndexedDBによるデータ管理、AI分析機能の連携方法を学習した。
+概要,学習テーマ,TypeScript型設計・データ可視化・AI API連携・ビルド最適化の実践
+概要,学習概要,"登山ログアプリのコードベースを題材に、TypeScriptの高度な型システム設計、Rechartsによるデータ可視化の実装手法、OpenAI APIとの連携パターン・プロンプト設計・キャッシュ戦略、Vite + PWAによるビルド・デプロイ設定を学習した。"
 実施詳細（1）,期間,9:00〜12:00
 実施詳細（1）,対象期間の時間,3時間
-内容（1）,学習項目,プロジェクト構造の全体調査
-内容（1）,詳細,"リポジトリの技術スタック（React 18 + TypeScript + Vite + React Router v6 + Recharts + IndexedDB）を確認した。srcディレクトリ以下のファイル構成（pages 16ページ、components 4つ、hooks 4つ、utils 6つ、db、types）を網羅的に調査した。App.tsxのルーティング設定、Nav.tsxのナビゲーション構成、types/index.tsの型定義（DiaryEntry, Fragment, AiCache, Observation等）を読み込み、アプリ全体のデータフローを理解した。"
+内容（1）,学習項目,TypeScript型システムの設計パターン
+内容（1）,詳細,"types/index.ts（310行超）の型定義を精読し、インターフェースベースのドメインモデリング手法を学習した。DiaryEntryのnullable union型（string | null）、TrendShiftの判別共用体型（type: 'deterioration' | 'recovery' | 'plateau' | 'vocabulary_shift' | 'existential_shift'）、CurrentStateNumericのリテラル型によるリスクレベル表現（riskLevel: 'low' | 'moderate' | 'elevated'）を理解した。MonthlyDeepAnalysis（20項目の複合メトリクス）やVocabularyDepth（1000字あたりの比率型）等の高度な型設計を分析した。また、useAiCache.tsでのRecord<string, AiCache>によるキー型キャッシュ、オプショナルチェイニング（c?.result）による型安全なnull処理、interface拡張（ClimbingLogDB extends DBSchema）の実装パターンも学習した。tsconfig.app.jsonのstrict: true設定下での型ガード・型ナローイングの必要性を実感した。"
 実施詳細（2）,期間,13:00〜16:00
 実施詳細（2）,対象期間の時間,3時間
-内容（2）,学習項目,カスタムフック・ユーティリティ関数の理解
-内容（2）,詳細,"useEntries、useHead、useAiCache、useObservationsの各カスタムフックの実装パターンを学習した。IndexedDB（idbライブラリ）を使ったデータ永続化の仕組み、SHA-256ハッシュによる重複検出ロジックを理解した。emotionAnalyzer.ts（640行）の感情分析アルゴリズム（ネガティブ比率、安定性指数、回復力指標）と、deepAnalyzer.ts（1725行）の高度な統計分析（季節分解、Z-scoreによるトレンド検出、語彙深度分析、実存密度算出）を調査した。"
+内容（2）,学習項目,Rechartsによるデータ可視化の実装
+内容（2）,詳細,"Timeline.tsx（500行超）で使用されている9種類のチャート実装を分析した。ResponsiveContainerによるレスポンシブ対応、AreaChart（標高推移・基準線1000mのReferenceLine付き）、BarChart（安定指数・Y軸domain [0,100]）、LineChart（ネガティブ比率・dot={false}指定）の使い分けを理解した。移動平均チャートでは3ヶ月線（実線#333）・6ヶ月線（破線strokeDasharray='8 4'）・季節ベースライン（点線strokeDasharray='3 3'）の視覚的区別手法、connectNulls={true}による欠損データ処理を学んだ。X軸のティック間隔をデータ長に応じて動的計算するcalcTickInterval関数（30件以下→全表示、365件超→length/10間隔）、月初のみ表示するdateTickFormatterの実装を理解した。データ変換パイプライン（analyzeEntriesEveryOtherDay→calcMonthlyDeepAnalysis→detectTrendShifts→calcSeasonalCrossStats）の流れも把握した。"
 実施詳細（3）,期間,16:00〜18:00
 実施詳細（3）,対象期間の時間,2時間
-内容（3）,学習項目,Reactコンポーネントの実装と修正
-内容（3）,詳細,"既存ページ（Observatory.tsx、Import.tsx等）の実装パターンを参考に、新規ページコンポーネント（WorkLog.tsx）をReact + TypeScriptで実装した。useState、useCallback、useMemoフックを活用した状態管理、動的なフォーム要素の追加・削除機能、Clipboard APIを使ったテキストコピー機能を実装した。実装後にユーザー要件との齟齬が判明し、不要な変更を正確にrevertする作業も行った。"
+内容（3）,学習項目,OpenAI API連携とプロンプト設計
+内容（3）,詳細,"openai.ts（2300行超）のAPI連携アーキテクチャを学習した。callChat関数のgpt-4o-miniモデル呼び出し（temperature: 0.3）、エラーハンドリング（401認証エラー・429レートリミット）の実装を理解した。11種類の分析関数ごとに異なるサンプリング戦略が設計されており、直近重視型（60%を直近30%期間に配分）、均一時間軸型（年ごと最低2件保証）、直近限定型（7日間・14日間）を使い分けていた。summarizeByPeriod関数の12000トークン予算管理、年別の配分ロジックを分析した。プロンプト安全性設計として、ユーザー入力の直接埋め込みを避け、単語頻度分析による間接的なコンテキスト抽出、「日記に書かれていない出来事を捏造してはならない」という事実性ルールの明示を学んだ。"
 実施詳細（4）,期間,18:00〜20:00
 実施詳細（4）,対象期間の時間,2時間
-内容（4）,学習項目,CSSスタイリングとレスポンシブデザインの実践
-内容（4）,詳細,"index.css（2500行超）のCSS設計思想（BEM風クラス命名、CSS変数によるテーマ管理、セクション別スタイル分割）を学習した。既存コンポーネント（Observatory、Analysis、AiLogs等）のスタイルパターンを分析し、新規セクション用のCSS（フォーム入力、カード型レイアウト、ボタンスタイル、レスポンシブ対応）を設計・実装した。@media (max-width: 600px)によるモバイル対応のブレークポイント設計も実践した。"
+内容（4）,学習項目,Viteビルド設定とPWA対応
+内容（4）,詳細,"vite.config.tsのビルド設定を分析した。@vitejs/plugin-reactによるJSX自動変換、vite-plugin-pwaによるPWA対応（registerType: 'autoUpdate'、Workboxによる静的アセットキャッシュ、globPatterns: '**/*.{js,css,html,ico,png,svg}'）を理解した。PWAマニフェスト設定（display: standalone、start_url: /）によりブラウザからネイティブアプリのようにインストール可能な構成を学んだ。tsconfig.app.jsonではES2022ターゲット、moduleResolution: bundler（Vite最適化）、verbatimModuleSyntax（モジュール構文保持）等のVite連携設定を確認した。ビルドスクリプト（tsc -b && vite build）による型チェック→バンドルの2段階ビルド、Viteのツリーシェイキング・コンテンツハッシュによるキャッシュバスティングの仕組みも学習した。package.jsonの依存構成（React 19 + idb + date-fns + recharts）の最小構成設計も参考になった。"
 合計,,10時間 / 10時間
-成果・振り返り,成果・振り返り,"React + TypeScript + Viteによる本格的なWebアプリケーションの全体構造を理解できた。特にカスタムフックによる関心の分離、IndexedDBを用いたブラウザ内データ永続化、感情分析・統計分析アルゴリズムの実装方法は実践的な学びとなった。実装面では、要件の認識ずれにより手戻りが発生した。ユーザー要件を最初に正確に確認してから実装に入ることの重要性を再認識した。Git操作（ブランチ管理、コミット、revert、プッシュ）も実践でき、チーム開発のワークフローを体験できた。"
+成果・振り返り,成果・振り返り,"TypeScriptの判別共用体型やリテラル型を活用した型安全な設計手法を理解できた。Rechartsでは単にチャートを描画するだけでなく、データ量に応じた動的なティック制御や移動平均の視覚的区別など、実用的な可視化テクニックを学べた。AI API連携では、分析目的ごとにサンプリング戦略を変える設計思想が印象的で、トークン予算内で最大限の文脈を伝える工夫を理解した。Vite + PWAの組み合わせにより、オフライン対応のモダンWebアプリを少ない設定で実現できることがわかった。全体を通して、実務レベルのフロントエンドアプリケーション開発に必要な技術要素を横断的に学習できた。"
