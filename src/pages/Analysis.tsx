@@ -5,14 +5,14 @@ import { useAiCache } from '../hooks/useAiCache';
 import { hasApiKey } from '../utils/apiKey';
 import {
   analyzeVitalPoint,
-  analyzePresentEmotion,
+  analyzeTodaysEntry,
   analyzeExternalStandardsMastery,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
-  | 'presentEmotion'
+  | 'todaysEntry'
   | 'vitalPoint'
   | 'externalStandardsMastery';
 
@@ -28,10 +28,10 @@ interface AnalysisCategory {
 }
 
 const analysisMap: Record<AnalysisType, AnalysisItem> = {
-  presentEmotion: {
-    title: '今の体温',
-    desc: '直近1〜2週間だけ。過去なし、物語なし。今ここの感情をそのまま',
-    fn: analyzePresentEmotion,
+  todaysEntry: {
+    title: '今日',
+    desc: '今日だけ。でもわかってる人が読む今日',
+    fn: analyzeTodaysEntry,
   },
   vitalPoint: {
     title: '急所',
@@ -46,7 +46,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
 };
 
 const sampleLimits: Record<AnalysisType, number> = {
-  presentEmotion: 30,   // 直近2週間のみ
+  todaysEntry: 30,      // 今日＋背景知識
   vitalPoint: 30,       // 直近7日
   externalStandardsMastery: 60, // 直近60日
 };
@@ -54,7 +54,7 @@ const sampleLimits: Record<AnalysisType, number> = {
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
-    items: ['presentEmotion'],
+    items: ['todaysEntry'],
   },
   {
     label: '核',
