@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import type { AiLog } from '../types';
 import { getAllAiLogs } from '../db';
 import { useHead } from '../hooks/useHead';
-import { useAiCache } from '../hooks/useAiCache';
 import { AiResultBody } from '../components/AiResultBody';
 
 type AnalysisType =
@@ -64,7 +63,6 @@ export function AiLogs() {
   const [filter, setFilter] = useState<AnalysisType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const { cache, loading: cacheLoading } = useAiCache();
 
   const handleItemCopy = async (log: AiLog) => {
     const label = typeLabels[log.type as AnalysisType] || log.type;
@@ -97,7 +95,7 @@ export function AiLogs() {
     })();
   }, []);
 
-  if (loading || cacheLoading) {
+  if (loading) {
     return (
       <div className="page">
         <p className="loading-text">読み込み中...</p>
@@ -127,15 +125,12 @@ export function AiLogs() {
   };
 
   const handleCopyLatestResults = async () => {
-    const parts: string[] = [];
-    for (const type of allTypes) {
-      const c = cache[type];
-      if (!c?.result) continue;
-      const label = typeLabels[type];
-      const date = formatDate(c.analyzedAt);
-      parts.push(`【${label}】${date}（${c.entryCount}件の日記）\n${c.result}`);
-    }
-    if (parts.length === 0) return;
+    if (logs.length === 0) return;
+    const parts = logs.map(log => {
+      const label = typeLabels[log.type as AnalysisType] || log.type;
+      const date = formatDate(log.analyzedAt);
+      return `【${label}】${date}（${log.entryCount}件の日記）\n${log.result}`;
+    });
     try {
       await navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
       setCopyMessage(`${parts.length}件の最新結果をコピーしました`);
@@ -146,7 +141,7 @@ export function AiLogs() {
     }
   };
 
-  const latestResultCount = allTypes.filter(t => cache[t]?.result).length;
+  const latestResultCount = logs.length;
 
   // 存在するタイプを収集
   const existingTypes = new Set(logs.map(l => l.type));
