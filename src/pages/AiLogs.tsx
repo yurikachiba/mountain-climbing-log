@@ -28,11 +28,12 @@ const typeLabels: Record<AnalysisType, string> = {
   lifeStory: '人生の物語',
 };
 
+// 包括レポートは除外（過去のログは表示可能だが、新規生成対象から除外）
 const allTypes: AnalysisType[] = [
   'presentEmotion', 'vitalPoint', 'currentPosition',
   'discontinuityMap', 'angerQuality',
   'todaysEntry',
-  'tone', 'turningPoints', 'report',
+  'tone', 'turningPoints',
   'elevation', 'counterfactual',
   'lifeStory',
 ];
