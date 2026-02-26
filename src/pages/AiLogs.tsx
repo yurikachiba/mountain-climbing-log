@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { AiLog } from '../types';
-import { getAllAiLogs } from '../db';
+import { getAllAiLogs, getAllAiCache } from '../db';
 import { useHead } from '../hooks/useHead';
 import { AiResultBody } from '../components/AiResultBody';
 
@@ -112,11 +112,14 @@ export function AiLogs() {
   };
 
   const handleCopyLatestResults = async () => {
-    if (logs.length === 0) return;
-    const parts = logs.map(log => {
-      const label = typeLabels[log.type as AnalysisType] || log.type;
-      const date = formatDate(log.analyzedAt);
-      return `【${label}】${date}（${log.entryCount}件の日記）\n${log.result}`;
+    // 常にDBから最新のキャッシュ（各タイプの最新結果）を取得する
+    const allCaches = await getAllAiCache();
+    const current = allCaches.filter(c => currentTypeSet.has(c.type) && c.result);
+    if (current.length === 0) return;
+    const parts = current.map(c => {
+      const label = typeLabels[c.type as AnalysisType] || c.type;
+      const date = formatDate(c.analyzedAt);
+      return `【${label}】${date}（${c.entryCount}件の日記）\n${c.result}`;
     });
     try {
       await navigator.clipboard.writeText(parts.join('\n\n---\n\n'));
