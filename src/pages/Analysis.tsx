@@ -7,6 +7,7 @@ import {
   analyzeVitalPoint,
   analyzeTodaysEntry,
   analyzeExternalStandardsMastery,
+  analyzeTodaysLandscape,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
@@ -14,7 +15,8 @@ import { AiResultBody } from '../components/AiResultBody';
 type AnalysisType =
   | 'todaysEntry'
   | 'vitalPoint'
-  | 'externalStandardsMastery';
+  | 'externalStandardsMastery'
+  | 'todaysLandscape';
 
 interface AnalysisItem {
   title: string;
@@ -40,8 +42,13 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   externalStandardsMastery: {
     title: '外基準の統合',
-    desc: '今日、内側を守ったまま外基準を道具として扱えているか。恐怖の地層を掘り、最深部を言い当てる',
+    desc: '今日、内側を守ったまま外基準を道具として扱えているか。感情の地層を掘り、今日固有の最深部を言い当てる',
     fn: analyzeExternalStandardsMastery,
+  },
+  todaysLandscape: {
+    title: '今日の景色',
+    desc: 'フィルターなしで今日の全トピックをマッピング。不安だけでなく、好奇心も遊びも日常も',
+    fn: analyzeTodaysLandscape,
   },
 };
 
@@ -49,12 +56,13 @@ const sampleLimits: Record<AnalysisType, number> = {
   todaysEntry: 30,      // 今日＋背景知識
   vitalPoint: 30,       // 直近7日
   externalStandardsMastery: 30, // 今日＋背景知識
+  todaysLandscape: 30,  // 今日＋直近30日の背景
 };
 
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
-    items: ['todaysEntry', 'externalStandardsMastery'],
+    items: ['todaysEntry', 'todaysLandscape', 'externalStandardsMastery'],
   },
   {
     label: '核',
@@ -75,8 +83,8 @@ function formatDate(iso: string): string {
 export function Analysis() {
   useHead({
     title: 'AI分析',
-    description: '3種類のAI分析。今の体温、急所、外基準の統合。直近重視・構造分析。',
-    keywords: 'AI日記分析,今の体温,急所,外基準の統合,直近分析',
+    description: '4種類のAI分析。今日、今日の景色、外基準の統合、急所。フィルターなしの全景マッピングから深層構造分析まで。',
+    keywords: 'AI日記分析,今日,今日の景色,急所,外基準の統合,直近分析',
     path: '/analysis',
   });
 
