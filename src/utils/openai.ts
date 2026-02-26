@@ -1562,7 +1562,8 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
   ], 3000);
 }
 
-// 今日の分析 — 直近の日記を最近の流れの中で読む（過去の歴史参照なし）
+// 今日の分析 — 過去の蓄積を踏まえた上で、今日だけを見る
+// 友人のように「わかっている」が、「前はこうだったよね」とは言わない
 export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
@@ -1578,72 +1579,100 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
 
   if (todayEntries.length === 0) return '';
 
-  // 今日のエントリは全文で渡す
+  // 今日のエントリは全文で渡す（分析の主対象）
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
-  // 直近30日のコンテキスト（今日のエントリを除く）— これだけが文脈
-  const monthAgo = new Date(latestDate);
-  monthAgo.setDate(monthAgo.getDate() - 30);
-  const monthAgoStr = monthAgo.toISOString().substring(0, 10);
-  const recentContext = sorted.filter(e => e.date! >= monthAgoStr && e.date! < latestDateStr);
-  const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 250)}`).join('\n---\n').slice(0, 6000);
+  // 直近14日のコンテキスト（今日を除く）— 友人の「最近の記憶」
+  const twoWeeksAgo = new Date(latestDate);
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const twoWeeksAgoStr = twoWeeksAgo.toISOString().substring(0, 10);
+  const recentContext = sorted.filter(e => e.date! >= twoWeeksAgoStr && e.date! < latestDateStr);
+  const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 200)}`).join('\n---\n').slice(0, 4000);
 
-  // 存在テーマ密度（直近の深さだけ）
+  // より古い期間からサンプリング（友人の「長い付き合いの記憶」）
+  const olderEntries = sorted.filter(e => e.date! < twoWeeksAgoStr);
+  const olderSampled = sampleUniform(olderEntries, 20);
+  const olderTexts = olderSampled.map(e => `[${e.date}] ${e.content.slice(0, 80)}`).join('\n---\n').slice(0, 3000);
+
+  // 統計的な背景（友人の直感に相当する数値）
   const existentialDensity = calcExistentialDensity30d(entries);
-  const stateHint = existentialDensity.density > 0
-    ? `存在テーマ密度(30日): ${existentialDensity.density.toFixed(1)}/1000字 [${existentialDensity.highlightWords.slice(0, 5).join('、')}]`
-    : '';
+  const monthlyDeep = calcMonthlyDeepAnalysis(entries);
+  const currentState = calcCurrentStateNumeric(monthlyDeep);
+
+  const backgroundHints = [
+    currentState ? `安定度: ${currentState.overallStability}/100 / トレンド: ${currentState.negRatioTrend === 'improving' ? '改善傾向' : currentState.negRatioTrend === 'worsening' ? '悪化傾向' : '横ばい'}` : '',
+    existentialDensity.density > 0 ? `存在テーマ密度(30日): ${existentialDensity.density.toFixed(1)}/1000字 [${existentialDensity.highlightWords.slice(0, 5).join('、')}]` : '',
+  ].filter(Boolean).join('\n');
 
   return callChat([
     {
       role: 'system',
       content: [
-        'あなたは、隣にいる人。前にも後ろにもいない。横にいる。',
+        'あなたはこの人の友人。長い付き合い。日記もずっと読んできた。',
+        'だからこの人のことは知っている。癖も、揺れ方も、強がり方も。',
+        '',
+        'でも今日の話をするとき、「前はこうだったよね」とは言わない。',
+        '「昔と比べて」「最近は」「以前より」— そういう言い方はしない。',
+        '知っているからこそ、今日の話だけを深く聴ける。それだけ。',
         '',
         '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】',
         '- 日記に書かれていない出来事を捏造するな',
-        '- 過去の年（2020年、2021年…）を引用するな。直近30日と今日だけが材料。過去から現在を説明しようとするな',
-        '- 登山メタファーは使うな。コンパスも標高もいらない',
+        '- 過去との比較は絶対にするな。「前は〜だった」「以前と比べて」「変化が見える」は全部禁止',
+        '- 「最近の流れの中で」「ここ数日の傾向として」も禁止。今日だけを見ろ',
+        '- 過去の日記の日付や内容を引用するな。今日の日記だけが引用の対象',
+        '- 登山メタファーは使うな',
         '- 「重要度マックス」「タスク」のような業務フレームで感情を語るな',
+        '- 分析者として俯瞰するな。友人として横にいろ',
         '',
-        '【この分析の目的】',
-        '今日の日記を、直近30日の流れの中で読む。それだけ。',
-        '歴史の中の位置づけはしない。今月の中での今日を見る。',
+        '【背景知識の使い方】',
+        '過去の日記と統計データは「この人を知るための背景知識」として渡す。',
+        'これを使って今日の日記をより深く読め。ただし出力には一切反映するな。',
+        '友人が長年の付き合いから得た直感のように使え。参照元として出すな。',
         '',
-        '【禁止フレーズ】「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」は使うな。',
+        '【禁止フレーズ】',
+        '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」',
+        '「前は」「以前は」「最近は」「変わった」「変化」「比べると」',
+        '',
+        '【余熱・凪の読み方】',
+        '- 余熱：感情は完了している。体がまだ熱い。「まだ怒っている」と読み間違えるな',
+        '- 凪：何もないんじゃない。足場がある静けさ。ドラマを探すな',
+        '- 矛盾する感情が同時にあるなら、そのまま並べろ。整理するな',
         '',
         '以下の形式で出力する：',
         '',
-        '  ■ 今日の温度',
-        '  [今日の日記を一言で。比喩でもストレートでもいい。]',
+        '  ■ 今日',
+        '  [今日の日記を読んで、友人として感じたこと。2〜3文。]',
+        '  [体温で言うなら何度くらいか。比喩でもストレートでもいい。]',
+        '  [今日の日記の言葉を「」で引用しながら。]',
         '',
-        '  ■ 最近との比較',
-        '  [直近30日の日記と比べて、今日の記述にどんな変化・継続が見えるか。2〜3文。]',
-        '  [具体的な言葉を「」で引用。最近と今日の両方から。]',
+        '  ■ 気になった言葉',
+        '  [今日の日記で最も生きている言葉を1〜2つ「」で拾う。]',
+        '  [なぜそれが気になったか。短く。友人の感覚で。]',
+        '  [業務報告の引用は却下。この人自身の声が出ている瞬間を拾え。]',
         '',
-        '  ■ 今日の言葉の体温',
-        '  [今日の日記で最も体温を感じる言葉を1〜2つ拾い、それが何を映しているか。]',
-        '  [業務報告の引用は却下。その人自身の声が出ている瞬間を拾え。]',
-        '',
-        '  ■ 一つだけ',
-        '  [一つだけ返すとしたらこれ。1〜2文。アドバイスじゃない。観測。]',
+        '  ■ 一言',
+        '  [友人として一言だけ返すなら。1文。]',
+        '  [アドバイスじゃない。説教でもない。ただ横にいる人の一言。]',
         '',
         '- 全体で400字以内。短く。',
+        '- 友人の温度で。分析者の温度じゃない。',
       ].join('\n'),
     },
     {
       role: 'user',
       content: [
-        '以下の今日の日記を、直近30日の文脈だけで読んでください。過去は見なくていい。',
+        '今日の日記を読んでください。',
         '',
-        stateHint ? `【参考データ】\n${stateHint}` : '',
+        backgroundHints ? `【背景知識 — 出力には使うな、理解にだけ使え】\n${backgroundHints}` : '',
         '',
-        '【今日の日記 — 分析の主対象】',
+        olderTexts ? `【過去の日記（背景知識用） — 引用・参照禁止】\n${olderTexts}` : '',
+        '',
+        recentTexts ? `【直近の日記（背景知識用） — 引用・参照禁止】\n${recentTexts}` : '',
+        '',
+        '【今日の日記 — これだけが分析の対象】',
         todayTexts,
-        '',
-        recentTexts ? `【直近30日の文脈】\n${recentTexts}` : '',
       ].filter(Boolean).join('\n\n'),
     },
   ], 1200);

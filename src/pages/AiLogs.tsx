@@ -19,7 +19,7 @@ const typeLabels: Record<AnalysisType, string> = {
   currentPosition: '現在地',
   discontinuityMap: '断絶マップ',
   angerQuality: '怒りの質',
-  todaysEntry: '今日の分析',
+  todaysEntry: '今日',
   tone: '語彙深度分析',
   turningPoints: '転機検出',
   report: '包括レポート',
@@ -31,10 +31,10 @@ const typeLabels: Record<AnalysisType, string> = {
 
 // 包括レポートは除外（過去のログは表示可能だが、新規生成対象から除外）
 const allTypes: AnalysisType[] = [
-  'presentEmotion', 'vitalPoint', 'externalStandardsMastery',
+  'todaysEntry', 'vitalPoint', 'externalStandardsMastery',
+  'presentEmotion',
   'currentPosition',
   'discontinuityMap', 'angerQuality',
-  'todaysEntry',
   'tone', 'turningPoints',
   'elevation', 'counterfactual',
   'lifeStory',
