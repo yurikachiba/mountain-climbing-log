@@ -2323,8 +2323,22 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
   const recent30 = getRecentEntries(sorted, 30);
   if (recent30.length === 0) return '直近30日の日記がありません。';
 
-  const recentTexts = recent30.map(e => `[${e.date}] ${e.content.slice(0, 500)}`).join('\n---\n');
-  const truncatedRecent = recentTexts.slice(0, 14000);
+  // 直近7日と残りを分けて、直近を確実に含める
+  // （30日分を一括truncateすると古いエントリで埋まり当日が落ちる）
+  const last7 = getRecentEntries(sorted, 7);
+  const last7Dates = new Set(last7.map(e => e.date));
+  const older = recent30.filter(e => !last7Dates.has(e.date));
+
+  // 直近7日は厚く渡す（当日の具体的な行動を見逃さない）
+  const last7Texts = last7.map(e => `[${e.date}] ${e.content.slice(0, 500)}`).join('\n---\n');
+  const truncatedLast7 = last7Texts.slice(0, 7000);
+
+  // 8〜30日前は薄めに渡す
+  const olderTexts = older.map(e => `[${e.date}] ${e.content.slice(0, 300)}`).join('\n---\n');
+  const truncatedOlder = olderTexts.slice(0, 7000);
+
+  // 古い→新しい順で合成（直近7日が確実に含まれる）
+  const truncatedRecent = truncatedOlder + (truncatedOlder ? '\n---\n' : '') + truncatedLast7;
 
   // 存在テーマ密度
   const existentialDensity = calcExistentialDensity30d(entries);
