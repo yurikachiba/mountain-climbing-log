@@ -14,3 +14,7 @@
   - `public/llms.txt` — LLM向けサイト説明（機能一覧、ページ一覧）
   - `public/sitemap.xml` — サイトマップ（新しいページを追加した場合）
   - 機能の数・名前・説明が変わったら、上記すべてを同時に更新する。一部だけ更新して古い記述を残さない
+- AI分析タイプを追加・変更・削除したら、以下の**両方**を必ず同時に更新すること：
+  - `src/pages/Analysis.tsx` — `AnalysisType`、`analysisMap`、`categories`
+  - `src/pages/AiLogs.tsx` — `AnalysisType`、`typeLabels`、`allTypes`、`currentTypeSet`
+  - 両ファイルの `AnalysisType` は常に一致させる。AiLogs に削除済みタイプを残さない
