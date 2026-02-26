@@ -1587,12 +1587,13 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
   const twoWeeksAgoStr = twoWeeksAgo.toISOString().substring(0, 10);
   const recentContext = sorted.filter(e => e.date! >= twoWeeksAgoStr && e.date! < latestDateStr);
-  const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 200)}`).join('\n---\n').slice(0, 4000);
+  const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n---\n').slice(0, 3000);
 
   // より古い期間からサンプリング（友人の「長い付き合いの記憶」）
+  // miniが背景に引っ張られすぎないよう控えめに
   const olderEntries = sorted.filter(e => e.date! < twoWeeksAgoStr);
-  const olderSampled = sampleUniform(olderEntries, 20);
-  const olderTexts = olderSampled.map(e => `[${e.date}] ${e.content.slice(0, 80)}`).join('\n---\n').slice(0, 3000);
+  const olderSampled = sampleUniform(olderEntries, 10);
+  const olderTexts = olderSampled.map(e => `[${e.date}] ${e.content.slice(0, 60)}`).join('\n---\n').slice(0, 1500);
 
   // 統計的な背景（友人の直感に相当する数値）
   const existentialDensity = calcExistentialDensity30d(entries);
@@ -1618,6 +1619,7 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
         '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
         '',
         '【最重要ルール】',
+        '- 今日の日記に書かれた固有の出来事・人名・話題を具体的に取り上げろ。「全体的に」「傾向として」のような抽象化は禁止',
         '- 日記に書かれていない出来事を捏造するな',
         '- 過去との比較は絶対にするな。「前は〜だった」「以前と比べて」「変化が見える」は全部禁止',
         '- 「最近の流れの中で」「ここ数日の傾向として」も禁止。今日だけを見ろ',
@@ -1669,16 +1671,14 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
     {
       role: 'user',
       content: [
-        '今日の日記を読んでください。',
-        '',
-        backgroundHints ? `【背景知識 — 出力には使うな、理解にだけ使え】\n${backgroundHints}` : '',
-        '',
-        olderTexts ? `【過去の日記（背景知識用） — 引用・参照禁止】\n${olderTexts}` : '',
-        '',
-        recentTexts ? `【直近の日記（背景知識用） — 引用・参照禁止】\n${recentTexts}` : '',
-        '',
-        '【今日の日記 — これだけが分析の対象】',
+        '【今日の日記 — これだけが分析の対象。ここに書かれた具体的な出来事・人物・感情を取り上げろ】',
         todayTexts,
+        '',
+        '--- 以下は背景知識。出力には反映するな。この人を深く理解するためだけに使え ---',
+        '',
+        backgroundHints ? `【統計的背景】\n${backgroundHints}` : '',
+        olderTexts ? `【過去の日記サンプル】\n${olderTexts}` : '',
+        recentTexts ? `【直近の日記】\n${recentTexts}` : '',
       ].filter(Boolean).join('\n\n'),
     },
   ], 1200);
