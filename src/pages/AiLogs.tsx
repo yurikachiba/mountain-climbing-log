@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import type { AiLog } from '../types';
+import type { AiLog, AiCache } from '../types';
 import { getAllAiLogs, getAllAiCache } from '../db';
 import { useHead } from '../hooks/useHead';
 import { AiResultBody } from '../components/AiResultBody';
@@ -40,6 +40,7 @@ export function AiLogs() {
   });
 
   const [logs, setLogs] = useState<AiLog[]>([]);
+  const [latestCaches, setLatestCaches] = useState<AiCache[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AnalysisType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export function AiLogs() {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
-    const all = await getAllAiLogs();
+    const [all, allCaches] = await Promise.all([getAllAiLogs(), getAllAiCache()]);
     // 新しい順に並べる
     all.reverse();
     // 現行タイプのみ、各タイプごとに最新の1件だけを保持
@@ -74,6 +75,7 @@ export function AiLogs() {
       }
     }
     setLogs(Array.from(latestByType.values()));
+    setLatestCaches(allCaches.filter(c => currentTypeSet.has(c.type) && c.result));
     setLoading(false);
   }, []);
 
@@ -112,11 +114,8 @@ export function AiLogs() {
   };
 
   const handleCopyLatestResults = async () => {
-    // 常にDBから最新のキャッシュ（各タイプの最新結果）を取得する
-    const allCaches = await getAllAiCache();
-    const current = allCaches.filter(c => currentTypeSet.has(c.type) && c.result);
-    if (current.length === 0) return;
-    const parts = current.map(c => {
+    if (latestCaches.length === 0) return;
+    const parts = latestCaches.map(c => {
       const label = typeLabels[c.type as AnalysisType] || c.type;
       const date = formatDate(c.analyzedAt);
       return `【${label}】${date}（${c.entryCount}件の日記）\n${c.result}`;
@@ -131,7 +130,7 @@ export function AiLogs() {
     }
   };
 
-  const latestResultCount = logs.length;
+  const latestResultCount = latestCaches.length;
 
   // 存在するタイプを収集
   const existingTypes = new Set(logs.map(l => l.type));
