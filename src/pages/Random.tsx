@@ -17,6 +17,7 @@ export function Random() {
   const [comment, setComment] = useState('');
   const [saved, setSaved] = useState(false);
   const [empty, setEmpty] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const draw = useCallback(async () => {
     const e = await getRandomEntry();
@@ -46,6 +47,21 @@ export function Random() {
     setComment('');
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleCopy() {
+    if (!entry) return;
+    const parts: string[] = [];
+    if (entry.date) parts.push(entry.date);
+    parts.push(entry.content);
+    if (entry.comments.length > 0) {
+      parts.push('未来からの報告:\n' + entry.comments.map(c => c.text).join('\n'));
+    }
+    try {
+      await navigator.clipboard.writeText(parts.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignore */ }
   }
 
   async function handleSaveFragment() {
@@ -115,6 +131,9 @@ export function Random() {
           <div className="entry-actions">
             <button onClick={handleSaveFragment} className="btn btn-small">
               宝物庫に保存
+            </button>
+            <button onClick={handleCopy} className="btn btn-small">
+              {copied ? 'コピーしました' : 'コピー'}
             </button>
           </div>
 

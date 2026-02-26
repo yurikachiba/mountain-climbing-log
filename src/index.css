@@ -649,6 +649,12 @@ body {
   border-bottom: 1px solid var(--border-light);
 }
 
+.entry-actions:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 /* ---- Comments ---- */
 
 .comments-section {

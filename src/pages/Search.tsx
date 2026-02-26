@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
+import type { DiaryEntry } from '../types';
 
 export function Search() {
   const { entries, loading } = useEntries();
@@ -16,6 +17,21 @@ export function Search() {
   const [dateTo, setDateTo] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [sortOrder, setSortOrder] = useState<'new' | 'old'>('new');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = useCallback(async (entry: DiaryEntry) => {
+    const parts: string[] = [];
+    if (entry.date) parts.push(entry.date);
+    parts.push(entry.content);
+    if (entry.comments.length > 0) {
+      parts.push('未来からの報告:\n' + entry.comments.map(c => c.text).join('\n'));
+    }
+    try {
+      await navigator.clipboard.writeText(parts.join('\n'));
+      setCopiedId(entry.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch { /* ignore */ }
+  }, []);
 
   const results = useMemo(() => {
     let filtered = [...entries];
@@ -159,6 +175,11 @@ export function Search() {
                   ))}
                 </div>
               )}
+              <div className="entry-actions">
+                <button onClick={() => handleCopy(entry)} className="btn btn-small">
+                  {copiedId === entry.id ? 'コピーしました' : 'コピー'}
+                </button>
+              </div>
             </div>
           ))}
 

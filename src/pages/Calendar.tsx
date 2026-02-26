@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
 import type { DiaryEntry } from '../types';
@@ -17,6 +17,21 @@ export function Calendar() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedEntries, setSelectedEntries] = useState<DiaryEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = useCallback(async (entry: DiaryEntry) => {
+    const parts: string[] = [];
+    if (entry.date) parts.push(entry.date);
+    parts.push(entry.content);
+    if (entry.comments.length > 0) {
+      parts.push('未来からの報告:\n' + entry.comments.map(c => c.text).join('\n'));
+    }
+    try {
+      await navigator.clipboard.writeText(parts.join('\n'));
+      setCopiedId(entry.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch { /* ignore */ }
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -194,6 +209,11 @@ export function Calendar() {
                         ))}
                       </div>
                     )}
+                    <div className="entry-actions">
+                      <button onClick={() => handleCopy(entry)} className="btn btn-small">
+                        {copiedId === entry.id ? 'コピーしました' : 'コピー'}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
