@@ -1,44 +1,25 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import type { AiLog } from '../types';
 import { getAllAiLogs } from '../db';
 import { useHead } from '../hooks/useHead';
 import { AiResultBody } from '../components/AiResultBody';
 
-type AnalysisType =
-  | 'tone' | 'turningPoints' | 'report'
-  | 'elevation' | 'counterfactual'
-  | 'lifeStory' | 'vitalPoint'
-  | 'presentEmotion' | 'todaysEntry' | 'currentPosition'
-  | 'discontinuityMap' | 'angerQuality'
-  | 'externalStandardsMastery';
+// 現行のAnalysis.tsxと一致させる（3種類のみ）
+type AnalysisType = 'todaysEntry' | 'vitalPoint' | 'externalStandardsMastery';
 
 const typeLabels: Record<AnalysisType, string> = {
-  presentEmotion: '今の体温',
-  vitalPoint: '急所',
-  currentPosition: '現在地',
-  discontinuityMap: '断絶マップ',
-  angerQuality: '怒りの質',
   todaysEntry: '今日',
-  tone: '語彙深度分析',
-  turningPoints: '転機検出',
-  report: '包括レポート',
-  elevation: '標高ナラティブ',
-  counterfactual: '反事実的因果',
-  lifeStory: '人生の物語',
+  vitalPoint: '急所',
   externalStandardsMastery: '外基準の統合',
 };
 
-// 包括レポートは除外（過去のログは表示可能だが、新規生成対象から除外）
 const allTypes: AnalysisType[] = [
   'todaysEntry', 'vitalPoint', 'externalStandardsMastery',
-  'presentEmotion',
-  'currentPosition',
-  'discontinuityMap', 'angerQuality',
-  'tone', 'turningPoints',
-  'elevation', 'counterfactual',
-  'lifeStory',
 ];
+
+// 現行タイプのセット（フィルタリング用）
+const currentTypeSet = new Set<string>(allTypes);
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -63,6 +44,7 @@ export function AiLogs() {
   const [filter, setFilter] = useState<AnalysisType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const location = useLocation();
 
   const handleItemCopy = async (log: AiLog) => {
     const label = typeLabels[log.type as AnalysisType] || log.type;
@@ -78,22 +60,27 @@ export function AiLogs() {
     }
   };
 
-  useEffect(() => {
-    (async () => {
-      const all = await getAllAiLogs();
-      // 新しい順に並べる
-      all.reverse();
-      // 各タイプごとに最新の1件だけを保持
-      const latestByType = new Map<string, AiLog>();
-      for (const log of all) {
-        if (!latestByType.has(log.type)) {
-          latestByType.set(log.type, log);
-        }
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    const all = await getAllAiLogs();
+    // 新しい順に並べる
+    all.reverse();
+    // 現行タイプのみ、各タイプごとに最新の1件だけを保持
+    const latestByType = new Map<string, AiLog>();
+    for (const log of all) {
+      if (!currentTypeSet.has(log.type)) continue;
+      if (!latestByType.has(log.type)) {
+        latestByType.set(log.type, log);
       }
-      setLogs(Array.from(latestByType.values()));
-      setLoading(false);
-    })();
+    }
+    setLogs(Array.from(latestByType.values()));
+    setLoading(false);
   }, []);
+
+  // ページ遷移のたびに最新データを取得する
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs, location.key]);
 
   if (loading) {
     return (
