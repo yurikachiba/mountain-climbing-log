@@ -92,7 +92,7 @@ src/
 現行の分析タイプは3種類:
 - `todaysEntry`（今日）— 当日の日記を深く読む
 - `vitalPoint`（急所）— 直近1週間から本質を突く指摘
-- `externalStandardsMastery`（外基準の統合）— 内側を守りつつ外基準を武器にできているか
+- `externalStandardsMastery`（外基準の統合）— 今日の日記から、内側を守りつつ外基準を道具として扱えているかを構造化
 
 分析実行 → `useAiCache.save()` → aiCache更新 + aiLog追加（同時）
 

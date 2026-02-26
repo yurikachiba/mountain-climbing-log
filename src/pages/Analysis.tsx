@@ -40,7 +40,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   externalStandardsMastery: {
     title: '外基準の統合',
-    desc: '内側を守ったまま外基準を武器に変えているか。恐怖の地層を掘り、最深部を言い当てる',
+    desc: '今日、内側を守ったまま外基準を道具として扱えているか。恐怖の地層を掘り、最深部を言い当てる',
     fn: analyzeExternalStandardsMastery,
   },
 };
@@ -48,17 +48,17 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
 const sampleLimits: Record<AnalysisType, number> = {
   todaysEntry: 30,      // 今日＋背景知識
   vitalPoint: 30,       // 直近7日
-  externalStandardsMastery: 60, // 直近60日
+  externalStandardsMastery: 30, // 今日＋背景知識
 };
 
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
-    items: ['todaysEntry'],
+    items: ['todaysEntry', 'externalStandardsMastery'],
   },
   {
     label: '核',
-    items: ['vitalPoint', 'externalStandardsMastery'],
+    items: ['vitalPoint'],
   },
 ];
 
