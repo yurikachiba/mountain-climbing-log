@@ -1,5 +1,5 @@
 import { getApiKey } from './apiKey';
-import { calcPeriodStats, formatPeriodStatsForPrompt, calcRecentStateContext, formatRecentEntriesHighlight } from './emotionAnalyzer';
+import { calcPeriodStats, formatPeriodStatsForPrompt, calcRecentStateContext, formatRecentEntriesHighlight, detectLightness } from './emotionAnalyzer';
 import {
   calcMonthlyDeepAnalysis,
   detectTrendShifts,
@@ -1600,9 +1600,14 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   const monthlyDeep = calcMonthlyDeepAnalysis(entries);
   const currentState = calcCurrentStateNumeric(monthlyDeep);
 
+  // 今日のテキストの軽やかさ検出
+  const todayText = todayEntries.map(e => e.content).join('\n');
+  const lightness = detectLightness(todayText);
+
   const backgroundHints = [
     currentState ? `安定度: ${currentState.overallStability}/100 / トレンド: ${currentState.negRatioTrend === 'improving' ? '改善傾向' : currentState.negRatioTrend === 'worsening' ? '悪化傾向' : '横ばい'}` : '',
     existentialDensity.density > 0 ? `存在テーマ密度(30日): ${existentialDensity.density.toFixed(1)}/1000字 [${existentialDensity.highlightWords.slice(0, 5).join('、')}]` : '',
+    lightness.promptText,
   ].filter(Boolean).join('\n');
 
   return callChat([
@@ -1642,11 +1647,19 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
         '- 凪：何もないんじゃない。足場がある静けさ。ドラマを探すな',
         '- 矛盾する感情が同時にあるなら、そのまま並べろ。整理するな',
         '',
-        '【軽やかさも拾え】',
+        '【軽やかさも拾え — miniが最も見逃しやすいポイント】',
         '- しんどさだけが今日じゃない。楽しんでいる瞬間、軽やかに動いている瞬間があれば拾え',
         '- 「面白かった」「やってみたい」「笑えた」— こういう動きがあるなら、それも今日の体温の一部',
         '- 誰かとの温かいやりとり、好奇心が動いている瞬間、余裕のある言葉遣い。友人ならそこも見る',
         '- しんどさと軽やかさが共存しているなら、両方をそのまま描け。片方だけ切り取るな',
+        '',
+        '【軽やかさの具体的な見つけ方 — 従来のポジティブ語だけで判断するな】',
+        '- 言い切り: 「つまんない」「微妙」「別にいい」「飽きた」と言い切れること自体が軽やかさ。ネガティブと混同するな',
+        '- 感覚的享受: 何かを食べている、飲んでいる、味や香りに言及している → 身体が「今ここ」にいる証拠',
+        '- 探索行動: カフェ・本屋・図書館に行く、何かを読む・観る・聴く、ふらっと出かける → 好奇心が動いている',
+        '- 弛緩トーン: のんびり、ぼーっと、だらだら → 力が抜けた状態。これは軽やかさ',
+        '- 複合パターン: 上記が2つ以上重なっているとき（例：カフェで何か食べて本を読んで「つまんない」）、軽やかさは確実に高い',
+        '- 統計的背景に「軽やかさシグナル」が含まれている場合、その判定を尊重しろ',
         '',
         '以下の形式で出力する：',
         '',
@@ -2346,9 +2359,14 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
   const monthlyDeep = calcMonthlyDeepAnalysis(entries);
   const currentState = calcCurrentStateNumeric(monthlyDeep);
 
+  // 今日のテキストの軽やかさ検出
+  const todayText = todayEntries.map(e => e.content).join('\n');
+  const lightness = detectLightness(todayText);
+
   const backgroundHints = [
     currentState ? `安定度: ${currentState.overallStability}/100 / トレンド: ${currentState.negRatioTrend === 'improving' ? '改善傾向' : currentState.negRatioTrend === 'worsening' ? '悪化傾向' : '横ばい'}` : '',
     existentialDensity.density > 0 ? `存在テーマ密度(30日): ${existentialDensity.density.toFixed(1)}/1000字 [${existentialDensity.highlightWords.slice(0, 5).join('、')}]` : '',
+    lightness.promptText,
   ].filter(Boolean).join('\n');
 
   return callChat([
@@ -2420,10 +2438,17 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
         '   - 凪は「自分を裏切らなかったから辿り着いた静けさ」かもしれない',
         '   - 足場 = 「強さ」じゃない。「壊れずに揺れられる」こと',
         '',
-        '6. 軽やかさを見逃すな',
+        '6. 軽やかさを見逃すな — miniが最も空振りしやすいポイント',
         '   - しんどさだけが深さじゃない。軽やかさの中にも統合の証拠がある',
         '   - 怒りや恐怖の下を掘るだけでなく、楽しんでいること・動き出していることも拾え',
         '   - しんどさと軽やかさは矛盾しない。両方が同時にあるなら、両方を描け',
+        '   - 軽やかさの見つけ方:',
+        '     - 「つまんない」「微妙」「別にいい」と言い切れること = 安全圏にいる証拠。ネガティブじゃない',
+        '     - 食べる・飲む・味わう記述 = 身体が今ここにいる。軽やかさの根拠',
+        '     - カフェ・本屋・散歩・読書 = 探索行動。好奇心が動いている',
+        '     - のんびり・ぼーっと・だらだら = 弛緩。力が抜けている。これも軽やかさ',
+        '     - これらが複合しているとき（例：喫茶店で何か食べて本読んで「つまんない」）、「軽やかさが見えにくい日」とは絶対に書くな',
+        '   - 統計的背景に「軽やかさシグナル」があるなら、その判定を尊重しろ',
         '',
         '【出力構造】',
         '',
@@ -2456,8 +2481,11 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
         '- 余裕の質：どんな種類の余裕か',
         '- 関係の温かさ：誰かとの温かいやりとりがあるか',
         '- 好奇心・行動：新しいことに手を伸ばしているか',
+        '- 言い切りの質：「つまんない」「微妙」と言い切れている場合、それは軽やかさ。判断を恐れていない証拠',
+        '- 身体の在処：何かを食べて・飲んで・歩いているなら、身体が今ここにいる。それも軽やかさ',
         '今日の日記の言葉を「」で引用。',
-        '軽やかさが見当たらないなら、無理に書くな。「今日は軽やかさより〜が前景にある」と書け。',
+        '統計的背景に「軽やかさシグナル: 強」がある場合、「軽やかさが見えにくい」とは書くな。シグナルの根拠語を拾って描け。',
+        '軽やかさが本当に見当たらないなら、無理に書くな。「今日は軽やかさより〜が前景にある」と書け。',
         '',
         '■ 最深部',
         '今日の日記から見える、この人が今日やっていることを一言で命名しろ。',

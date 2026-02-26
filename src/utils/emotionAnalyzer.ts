@@ -625,6 +625,129 @@ export function formatRecentEntriesHighlight(entries: DiaryEntry[], maxChars = 5
   ].join('\n');
 }
 
+// ── 軽やかさ（Lightness）検出 ──
+// ポジ/ネガの二元論では拾えない「軽やかさ」を検出する。
+// 軽やかさ ≠ 幸福。言い切れる余裕、感覚的な享受、探索的な動き、弛緩したトーン。
+// 「つまんない」と言い切れること自体が軽やかさの証拠。
+
+// 言い切り・カジュアルな断言（感情的安全圏にいる証拠）
+const casualDismissalWords = [
+  'つまんない', 'つまらない', 'つまらなかった', '微妙', 'びみょう',
+  '別にいい', '別に', 'べつに', 'まあいいか', 'どうでもいい',
+  'どっちでもいい', '知らんけど', 'ふーん', 'へー', 'あーそう',
+  'まあまあ', 'そんなもん', 'しょうもない', 'くだらない',
+  '飽きた', 'もういい', 'なんでもいい',
+];
+
+// 感覚的享受（身体が「今ここ」にいる証拠）
+const sensoryEngagementWords = [
+  '食べた', '食べて', '食べに', '飲んだ', '飲んで',
+  '美味し', 'おいし', 'うまい', 'うまかった',
+  '甘い', '甘かった', 'しょっぱい', '苦い', '香ばし',
+  '香り', 'いい匂い', '心地いい', '気持ちいい',
+  'チップス', 'ケーキ', 'パン', 'アイス', 'チョコ',
+  'ビール', 'ワイン', '珈琲', 'コーヒー', '紅茶', 'お茶',
+];
+
+// 探索・遊び（好奇心が動いている証拠）
+const exploratoryWords = [
+  'カフェ', '喫茶', '本屋', '図書館', '文喫',
+  '散歩', '歩いた', '歩いて', 'ぶらぶら', 'ふらっと', 'ふらりと',
+  '読んだ', '読んで', '読み始め', '観た', '観て', '聴いた', '聴いて',
+  '見つけた', '買った', '買って', '試し', 'やってみ',
+  '面白そう', '気になる', '興味', '覗い', '寄った', '寄って',
+];
+
+// 弛緩トーン（力が抜けている証拠）
+const relaxedToneWords = [
+  'のんびり', 'ゆっくり', 'だらだら', 'ぼーっと', 'ごろごろ',
+  'まったり', 'なんとなく', 'てきとう', '適当に',
+  'ぼんやり', 'うとうと', 'ゆるい', 'ゆるく',
+  'なんか', '特に何も', '何もしな', 'ぐだぐだ',
+];
+
+const lightnessCategories = [
+  { name: '言い切り', words: casualDismissalWords, weight: 1.5 },
+  { name: '感覚', words: sensoryEngagementWords, weight: 1.0 },
+  { name: '探索', words: exploratoryWords, weight: 1.0 },
+  { name: '弛緩', words: relaxedToneWords, weight: 0.8 },
+] as const;
+
+export interface LightnessSignal {
+  score: number; // 0-1のスコア（軽やかさの強さ）
+  detectedWords: string[]; // 実際に検出された語
+  dominantCategory: string | null; // 最も強いカテゴリ
+  categoryScores: { name: string; count: number }[];
+  promptText: string; // プロンプト注入用テキスト
+}
+
+export function detectLightness(text: string): LightnessSignal {
+  const categoryScores: { name: string; count: number; weighted: number }[] = [];
+  const allDetected: string[] = [];
+
+  for (const cat of lightnessCategories) {
+    let count = 0;
+    for (const word of cat.words) {
+      const regex = new RegExp(word, 'g');
+      const matches = text.match(regex);
+      if (matches) {
+        count += matches.length;
+        if (!allDetected.includes(word)) allDetected.push(word);
+      }
+    }
+    categoryScores.push({ name: cat.name, count, weighted: count * cat.weight });
+  }
+
+  const totalWeighted = categoryScores.reduce((s, c) => s + c.weighted, 0);
+  const categoryCount = categoryScores.filter(c => c.count > 0).length;
+
+  // スコア算出:
+  // - 複数カテゴリにまたがると高スコア（言い切り + 感覚 + 探索 = 文喫でバナナチップス食べてニーチェつまんない）
+  // - 1カテゴリだけでも言い切り系なら軽やかさとして拾う
+  // - 加重総数 + カテゴリ多様性ボーナス
+  const diversityBonus = categoryCount >= 3 ? 0.15 : categoryCount >= 2 ? 0.08 : 0;
+  const rawScore = Math.min(1, totalWeighted * 0.08 + diversityBonus);
+  const score = Math.round(rawScore * 100) / 100;
+
+  // 支配的カテゴリ
+  const dominant = categoryScores.reduce((max, c) => c.weighted > max.weighted ? c : max, categoryScores[0]);
+  const dominantCategory = dominant.count > 0 ? dominant.name : null;
+
+  // プロンプト注入テキスト
+  let promptText = '';
+  if (score > 0 && allDetected.length > 0) {
+    const catSummary = categoryScores
+      .filter(c => c.count > 0)
+      .map(c => `${c.name}(${c.count})`)
+      .join('・');
+
+    if (score >= 0.3) {
+      promptText = [
+        `【軽やかさシグナル: 強】検出語: ${allDetected.slice(0, 8).join('、')} [${catSummary}]`,
+        '→ この日は軽やかさがはっきり出ている。「軽やかさが見えにくい」と書くな。',
+        '→ 言い切り・感覚的享受・探索行動・弛緩トーンの複合は、安全圏にいる証拠。',
+        '→ 「つまんない」と言い切れること自体が軽やかさ。ネガティブと混同するな。',
+      ].join('\n');
+    } else if (score >= 0.12) {
+      promptText = [
+        `【軽やかさシグナル: 中】検出語: ${allDetected.slice(0, 6).join('、')} [${catSummary}]`,
+        '→ 軽やかさの兆候がある。完全に見えないわけではない。',
+        '→ カジュアルな言い切りや感覚的な記述があれば、それは軽やかさとして拾え。',
+      ].join('\n');
+    } else {
+      promptText = `【軽やかさシグナル: 微】検出語: ${allDetected.slice(0, 4).join('、')}`;
+    }
+  }
+
+  return {
+    score,
+    detectedWords: allDetected,
+    dominantCategory,
+    categoryScores: categoryScores.map(c => ({ name: c.name, count: c.count })),
+    promptText,
+  };
+}
+
 // 名前っぽいパターンを匿名化（他人モード用）
 export function anonymize(text: string): string {
   // 「〇〇さん」「〇〇くん」「〇〇ちゃん」パターン
