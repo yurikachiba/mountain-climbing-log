@@ -8,6 +8,7 @@ import {
   analyzeTodaysEntry,
   analyzeExternalStandardsMastery,
   analyzeTodaysLandscape,
+  analyzeNatureReflection,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
@@ -16,7 +17,8 @@ type AnalysisType =
   | 'todaysEntry'
   | 'vitalPoint'
   | 'externalStandardsMastery'
-  | 'todaysLandscape';
+  | 'todaysLandscape'
+  | 'natureReflection';
 
 interface AnalysisItem {
   title: string;
@@ -50,6 +52,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: 'フィルターなしで今日の全トピックをマッピング。不安だけでなく、好奇心も遊びも日常も',
     fn: analyzeTodaysLandscape,
   },
+  natureReflection: {
+    title: '自然の眼',
+    desc: '今日の日記の中の比喩・メタファー・自然的イメージを拾い上げる。どんなレンズで世界を見ているかを、選ばれた言葉の構造から読む',
+    fn: analyzeNatureReflection,
+  },
 };
 
 const sampleLimits: Record<AnalysisType, number> = {
@@ -57,12 +64,13 @@ const sampleLimits: Record<AnalysisType, number> = {
   vitalPoint: 30,       // 今日＋存在テーマ密度
   externalStandardsMastery: 30, // 今日＋背景知識
   todaysLandscape: 30,  // 今日＋直近30日の背景
+  natureReflection: 30, // 今日＋直近30日の比喩背景
 };
 
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
-    items: ['todaysEntry', 'todaysLandscape', 'vitalPoint', 'externalStandardsMastery'],
+    items: ['todaysEntry', 'todaysLandscape', 'vitalPoint', 'externalStandardsMastery', 'natureReflection'],
   },
 ];
 
@@ -79,8 +87,8 @@ function formatDate(iso: string): string {
 export function Analysis() {
   useHead({
     title: 'AI分析',
-    description: '4種類のAI分析。今日、今日の景色、外基準の統合、急所。フィルターなしの全景マッピングから深層構造分析まで。',
-    keywords: 'AI日記分析,今日,今日の景色,急所,外基準の統合,直近分析',
+    description: '5種類のAI分析。今日、今日の景色、急所、外基準の統合、自然の眼。フィルターなしの全景マッピングから比喩の構造分析まで。',
+    keywords: 'AI日記分析,今日,今日の景色,急所,外基準の統合,自然の眼,直近分析',
     path: '/analysis',
   });
 
