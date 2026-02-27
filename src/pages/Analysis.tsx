@@ -21,7 +21,7 @@ type AnalysisType =
 interface AnalysisItem {
   title: string;
   desc: string;
-  fn: (entries: DiaryEntry[]) => Promise<string>;
+  fn: (entries: DiaryEntry[], previousResult?: string) => Promise<string>;
 }
 
 interface AnalysisCategory {
@@ -109,7 +109,8 @@ export function Analysis() {
     setRunning(type);
     setError(null);
     try {
-      const result = await analysisMap[type].fn(entries);
+      const prevResult = cache[type]?.result;
+      const result = await analysisMap[type].fn(entries, prevResult);
       await save(type, result, count);
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析に失敗しました');
@@ -132,7 +133,8 @@ export function Analysis() {
       const type = types[i];
       setRunning(type);
       try {
-        const result = await analysisMap[type].fn(entries);
+        const prevResult = cache[type]?.result;
+        const result = await analysisMap[type].fn(entries, prevResult);
         await save(type, result, count);
       } catch (err) {
         setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
