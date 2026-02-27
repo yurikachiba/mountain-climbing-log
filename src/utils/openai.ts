@@ -1399,7 +1399,7 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
   ], 3000);
 }
 
-// 急所 — やさしいだけじゃない。直近の日記から本質を突く一撃
+// 急所 — やさしいだけじゃない。今日の日記から本質を突く一撃
 export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> {
   if (entries.length === 0) return '';
 
@@ -1408,25 +1408,16 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
   );
   if (sorted.length === 0) return '';
 
-  // 直近7日に絞る
-  const recentOnly = getRecentEntries(sorted, 7);
-  if (recentOnly.length === 0) return '直近1週間の日記がありません。';
+  // 最新日（今日）のエントリのみ
+  const latestDate = sorted[sorted.length - 1].date!;
+  const todayEntries = sorted.filter(e => e.date === latestDate);
+  if (todayEntries.length === 0) return '今日の日記がありません。';
 
-  // 今日（最新日）のエントリを主材料として全文で渡す
-  const latestDate = recentOnly[recentOnly.length - 1].date!;
-  const todayEntries = recentOnly.filter(e => e.date === latestDate);
-  const olderEntries = recentOnly.filter(e => e.date !== latestDate);
-
-  // 今日は全文（主材料）— ここに急所がある
+  // 今日の全文 — ここに急所がある
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
-  // 残りの6日間は圧縮コンテキスト（背景情報。ここから急所を引くな）
-  const olderTexts = olderEntries.length > 0
-    ? olderEntries.map(e => `[${e.date}] ${e.content.slice(0, 200)}`).join('\n---\n')
-    : '';
   const truncated = [
-    '【今日の日記 — これが主材料。急所はここから見つけろ】',
+    '【今日の日記 — これが唯一の材料。急所はここから見つけろ】',
     todayTexts,
-    olderTexts ? '\n【今週の背景 — 文脈として参考にしろ。ただしここから急所を引くな】\n' + olderTexts : '',
   ].join('\n').slice(0, 12000);
 
   // 存在テーマ密度
@@ -1451,7 +1442,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '',
         '【最重要ルール】',
         '- 日記に書かれていない出来事を捏造するな',
-        '- 過去の年（2020年、2021年…）を引用するな。直近1週間だけが材料。過去から現在を説明しようとするな',
+        '- 過去の年（2020年、2021年…）を引用するな。今日の日記だけが材料。過去から現在を説明しようとするな',
         '- 登山メタファーは使うな。標高もコンパスもいらない',
         '- 「重要度マックス」「タスク」のような業務フレームで感情を語るな',
         '',
@@ -1464,8 +1455,8 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '',
         '急所は「統計的な傾向」じゃない。「仕事の問題点」でもない。',
         '急所は時期によって変わる。過去の急所を今に貼り付けるな。人は断絶的に変わる。',
-        '今日の日記が主材料。今週の他の日記は背景。急所は今日の日記から見つけろ。',
-        '背景から引用して急所を組み立てるな。今日の言葉、今日の文体、今日の声から聴け。',
+        '今日の日記だけが材料。急所は今日の日記から見つけろ。',
+        '今日の言葉、今日の文体、今日の声から聴け。',
         '',
         '【深さの層 — ただし答えを決めつけるな】',
         '',
@@ -1516,7 +1507,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '- 境界線を引いた後、怒りを構造で返した後は「急性期は終わっている」。その完了した体験を今の急所にするな',
         '- 「怒りの余熱」「神経のクールダウン」は急所ではない。それは完了の証拠',
         '- 行動を起こして決着がついた事象を「まだ脅威」として扱うな。次に来るものを見ろ',
-        '- 過去1週間に大きな感情イベントがあっても、それが既に処理・完了されているなら、急所はその先にある',
+        '- 大きな感情イベントがあっても、それが既に処理・完了されているなら、急所はその先にある',
         '',
         '【怒りの変換能力を見ろ】',
         '怒りの扱いには段階がある：爆発→分析→交渉文→構造整理。',
@@ -1551,7 +1542,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '',
         '  ■ 根拠',
         '  今日の日記から具体的な表現を3つ以上「」で引用。',
-        '  引用は今日の日記の言葉を使え。背景の日記からの引用は補足として1つまで。',
+        '  引用は今日の日記の言葉を使え。',
         '  引用は具体的な場面の記述を選べ。状態記述（「調子が悪い」）じゃなくて、',
         '  「○○に△△と言われた」「○○の態度が嫌だった」のような記述を。',
         '',
@@ -1572,8 +1563,8 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     {
       role: 'user',
       content: [
-        '今日の日記を主材料にして、今の「急所」を1つだけ指摘してください。',
-        '今週の背景は文脈として参考にしていいが、急所は今日の日記から見つけろ。過去のエピソードを急所にするな。',
+        '今日の日記から、今の「急所」を1つだけ指摘してください。',
+        '材料は今日の日記だけ。過去のエピソードを急所にするな。',
         '',
         existentialHint ? `【参考データ】\n${existentialHint}` : '',
         '',
