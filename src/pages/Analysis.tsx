@@ -37,7 +37,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   vitalPoint: {
     title: '急所',
-    desc: '直近1週間から本質を突く、たった一つの指摘',
+    desc: '今日の日記から本質を突く、たった一つの指摘',
     fn: analyzeVitalPoint,
   },
   externalStandardsMastery: {
@@ -54,7 +54,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
 
 const sampleLimits: Record<AnalysisType, number> = {
   todaysEntry: 30,      // 今日＋背景知識
-  vitalPoint: 30,       // 直近7日
+  vitalPoint: 30,       // 今日＋存在テーマ密度
   externalStandardsMastery: 30, // 今日＋背景知識
   todaysLandscape: 30,  // 今日＋直近30日の背景
 };
@@ -62,11 +62,7 @@ const sampleLimits: Record<AnalysisType, number> = {
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
-    items: ['todaysEntry', 'todaysLandscape', 'externalStandardsMastery'],
-  },
-  {
-    label: '核',
-    items: ['vitalPoint'],
+    items: ['todaysEntry', 'todaysLandscape', 'vitalPoint', 'externalStandardsMastery'],
   },
 ];
 
