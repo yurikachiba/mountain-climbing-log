@@ -1412,9 +1412,22 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
   const recentOnly = getRecentEntries(sorted, 7);
   if (recentOnly.length === 0) return '直近1週間の日記がありません。';
 
-  // 直近エントリは全文に近い形で渡す
-  const texts = recentOnly.map(e => `[${e.date}] ${e.content.slice(0, 400)}`);
-  const truncated = texts.join('\n---\n').slice(0, 12000);
+  // 今日（最新日）のエントリを主材料として全文で渡す
+  const latestDate = recentOnly[recentOnly.length - 1].date!;
+  const todayEntries = recentOnly.filter(e => e.date === latestDate);
+  const olderEntries = recentOnly.filter(e => e.date !== latestDate);
+
+  // 今日は全文（主材料）— ここに急所がある
+  const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
+  // 残りの6日間は圧縮コンテキスト（背景情報。ここから急所を引くな）
+  const olderTexts = olderEntries.length > 0
+    ? olderEntries.map(e => `[${e.date}] ${e.content.slice(0, 200)}`).join('\n---\n')
+    : '';
+  const truncated = [
+    '【今日の日記 — これが主材料。急所はここから見つけろ】',
+    todayTexts,
+    olderTexts ? '\n【今週の背景 — 文脈として参考にしろ。ただしここから急所を引くな】\n' + olderTexts : '',
+  ].join('\n').slice(0, 12000);
 
   // 存在テーマ密度
   const existentialDensity = calcExistentialDensity30d(entries);
@@ -1450,7 +1463,9 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '急所 = ここに触れられると対等性が揺れる一点。',
         '',
         '急所は「統計的な傾向」じゃない。「仕事の問題点」でもない。',
-        '急所は時期によって変わる。過去の急所を今に貼り付けるな。人は断絶的に変わる。直近1週間の日記だけを聴け。',
+        '急所は時期によって変わる。過去の急所を今に貼り付けるな。人は断絶的に変わる。',
+        '今日の日記が主材料。今週の他の日記は背景。急所は今日の日記から見つけろ。',
+        '背景から引用して急所を組み立てるな。今日の言葉、今日の文体、今日の声から聴け。',
         '',
         '【深さの層 — ただし答えを決めつけるな】',
         '',
@@ -1535,7 +1550,8 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
         '  NG例：既に対処・完了した出来事を急所にするな',
         '',
         '  ■ 根拠',
-        '  直近1週間の日記から具体的な表現を3つ以上「」で引用。',
+        '  今日の日記から具体的な表現を3つ以上「」で引用。',
+        '  引用は今日の日記の言葉を使え。背景の日記からの引用は補足として1つまで。',
         '  引用は具体的な場面の記述を選べ。状態記述（「調子が悪い」）じゃなくて、',
         '  「○○に△△と言われた」「○○の態度が嫌だった」のような記述を。',
         '',
@@ -1556,11 +1572,11 @@ export async function analyzeVitalPoint(entries: DiaryEntry[]): Promise<string> 
     {
       role: 'user',
       content: [
-        '以下の直近1週間の日記だけを読み、今の「急所」を1つだけ指摘してください。過去は見なくていい。',
+        '今日の日記を主材料にして、今の「急所」を1つだけ指摘してください。',
+        '今週の背景は文脈として参考にしていいが、急所は今日の日記から見つけろ。過去のエピソードを急所にするな。',
         '',
         existentialHint ? `【参考データ】\n${existentialHint}` : '',
         '',
-        '【直近1週間の日記】',
         truncated,
       ].filter(Boolean).join('\n\n'),
     },
