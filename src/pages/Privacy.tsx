@@ -4,7 +4,7 @@ import { useHead } from '../hooks/useHead';
 export function Privacy() {
   useHead({
     title: 'プライバシーポリシー',
-    description: '登山ログのプライバシーポリシー。データはブラウザ内（IndexedDB）にのみ保存、外部サーバーへの送信なし、Cookie・トラッキング不使用。AI分析時のみユーザー自身のAPIキーでOpenAI APIと通信。',
+    description: '登山ログのプライバシーポリシー。データはブラウザ内（IndexedDB）にのみ保存、外部サーバーへの送信なし、Cookie・トラッキング不使用。AI分析時のみユーザー自身のAPIキーでAnthropic Claude APIと通信。',
     keywords: 'プライバシーポリシー,データ保護,IndexedDB,ローカル保存,Cookie不使用',
     path: '/privacy',
   });
@@ -34,10 +34,10 @@ export function Privacy() {
         <section className="legal-section">
           <h2>3. 外部サービスとの通信</h2>
           <p>
-            AI分析機能を使用する場合に限り、日記の一部がOpenAI APIに送信されます。
+            AI分析機能を使用する場合に限り、日記の一部がAnthropic Claude APIに送信されます。
             この通信はユーザーが自身のAPIキーを設定し、明示的に分析を実行した場合にのみ行われます。
-            OpenAIへのデータ送信に関する詳細は、
-            <a href="https://openai.com/privacy" target="_blank" rel="noopener noreferrer">OpenAIのプライバシーポリシー</a>
+            Anthropicへのデータ送信に関する詳細は、
+            <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener noreferrer">Anthropicのプライバシーポリシー</a>
             をご確認ください。
           </p>
         </section>
@@ -53,7 +53,7 @@ export function Privacy() {
         <section className="legal-section">
           <h2>5. APIキーの管理</h2>
           <p>
-            OpenAI APIキーは、お使いの端末のブラウザ内にのみ保存されます。
+            Anthropic APIキーは、お使いの端末のブラウザ内にのみ保存されます。
             保存方法は設定ページで選択できます：
           </p>
           <ul>
@@ -62,7 +62,7 @@ export function Privacy() {
           </ul>
           <p>
             APIキーが本アプリの開発者に送信されることはありません。
-            ただし、APIキーはブラウザから直接OpenAI APIに送信されるため、
+            ただし、APIキーはブラウザから直接Anthropic Claude APIに送信されるため、
             専用の低権限キーを作成し、使用量上限を設定することを推奨します。
             APIキーの管理はユーザー自身の責任のもとで行ってください。
           </p>

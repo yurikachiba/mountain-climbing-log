@@ -17,7 +17,7 @@ function downloadJson(data: unknown, filename: string) {
 export function Settings() {
   useHead({
     title: '設定・データ管理',
-    description: '登山ログの設定ページ。データのエクスポート・バックアップ復元・一括削除、OpenAI APIキーの管理が行えます。すべてのデータはブラウザ内に保存。',
+    description: '登山ログの設定ページ。データのエクスポート・バックアップ復元・一括削除、Anthropic APIキーの管理が行えます。すべてのデータはブラウザ内に保存。',
     keywords: 'データ管理,バックアップ,エクスポート,APIキー設定,データ削除',
     path: '/settings',
   });
@@ -166,9 +166,9 @@ export function Settings() {
       </section>
 
       <section className="settings-section">
-        <h2>AI分析（OpenAI API）</h2>
+        <h2>AI分析（Claude API）</h2>
         <p className="settings-desc" style={{ marginBottom: 16 }}>
-          年代別要約・感情タグ・トーン分析に使用します。キーはこの端末のブラウザにのみ保存されます。
+          日記の深層分析に使用します。キーはこの端末のブラウザにのみ保存されます。
         </p>
 
         <div className="api-key-warning" style={{
@@ -190,7 +190,7 @@ export function Settings() {
 
         <div className="settings-row">
           <div style={{ flex: 1 }}>
-            <p className="settings-label">OpenAI APIキー</p>
+            <p className="settings-label">Anthropic APIキー</p>
             {keyMasked ? (
               <p className="api-key-masked">{maskKey(apiKeyInput)}</p>
             ) : (
@@ -198,7 +198,7 @@ export function Settings() {
                 type="password"
                 value={apiKeyInput}
                 onChange={e => setApiKeyInput(e.target.value)}
-                placeholder="sk-..."
+                placeholder="sk-ant-..."
                 className="api-key-input"
                 autoComplete="off"
               />
@@ -252,7 +252,7 @@ export function Settings() {
         </p>
         <p className="about-text">
           日記データはこの端末のブラウザ内にのみ保存されます。
-          AI分析を使用した場合のみ、日記の一部がOpenAI APIに送信されます。
+          AI分析を使用した場合のみ、日記の一部がAnthropic Claude APIに送信されます。
         </p>
       </section>
 
