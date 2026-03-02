@@ -163,7 +163,15 @@ export async function addEntries(entries: DiaryEntry[]): Promise<number> {
 
 export async function getAllEntries(): Promise<DiaryEntry[]> {
   const db = await getDB();
-  return db.getAllFromIndex('entries', 'by-date');
+  // getAll を使用（getAllFromIndex('by-date') だと date: null のエントリが除外されるため）
+  const all = await db.getAll('entries');
+  // 日付あり→日付昇順、日付なし→末尾（importedAt降順）
+  return all.sort((a, b) => {
+    if (a.date && b.date) return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return (b.importedAt ?? '').localeCompare(a.importedAt ?? '');
+  });
 }
 
 export async function getEntry(id: string): Promise<DiaryEntry | undefined> {
