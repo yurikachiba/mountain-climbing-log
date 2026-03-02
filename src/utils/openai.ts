@@ -25,17 +25,25 @@ async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<stri
   const key = getApiKey();
   if (!key) throw new Error('APIキーが設定されていません。設定ページで入力してください。');
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  // system メッセージを抽出（Anthropic APIではsystemパラメータとして渡す）
+  const systemMessages = messages.filter(m => m.role === 'system');
+  const userMessages = messages.filter(m => m.role !== 'system');
+  const systemPrompt = systemMessages.map(m => m.content).join('\n\n');
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${key}`,
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages,
+      model: 'claude-sonnet-4-6',
       max_tokens: maxTokens,
       temperature: 0.3,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
+      messages: userMessages.map(m => ({ role: m.role, content: m.content })),
     }),
   });
 
@@ -47,7 +55,7 @@ async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<stri
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  return data.content?.[0]?.text ?? '';
 }
 
 // 直近90日のエントリはより多くの文字数を割り当てる（直近の密度を保つ）
@@ -1699,7 +1707,7 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n---\n').slice(0, 3000);
 
   // より古い期間からサンプリング（友人の「長い付き合いの記憶」）
-  // miniが背景に引っ張られすぎないよう控えめに
+  // 背景に引っ張られすぎないよう控えめに
   const olderEntries = sorted.filter(e => e.date! < twoWeeksAgoStr);
   const olderSampled = sampleUniform(olderEntries, 10);
   const olderTexts = olderSampled.map(e => `[${e.date}] ${e.content.slice(0, 60)}`).join('\n---\n').slice(0, 1500);
@@ -2996,7 +3004,7 @@ export async function analyzeNatureReflection(entries: DiaryEntry[]): Promise<st
         '■ 比喩の構造',
         '最も特徴的なものを1〜2個だけ取り上げろ。各比喩につき2〜3文で十分。',
         '「何を何に喩えているか」と「なぜこのイメージか」を簡潔に。',
-        '長い段落で解説するな。短く切れ。miniの癖で説明が膨らむのを許すな。',
+        '長い段落で解説するな。短く切れ。説明が膨らむのを許すな。',
         '',
         '■ 拾われなかったもの',
         '日記の中で、比喩としては使われていないが、自然のイメージと共鳴する記述があれば指摘しろ。',

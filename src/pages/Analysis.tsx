@@ -178,7 +178,7 @@ export function Analysis() {
 
       {!hasApiKey() && (
         <p className="hint" style={{ color: 'var(--danger)' }}>
-          設定ページでOpenAI APIキーを入力してください
+          設定ページでAnthropic APIキーを入力してください
         </p>
       )}
 
@@ -267,7 +267,7 @@ export function Analysis() {
       ))}
 
       <p className="hint" style={{ marginTop: 48 }}>
-        日記の一部がOpenAI APIに送信されます。ローカル分析はタイムラインページで確認できます。
+        日記の一部がAnthropic Claude APIに送信されます。ローカル分析はタイムラインページで確認できます。
       </p>
       <p className="hint">
         分析結果はこの端末のブラウザに保存されます。過去の分析ログも蓄積されています。

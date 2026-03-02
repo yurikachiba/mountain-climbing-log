@@ -4,7 +4,7 @@ import { useHead } from '../hooks/useHead';
 export function Terms() {
   useHead({
     title: '利用規約',
-    description: '登山ログの利用規約。サービスの概要、ブラウザ内データ管理の責任、AI分析機能（OpenAI API）の利用条件、免責事項、知的財産権について。',
+    description: '登山ログの利用規約。サービスの概要、ブラウザ内データ管理の責任、AI分析機能（Claude API）の利用条件、免責事項、知的財産権について。',
     keywords: '利用規約,サービス規約,免責事項',
     path: '/terms',
   });
@@ -43,7 +43,7 @@ export function Terms() {
         <section className="legal-section">
           <h2>4. AI分析機能について</h2>
           <p>
-            AI分析機能はOpenAI APIを利用しています。この機能を利用するには、ユーザー自身でOpenAI APIキーを取得・設定する必要があります。
+            AI分析機能はAnthropic Claude APIを利用しています。この機能を利用するには、ユーザー自身でAnthropic APIキーを取得・設定する必要があります。
             APIの利用料金はユーザー自身の負担となります。
             AI分析の結果は参考情報であり、その正確性を保証するものではありません。
           </p>
