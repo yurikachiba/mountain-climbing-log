@@ -1407,8 +1407,29 @@ export async function generateComprehensiveReport(entries: DiaryEntry[]): Promis
   ], 3000);
 }
 
+// 過去の急所結果から「■ もし一つだけ問うなら」セクションの問いを抽出する
+function extractVitalPointQuestions(results: string[]): string[] {
+  const questions: string[] = [];
+  for (const result of results) {
+    const match = result.match(/■\s*もし一つだけ問うなら\s*\n([\s\S]*?)(?=\n■|$)/);
+    if (match) {
+      const q = match[1].trim();
+      if (q) questions.push(q);
+    }
+  }
+  return questions;
+}
+
+// 回答済みの問い — これらは今後使わない。回答を踏まえて次の層を掘る
+const answeredQuestions: { question: string; answer: string }[] = [
+  {
+    question: 'そのログ、誰かに見せたいと思ったことはあるか',
+    answer: '今見せてるじゃん',
+  },
+];
+
 // 急所 — やさしいだけじゃない。今日の日記から本質を突く一撃
-export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: string): Promise<string> {
+export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: string, pastResults?: string[]): Promise<string> {
   if (entries.length === 0) return '';
 
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
@@ -1449,6 +1470,28 @@ export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: 
         '- 今日の日記には前回拾わなかった素材が必ずある。それを見つけろ',
         '- 「今まで書いてこなかったこと」「今日初めて出てきたこと」があるなら、それが前回の急所より優先',
         '- 前回と同じ急所を出力したら、その分析は全部無効',
+      ].join('\n')
+    : '';
+
+  // 過去の問い追跡 — 同じ問いを繰り返さない
+  const pastQuestions = pastResults ? extractVitalPointQuestions(pastResults) : [];
+  const answeredHint = answeredQuestions.length > 0
+    ? [
+        '【回答済みの問い — これらは今後使うな。回答を踏まえて次の層を掘れ】',
+        ...answeredQuestions.map(qa =>
+          `- 問い：「${qa.question}」→ 回答：「${qa.answer}」（この問いは使用禁止。回答を前提にした上で、さらに深い問いを立てろ）`
+        ),
+      ].join('\n')
+    : '';
+  const pastQuestionsHint = pastQuestions.length > 0
+    ? [
+        '【過去に出した問い一覧 — 同じ問いを繰り返すな】',
+        ...pastQuestions.slice(0, 20).map((q, i) => `${i + 1}. ${q}`),
+        '',
+        '↑これらは過去の急所分析で出した問い。以下を厳守しろ：',
+        '- 同じ問い、同じ趣旨の問いは禁止。類似した角度の問いも禁止',
+        '- 過去に問うたことの「言い換え」も禁止。語尾を変えただけ、主語を変えただけは同じ問い',
+        '- 今日の日記にしか成立しない、新しい角度の問いを立てろ',
       ].join('\n')
     : '';
 
@@ -1660,6 +1703,12 @@ export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: 
         '  - 聞かれた側がうっと詰まるはず。心地よい問いは問いじゃない',
         '  - 「感じる」「思う」「考える」を聞くな。行為か選択か矛盾を突け',
         '',
+        '  【問いの追跡ルール — 過去の問いを繰り返すな】',
+        '  - 過去の急所で出した問いは記録されている。同じ問いを繰り返すな',
+        '  - 問いに対して書き手が回答済みの場合、その回答を踏まえた上で次の層を掘る問いを立てろ',
+        '  - 過去の問いの言い換え・語尾変更・主語変更も同じ問いとみなす。禁止',
+        '  - 具体的な禁止問い・回答済み問いはユーザーメッセージ内に記載される。必ず確認しろ',
+        '',
         '- 同じ洞察を言い換えで繰り返すな。1回で刺せ',
         '- 各セクションは前のセクションに新しい情報を足す',
         '- 1つの急所に集中。一撃',
@@ -1675,6 +1724,8 @@ export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: 
         '急所の命名には、日記に出てくる具体的な言葉・場面を使え。抽象的なフェーズ名は禁止。',
         '',
         antiRepeat,
+        answeredHint,
+        pastQuestionsHint,
         existentialHint ? `【参考データ】\n${existentialHint}` : '',
         '',
         truncated,
