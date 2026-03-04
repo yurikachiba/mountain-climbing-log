@@ -18,6 +18,7 @@ import { Sitemap } from './pages/Sitemap';
 import { Landing } from './pages/Landing';
 import { AiLogs } from './pages/AiLogs';
 import { Observatory } from './pages/Observatory';
+import { DateHistory } from './pages/DateHistory';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/ai-logs" element={<AiLogs />} />
             <Route path="/observatory" element={<Observatory />} />
+            <Route path="/datehistory" element={<DateHistory />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
