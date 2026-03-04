@@ -18,6 +18,7 @@ const pages = [
       { to: '/search', label: '検索', desc: 'キーワード・日付で日記を検索' },
       { to: '/calendar', label: 'カレンダー', desc: 'カレンダー形式で日記を閲覧' },
       { to: '/fragments', label: '宝物庫', desc: '保存したテキスト断片の一覧' },
+      { to: '/datehistory', label: '日月年の変化', desc: '過去と今を日・月・年のスケールで比較' },
     ],
   },
   {
