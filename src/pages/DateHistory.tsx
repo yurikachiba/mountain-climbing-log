@@ -53,14 +53,6 @@ function buildTimeSlots(base: Date): { label: string; sublabel: string; date: st
   const weekAgo = addDays(base, -7);
   slots.push({ label: '1週間前', sublabel: formatDate(weekAgo), date: formatDate(weekAgo) });
 
-  // 2週間前
-  const twoWeeksAgo = addDays(base, -14);
-  slots.push({ label: '2週間前', sublabel: formatDate(twoWeeksAgo), date: formatDate(twoWeeksAgo) });
-
-  // 3週間前
-  const threeWeeksAgo = addDays(base, -21);
-  slots.push({ label: '3週間前', sublabel: formatDate(threeWeeksAgo), date: formatDate(threeWeeksAgo) });
-
   // 1ヶ月前
   const monthAgo = addMonths(base, -1);
   slots.push({ label: '1ヶ月前', sublabel: formatDate(monthAgo), date: formatDate(monthAgo) });
