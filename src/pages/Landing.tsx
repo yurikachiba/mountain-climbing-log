@@ -16,6 +16,12 @@ const features = [
     link: '/onthisday',
   },
   {
+    title: '日月年の変化',
+    desc: '今日を基準に、1日前・1週間前・1ヶ月前・1年前の日記を並べて表示。時間のスケールを変えて、過去と今の変化を感じる。基準日は自由に変更可能。',
+    icon: '🔄',
+    link: '/datehistory',
+  },
+  {
     title: 'キーワード検索',
     desc: 'あの日のあの言葉を探す全文検索。日付範囲の絞り込みやソート順の切り替えにも対応。検索結果の日記をワンクリックでコピー可能。',
     icon: '🔍',
@@ -143,7 +149,7 @@ export function Landing() {
 
       {/* Features */}
       <section className="landing-section" id="features">
-        <h2 className="landing-section-title">登山ログでできること ― 9つの主要機能</h2>
+        <h2 className="landing-section-title">登山ログでできること ― 10の主要機能</h2>
         <p className="landing-section-lead">
           日記をインポートするだけで、検索・分析・可視化のすべてが使えます。
         </p>
@@ -172,6 +178,16 @@ export function Landing() {
             ブラウザ上から直接入力で日記を書くことも可能です。
           </p>
           <p><Link to="/import">日記のインポートを試す</Link></p>
+        </div>
+
+        <div className="landing-detail-block">
+          <h3>日月年の変化 ― 過去と今を並べて見る</h3>
+          <p>
+            今日を基準に、1日前・1週間前・1ヶ月前・3ヶ月前・半年前・1年前…と、異なる時間スケールの日記を並べて表示します。
+            「この日の記録」が同じ月日を縦に見るのに対し、「日月年の変化」は異なるスケールで過去と今を比較できます。
+            基準日は自由に変更可能。各日記をワンクリックでコピーできます。
+          </p>
+          <p><Link to="/datehistory">日月年の変化を見る</Link></p>
         </div>
 
         <div className="landing-detail-block">
