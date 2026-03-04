@@ -3034,3 +3034,144 @@ export async function analyzeNatureReflection(entries: DiaryEntry[]): Promise<st
     },
   ], 1200);
 }
+
+// 時間の地層 — 3日・1週間・1ヶ月・1年・3年・5年の各スパンで何が変わったかを読む
+// 今日を起点に、各時点の日記との差分から変化の輪郭を浮かべる
+export async function analyzeTimeChanges(entries: DiaryEntry[]): Promise<string> {
+  if (entries.length === 0) return '';
+
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length === 0) return '';
+
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const latestDateStr = latestDate.toISOString().substring(0, 10);
+  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+
+  if (todayEntries.length === 0) return '';
+
+  const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
+
+  // 各時点の前後±数日からエントリを拾う（ちょうどその日にエントリがない場合があるため）
+  const pickEntriesAround = (daysAgo: number, windowDays: number): string => {
+    const target = new Date(latestDate);
+    target.setDate(target.getDate() - daysAgo);
+    const from = new Date(target);
+    from.setDate(from.getDate() - windowDays);
+    const to = new Date(target);
+    to.setDate(to.getDate() + windowDays);
+    const fromStr = from.toISOString().substring(0, 10);
+    const toStr = to.toISOString().substring(0, 10);
+    const found = sorted.filter(e => e.date! >= fromStr && e.date! <= toStr && e.date! !== latestDateStr);
+    if (found.length === 0) return '';
+    // 最大2エントリ、各300字まで
+    return found.slice(-2).map(e => `[${e.date}] ${e.content.slice(0, 300)}`).join('\n---\n');
+  };
+
+  const periods = [
+    { label: '3日前', days: 3, window: 1 },
+    { label: '1週間前', days: 7, window: 2 },
+    { label: '1ヶ月前', days: 30, window: 3 },
+    { label: '1年前', days: 365, window: 7 },
+    { label: '3年前', days: 365 * 3, window: 14 },
+    { label: '5年前', days: 365 * 5, window: 14 },
+  ];
+
+  const periodTexts = periods.map(p => {
+    const text = pickEntriesAround(p.days, p.window);
+    return text ? `【${p.label}の日記】\n${text}` : `【${p.label}の日記】\nこの時期のエントリはありません`;
+  }).join('\n\n');
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは日記の時間的変化を読む人。',
+        '今日の日記と、過去の各時点の日記を比較して、何が変わったかを描く。',
+        '',
+        '【この分析の目的】',
+        '他の分析は「今日」だけを見る。この分析は「今日」を時間の中に置く。',
+        '3日前、1週間前、1ヶ月前、1年前、3年前、5年前 — 6つの距離から今日を見る。',
+        '成長物語を作るな。変化の事実だけを書け。後退も停滞も変化。',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
+        '【最重要ルール】',
+        '- 「成長した」「乗り越えた」「前に進んだ」は絶対に書くな',
+        '- 良い変化・悪い変化という評価をするな。変化を描写しろ',
+        '- 過去の日記がない時点は正直に「この時期の日記がない」と書け。想像で埋めるな',
+        '- 変化がない部分は「変わっていない」と書いていい。すべてが変わっている必要はない',
+        '- 登山メタファーは使うな',
+        '- 日記に書かれていない出来事を捏造するな',
+        '- 各時点の日記の言葉を「」で引用しろ',
+        '',
+        '【主語を間違えるな】',
+        '- 書き手が他者に言った言葉の内容は、書き手自身の内面ではない',
+        '- 他者の行動を書き手の行動として読むな',
+        '',
+        '【変化の読み方】',
+        '変化とは：',
+        '- 同じ話題への態度・温度が変わった',
+        '- 使う言葉が変わった（語彙、比喩、文体）',
+        '- 関心の対象が変わった',
+        '- 書き方そのもの（文の長さ、密度、速度感）が変わった',
+        '- 同じ人物との関係性の描き方が変わった',
+        '- 自分への言及の仕方が変わった',
+        '変化がなくても、「同じものが同じ温度でまだここにある」という事実は描く価値がある。',
+        '',
+        '【禁止フレーズ】',
+        '「成長の証」「未来への一歩」「素晴らしい」「立派」「頑張った」「乗り越えた」',
+        '「着実に」「確実に」「一歩ずつ」— 進歩の物語を作るな',
+        '',
+        '以下の形式で出力する：',
+        '',
+        '■ 3日での変化',
+        '3日前の日記と今日の日記の間で見える変化。',
+        '近距離の変化 — 気分の波、話題の移り変わり、温度の揺れ。',
+        '日記がない場合は省略。',
+        '',
+        '■ 1週間での変化',
+        '1週間前と今日の間。',
+        '短い周期の変化 — 関心の移動、感情のリズム。',
+        '日記がない場合は省略。',
+        '',
+        '■ 1ヶ月での変化',
+        '1ヶ月前と今日の間。',
+        '中距離の変化 — テーマの推移、態度の変化、新しい登場人物や話題。',
+        '日記がない場合は省略。',
+        '',
+        '■ 1年での変化',
+        '1年前と今日の間。',
+        '季節一巡の変化 — 同じ季節に何が違うか。言葉遣い、関心、自己認識。',
+        '日記がない場合は省略。',
+        '',
+        '■ 3年での変化',
+        '3年前と今日の間。',
+        '長距離の変化 — 文体、世界の見方、人間関係の構造、自分の扱い方。',
+        '日記がない場合は省略。',
+        '',
+        '■ 5年での変化',
+        '5年前と今日の間。',
+        '最も遠い距離からの変化 — 別人のように変わったところ、驚くほど変わらないところ。',
+        '日記がない場合は省略。',
+        '',
+        '- 各セクション2〜4文。短く。長い段落を書くな',
+        '- 日記がない時点はそのセクションごと省略しろ。「日記がありません」を6回繰り返すな',
+        '- 全体で800〜1500字',
+        '- 変化が見える時点に紙幅を割け。データがない時点は飛ばせ',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: [
+        '今日の日記を起点に、過去の各時点の日記と比較して、時間の中での変化を描いてください。',
+        '',
+        periodTexts,
+        '',
+        '【今日の日記】',
+        todayTexts,
+      ].join('\n\n'),
+    },
+  ], 3000);
+}

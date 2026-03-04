@@ -9,6 +9,7 @@ import {
   analyzeExternalStandardsMastery,
   analyzeTodaysLandscape,
   analyzeNatureReflection,
+  analyzeTimeChanges,
 } from '../utils/openai';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
@@ -18,7 +19,8 @@ type AnalysisType =
   | 'vitalPoint'
   | 'externalStandardsMastery'
   | 'todaysLandscape'
-  | 'natureReflection';
+  | 'natureReflection'
+  | 'timeChanges';
 
 interface AnalysisItem {
   title: string;
@@ -57,6 +59,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '今日の日記の中の比喩・メタファー・自然的イメージを拾い上げる。どんなレンズで世界を見ているかを、選ばれた言葉の構造から読む',
     fn: analyzeNatureReflection,
   },
+  timeChanges: {
+    title: '時間の地層',
+    desc: '3日・1週間・1ヶ月・1年・3年・5年 — 6つの距離から今日を見る。変化の事実だけを、評価せずに描く',
+    fn: analyzeTimeChanges,
+  },
 };
 
 const sampleLimits: Record<AnalysisType, number> = {
@@ -65,12 +72,17 @@ const sampleLimits: Record<AnalysisType, number> = {
   externalStandardsMastery: 30, // 今日＋背景知識
   todaysLandscape: 30,  // 今日＋直近30日の背景
   natureReflection: 30, // 今日＋直近30日の比喩背景
+  timeChanges: 9999,    // 全エントリから各時点を抽出（関数内でフィルタ）
 };
 
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
     items: ['todaysEntry', 'todaysLandscape', 'vitalPoint', 'externalStandardsMastery', 'natureReflection'],
+  },
+  {
+    label: '時間',
+    items: ['timeChanges'],
   },
 ];
 

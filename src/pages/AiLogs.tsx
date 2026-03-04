@@ -5,8 +5,8 @@ import { getAllAiLogs, getAllAiCache } from '../db';
 import { useHead } from '../hooks/useHead';
 import { AiResultBody } from '../components/AiResultBody';
 
-// 現行のAnalysis.tsxと一致させる（5種類）
-type AnalysisType = 'todaysEntry' | 'vitalPoint' | 'externalStandardsMastery' | 'todaysLandscape' | 'natureReflection';
+// 現行のAnalysis.tsxと一致させる（6種類）
+type AnalysisType = 'todaysEntry' | 'vitalPoint' | 'externalStandardsMastery' | 'todaysLandscape' | 'natureReflection' | 'timeChanges';
 
 const typeLabels: Record<AnalysisType, string> = {
   todaysEntry: '今日',
@@ -14,10 +14,11 @@ const typeLabels: Record<AnalysisType, string> = {
   externalStandardsMastery: '外基準の統合',
   todaysLandscape: '今日の景色',
   natureReflection: '自然の眼',
+  timeChanges: '時間の地層',
 };
 
 const allTypes: AnalysisType[] = [
-  'todaysEntry', 'todaysLandscape', 'vitalPoint', 'externalStandardsMastery', 'natureReflection',
+  'todaysEntry', 'todaysLandscape', 'vitalPoint', 'externalStandardsMastery', 'natureReflection', 'timeChanges',
 ];
 
 // 現行タイプのセット（フィルタリング用）
