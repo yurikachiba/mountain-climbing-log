@@ -10,7 +10,7 @@ import {
   analyzeTodaysLandscape,
   analyzeNatureReflection,
   analyzeTimeChanges,
-} from '../utils/openai';
+} from '../utils/claude';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
 

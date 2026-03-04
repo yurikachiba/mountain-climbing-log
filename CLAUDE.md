@@ -74,7 +74,7 @@ src/
     ├── dateExtractor.ts        # 日記テキストから日付を抽出（和暦・西暦対応）
     ├── emotionAnalyzer.ts      # 感情分析ロジック（ネガティブ率・自己否定語・感情語辞書マッチング）
     ├── deepAnalyzer.ts         # 深層分析（月次分析・トレンド転機検出・季節クロス集計・語彙深度・存在論的密度）
-    └── openai.ts               # OpenAI API呼び出し（21種類の分析関数、プロンプト構築含む）
+    └── claude.ts               # Claude API呼び出し（分析関数、プロンプト構築含む）
 ```
 
 ### データベース（IndexedDB: `climbing-log`）
