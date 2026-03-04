@@ -61,7 +61,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   timeChanges: {
     title: '時間の地層',
-    desc: '3日・1週間・1ヶ月・1年・3年・5年 — 6つの距離から今日を見る。変化の事実だけを、評価せずに描く',
+    desc: '3日・1週間・1ヶ月・3ヶ月・半年・1年・3年・5年 — 8つの距離から今日を見る。変化の事実だけを、評価せずに描く',
     fn: analyzeTimeChanges,
   },
 };
