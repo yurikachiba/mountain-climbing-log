@@ -13,6 +13,7 @@ import {
 } from '../utils/claude';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
+import { getAiLogsByType } from '../db';
 
 type AnalysisType =
   | 'todaysEntry'
@@ -130,8 +131,18 @@ export function Analysis() {
     setError(null);
     try {
       const prevResult = cache[type]?.result;
-      const result = await analysisMap[type].fn(entries, prevResult);
-      await save(type, result, count);
+      // 急所の場合、過去ログから問い追跡用の結果を取得
+      if (type === 'vitalPoint') {
+        const pastLogs = await getAiLogsByType('vitalPoint');
+        const pastResults = pastLogs
+          .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt))
+          .map(log => log.result);
+        const result = await analyzeVitalPoint(entries, prevResult, pastResults);
+        await save(type, result, count);
+      } else {
+        const result = await analysisMap[type].fn(entries, prevResult);
+        await save(type, result, count);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析に失敗しました');
     } finally {
@@ -154,8 +165,17 @@ export function Analysis() {
       setRunning(type);
       try {
         const prevResult = cache[type]?.result;
-        const result = await analysisMap[type].fn(entries, prevResult);
-        await save(type, result, count);
+        if (type === 'vitalPoint') {
+          const pastLogs = await getAiLogsByType('vitalPoint');
+          const pastResults = pastLogs
+            .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt))
+            .map(log => log.result);
+          const result = await analyzeVitalPoint(entries, prevResult, pastResults);
+          await save(type, result, count);
+        } else {
+          const result = await analysisMap[type].fn(entries, prevResult);
+          await save(type, result, count);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
         break;
