@@ -77,7 +77,7 @@ const sampleLimits: Record<AnalysisType, number> = {
 };
 
 // 「すべて実行」から除外する分析タイプ（個別実行は常に可能）
-const batchExcluded = new Set<AnalysisType>(['natureReflection', 'timeChanges']);
+const batchExcluded = new Set<AnalysisType>([]);
 
 const categories: AnalysisCategory[] = [
   {
