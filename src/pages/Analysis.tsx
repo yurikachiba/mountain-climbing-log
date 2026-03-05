@@ -76,6 +76,9 @@ const sampleLimits: Record<AnalysisType, number> = {
   timeChanges: 9999,    // 全エントリから各時点を抽出（関数内でフィルタ）
 };
 
+// 「すべて実行」から除外する分析タイプ（個別実行は常に可能）
+const batchExcluded = new Set<AnalysisType>(['natureReflection', 'timeChanges']);
+
 const categories: AnalysisCategory[] = [
   {
     label: '今ここ',
@@ -157,7 +160,7 @@ export function Analysis() {
     }
     setRunningAll(true);
     setError(null);
-    const types = categories.flatMap(c => c.items);
+    const types = categories.flatMap(c => c.items).filter(t => !batchExcluded.has(t));
     setAllProgress({ done: 0, total: types.length });
 
     for (let i = 0; i < types.length; i++) {
