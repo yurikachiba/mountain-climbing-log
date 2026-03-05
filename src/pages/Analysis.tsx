@@ -76,21 +76,8 @@ const sampleLimits: Record<AnalysisType, number> = {
   timeChanges: 9999,    // 全エントリから各時点を抽出（関数内でフィルタ）
 };
 
-// 頻度制御: 'daily'=毎日, 'everyOtherDay'=1日おき（すべて実行時のみ。個別実行は常に可能）
-const analysisFrequency: Partial<Record<AnalysisType, 'everyOtherDay'>> = {
-  natureReflection: 'everyOtherDay',
-  timeChanges: 'everyOtherDay',
-};
-
-// 前回実行から24時間以内ならスキップ対象
-function shouldSkipInBatch(type: AnalysisType, cache: Record<string, { analyzedAt?: string } | undefined>): boolean {
-  if (analysisFrequency[type] !== 'everyOtherDay') return false;
-  const analyzedAt = cache[type]?.analyzedAt;
-  if (!analyzedAt) return false; // 未実行なら必ず実行
-  const lastRun = new Date(analyzedAt).getTime();
-  const hoursSince = (Date.now() - lastRun) / (1000 * 60 * 60);
-  return hoursSince < 24;
-}
+// 「すべて実行」から除外する分析タイプ（個別実行は常に可能）
+const batchExcluded = new Set<AnalysisType>(['natureReflection', 'timeChanges']);
 
 const categories: AnalysisCategory[] = [
   {
@@ -173,14 +160,8 @@ export function Analysis() {
     }
     setRunningAll(true);
     setError(null);
-    const allTypes = categories.flatMap(c => c.items);
-    const types = allTypes.filter(t => !shouldSkipInBatch(t, cache));
-    const skipped = allTypes.filter(t => shouldSkipInBatch(t, cache));
+    const types = categories.flatMap(c => c.items).filter(t => !batchExcluded.has(t));
     setAllProgress({ done: 0, total: types.length });
-
-    if (skipped.length > 0) {
-      console.log(`[一括分析] スキップ（1日おき）: ${skipped.map(t => analysisMap[t].title).join(', ')}`);
-    }
 
     for (let i = 0; i < types.length; i++) {
       const type = types[i];
@@ -276,17 +257,15 @@ export function Analysis() {
               const stale = isStale(type);
               const cachedAt = cache[type]?.analyzedAt;
               const cachedCount = cache[type]?.entryCount;
-              const willSkipInBatch = shouldSkipInBatch(type, cache);
               return (
                 <section key={type} className="analysis-section">
                   <div className="analysis-header">
                     <div>
-                      <h3>{analysisMap[type].title}{analysisFrequency[type] === 'everyOtherDay' && <span style={{ fontSize: '0.7em', color: 'var(--text-muted, #888)', marginLeft: 6 }}>1日おき</span>}</h3>
+                      <h3>{analysisMap[type].title}</h3>
                       <p className="settings-desc">{analysisMap[type].desc}</p>
                     </div>
                     <div className="analysis-header-actions">
-                      {willSkipInBatch && <span className="analysis-done-badge" style={{ background: 'var(--text-muted, #888)', color: '#fff', fontSize: '0.75em' }}>一括時スキップ</span>}
-                      {result && !stale && !willSkipInBatch && <span className="analysis-done-badge">完了</span>}
+                      {result && !stale && <span className="analysis-done-badge">完了</span>}
                       {result && stale && <span className="analysis-done-badge" style={{ background: 'var(--warning, #b8860b)', color: '#fff' }}>更新あり</span>}
                       <button
                         onClick={() => run(type)}
