@@ -10,6 +10,9 @@ import {
   analyzeTodaysLandscape,
   analyzeNatureReflection,
   analyzeTimeChanges,
+  analyzeStyleWeather,
+  analyzeRepetitionMap,
+  analyzeSeasonalSelf,
 } from '../utils/claude';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
@@ -21,7 +24,10 @@ type AnalysisType =
   | 'externalStandardsMastery'
   | 'todaysLandscape'
   | 'natureReflection'
-  | 'timeChanges';
+  | 'timeChanges'
+  | 'styleWeather'
+  | 'repetitionMap'
+  | 'seasonalSelf';
 
 interface AnalysisItem {
   title: string;
@@ -65,6 +71,21 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '3日・1週間・1ヶ月・3ヶ月・半年・1年・3年・5年 — 8つの距離から今日を見る。変化の事実だけを、評価せずに描く',
     fn: analyzeTimeChanges,
   },
+  styleWeather: {
+    title: '文体気象図',
+    desc: '複数の日記を横断して、感情状態ごとの文体パターンを読む。荒天の文体、凪の文体、霧の文体 — 「何を書いたか」ではなく「どう書いたか」',
+    fn: analyzeStyleWeather,
+  },
+  repetitionMap: {
+    title: '反復の地図',
+    desc: '繰り返し現れるテーマ・言い回し・状況をマッピング。帰ってくる問い、繰り返す場面、定型句 — 本人には見えない反復の構造',
+    fn: analyzeRepetitionMap,
+  },
+  seasonalSelf: {
+    title: '季節の自分',
+    desc: '春・夏・秋・冬 — 季節ごとの自分の傾向を日記から読む。話題、温度、活動量、身体、関係性の季節変動',
+    fn: analyzeSeasonalSelf,
+  },
 };
 
 const sampleLimits: Record<AnalysisType, number> = {
@@ -74,6 +95,9 @@ const sampleLimits: Record<AnalysisType, number> = {
   todaysLandscape: 30,  // 今日＋直近30日の背景
   natureReflection: 30, // 今日＋直近30日の比喩背景
   timeChanges: 9999,    // 全エントリから各時点を抽出（関数内でフィルタ）
+  styleWeather: 60,     // 全期間から均等に60件サンプリング
+  repetitionMap: 80,    // 全期間から均等に80件サンプリング
+  seasonalSelf: 60,     // 季節ごとに15件×4季節
 };
 
 // 「すべて実行」から除外する分析タイプ（個別実行は常に可能）
@@ -87,6 +111,10 @@ const categories: AnalysisCategory[] = [
   {
     label: '時間',
     items: ['timeChanges'],
+  },
+  {
+    label: '横断',
+    items: ['styleWeather', 'repetitionMap', 'seasonalSelf'],
   },
 ];
 
@@ -103,8 +131,8 @@ function formatDate(iso: string): string {
 export function Analysis() {
   useHead({
     title: 'AI分析',
-    description: '5種類のAI分析。今日、今日の景色、急所、外基準の統合、自然の眼。フィルターなしの全景マッピングから比喩の構造分析まで。',
-    keywords: 'AI日記分析,今日,今日の景色,急所,外基準の統合,自然の眼,直近分析',
+    description: '9種類のAI分析。今日、今日の景色、急所、外基準の統合、自然の眼、時間の地層、文体気象図、反復の地図、季節の自分。直近分析から複数エントリ横断分析まで。',
+    keywords: 'AI日記分析,今日,今日の景色,急所,外基準の統合,自然の眼,時間の地層,文体気象図,反復の地図,季節の自分',
     path: '/analysis',
   });
 
@@ -209,7 +237,7 @@ export function Analysis() {
   return (
     <div className="page">
       <h1 className="page-title">AI分析</h1>
-      <p className="subtitle">直近の日記だけを見る。深く。</p>
+      <p className="subtitle">直近を深く読む。全体を横断する。</p>
 
       {!hasApiKey() && (
         <p className="hint" style={{ color: 'var(--danger)' }}>
