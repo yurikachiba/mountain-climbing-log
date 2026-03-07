@@ -42,7 +42,7 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
   },
   vitalPoint: {
     title: '急所',
-    desc: '今日の日記から本質を突く、たった一つの指摘',
+    desc: '今日の日記から本質を突く一撃。書いてないことへの予告',
     fn: analyzeVitalPoint,
   },
   externalStandardsMastery: {
