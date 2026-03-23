@@ -10,6 +10,7 @@ import {
   analyzeTodaysLandscape,
   analyzeNatureReflection,
   analyzeTimeChanges,
+  analyzeCrossReading,
 } from '../utils/claude';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
@@ -21,7 +22,8 @@ type AnalysisType =
   | 'externalStandardsMastery'
   | 'todaysLandscape'
   | 'natureReflection'
-  | 'timeChanges';
+  | 'timeChanges'
+  | 'crossReading';
 
 interface AnalysisItem {
   title: string;
@@ -65,6 +67,11 @@ const analysisMap: Record<AnalysisType, AnalysisItem> = {
     desc: '3日・1週間・1ヶ月・3ヶ月・半年・1年・3年・5年 — 8つの距離から今日を見る。変化の事実だけを、評価せずに描く',
     fn: analyzeTimeChanges,
   },
+  crossReading: {
+    title: '横断読み',
+    desc: '他の分析結果を横断して読む。同じ急所が形を変えて繰り返し現れるところ、分析同士が気づかないまま指しているつながりを見つける',
+    fn: async () => '', // 特殊ハンドリング — run() 内で analyzeCrossReading を直接呼ぶ
+  },
 };
 
 const sampleLimits: Record<AnalysisType, number> = {
@@ -74,10 +81,12 @@ const sampleLimits: Record<AnalysisType, number> = {
   todaysLandscape: 30,  // 今日＋直近30日の背景
   natureReflection: 30, // 今日＋直近30日の比喩背景
   timeChanges: 9999,    // 全エントリから各時点を抽出（関数内でフィルタ）
+  crossReading: 30,     // 今日＋他の分析結果をインプットにする
 };
 
 // 「すべて実行」から除外する分析タイプ（個別実行は常に可能）
-const batchExcluded = new Set<AnalysisType>([]);
+// 横断読みは他の分析結果が必要なため、バッチには含めない
+const batchExcluded = new Set<AnalysisType>(['crossReading']);
 
 const categories: AnalysisCategory[] = [
   {
@@ -87,6 +96,10 @@ const categories: AnalysisCategory[] = [
   {
     label: '時間',
     items: ['timeChanges'],
+  },
+  {
+    label: '横断',
+    items: ['crossReading'],
   },
 ];
 
@@ -103,8 +116,8 @@ function formatDate(iso: string): string {
 export function Analysis() {
   useHead({
     title: 'AI分析',
-    description: '5種類のAI分析。今日、今日の景色、急所、外基準の統合、自然の眼。フィルターなしの全景マッピングから比喩の構造分析まで。',
-    keywords: 'AI日記分析,今日,今日の景色,急所,外基準の統合,自然の眼,直近分析',
+    description: '7種類のAI分析。今日、今日の景色、急所、外基準の統合、自然の眼、時間の地層、横断読み。フィルターなしの全景マッピングから比喩の構造分析、分析横断のパターン検出まで。',
+    keywords: 'AI日記分析,今日,今日の景色,急所,外基準の統合,自然の眼,時間の地層,横断読み,直近分析',
     path: '/analysis',
   });
 
@@ -125,6 +138,18 @@ export function Analysis() {
     return cache[type]?.isStale ?? false;
   }
 
+  // 横断読みに必要な他の分析結果を収集する
+  function collectAnalysisResults(): Record<string, string> {
+    const otherTypes: AnalysisType[] = ['todaysEntry', 'vitalPoint', 'externalStandardsMastery', 'todaysLandscape', 'natureReflection', 'timeChanges'];
+    const results: Record<string, string> = {};
+    for (const t of otherTypes) {
+      if (cache[t]?.result) {
+        results[t] = cache[t].result;
+      }
+    }
+    return results;
+  }
+
   async function run(type: AnalysisType) {
     if (!hasApiKey()) {
       setError('APIキーが設定されていません。設定ページで入力してください。');
@@ -133,16 +158,26 @@ export function Analysis() {
     setRunning(type);
     setError(null);
     try {
-      const prevResult = cache[type]?.result;
       // 急所の場合、過去ログから問い追跡用の結果を取得
       if (type === 'vitalPoint') {
+        const prevResult = cache[type]?.result;
         const pastLogs = await getAiLogsByType('vitalPoint');
         const pastResults = pastLogs
           .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt))
           .map(log => log.result);
         const result = await analyzeVitalPoint(entries, prevResult, pastResults);
         await save(type, result, count);
+      } else if (type === 'crossReading') {
+        // 横断読みは他の分析結果をインプットにする
+        const analysisResults = collectAnalysisResults();
+        if (Object.keys(analysisResults).length === 0) {
+          setError('横断読みには他の分析結果が必要です。先に他の分析を実行してください。');
+          return;
+        }
+        const result = await analyzeCrossReading(entries, analysisResults);
+        await save(type, result, count);
       } else {
+        const prevResult = cache[type]?.result;
         const result = await analysisMap[type].fn(entries, prevResult);
         await save(type, result, count);
       }
