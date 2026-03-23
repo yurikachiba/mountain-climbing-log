@@ -3336,3 +3336,112 @@ export async function analyzeTimeChanges(entries: DiaryEntry[]): Promise<string>
     },
   ], 3000);
 }
+
+// 横断読み — 複数の分析結果を横断して、形を変えて繰り返し現れるパターンを見つける
+// 日記そのものではなく、分析結果を読む分析
+export async function analyzeCrossReading(
+  entries: DiaryEntry[],
+  analysisResults: Record<string, string>,
+): Promise<string> {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    (a.date ?? '').localeCompare(b.date ?? '')
+  );
+  if (sorted.length === 0) return '';
+
+  const latestDate = new Date(sorted[sorted.length - 1].date!);
+  const latestDateStr = latestDate.toISOString().substring(0, 10);
+  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+  const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
+
+  const typeLabels: Record<string, string> = {
+    todaysEntry: '今日',
+    vitalPoint: '急所',
+    externalStandardsMastery: '外基準の統合',
+    todaysLandscape: '今日の景色',
+    natureReflection: '自然の眼',
+    timeChanges: '時間の地層',
+  };
+
+  const resultTexts = Object.entries(analysisResults)
+    .filter(([, text]) => text)
+    .map(([type, text]) => `【${typeLabels[type] || type}】\n${text}`)
+    .join('\n\n---\n\n');
+
+  if (!resultTexts) return '';
+
+  const resultCount = Object.values(analysisResults).filter(Boolean).length;
+
+  return callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは分析結果の読み手。日記ではなく、日記の分析結果を読む。',
+        '',
+        '【この分析の目的】',
+        '他の分析はそれぞれ固有のレンズで日記を読む。「急所」は本質を突き、「外基準の統合」は構造を読み、「自然の眼」は比喩を拾い、「時間の地層」は時間軸で変化を見る。',
+        'この分析は、それら複数の分析結果を横断して読む。',
+        '',
+        '探すのは：',
+        '- 同じ急所が形を変えて複数の分析に現れているところ',
+        '- ある分析が拾った一文を、別の分析が別の角度から読んでいるところ',
+        '- 分析同士が気づかないまま同じ構造を指しているところ',
+        '- 一つの分析だけでは見えないが、横断すると浮かぶパターン',
+        '',
+        '探さないもの：',
+        '- 各分析の要約や繰り返し',
+        '- 「すべての分析が同じことを言っている」という安易な統合',
+        '- 日記そのものの再分析（それは他の分析の仕事）',
+        '',
+        '【出力形式】マークダウン記法（#, ##, ###, ** 等）は使うな。■ を見出しとして使え。',
+        '',
+        '【最重要ルール】',
+        '- あなたが読むのは分析結果であって、日記そのものではない',
+        '- 分析結果を要約するな。パターンだけを抽出しろ',
+        '- 「すべてがつながっている」と書くな。具体的にどこがどうつながっているかを示せ',
+        '- 登山メタファーは使うな',
+        '- 「成長」「進歩」「克服」のフレームで統合するな',
+        '- 各分析の出来を評価するな。パターンの所在だけを報告しろ',
+        '',
+        '【主語を間違えるな】',
+        '- 分析結果の中で他者について書かれている部分を、書き手自身のパターンとして読むな',
+        '- 各分析が読んだ主語をそのまま保持しろ',
+        '',
+        '以下の形式で出力する：',
+        '',
+        '■ 繰り返し現れるもの',
+        '複数の分析が、違う角度から同じものに触れている箇所を指摘しろ。',
+        '「【急所】ではこう読み、【外基準の統合】ではこう読んでいる」のように、',
+        'どの分析がどう読んだかを具体的に示せ。',
+        '同じ一文や同じ出来事が、複数の分析で違う意味を持って現れているところを拾え。',
+        '最も強いパターン1〜3個。それぞれ3〜5文で十分。',
+        '',
+        '■ 一つの分析だけが見たもの',
+        'ある分析だけが拾っていて、他のどの分析も触れていない観察があれば指摘しろ。',
+        'それが「他の分析には見えない角度」なのか「取りこぼし」なのかは判断するな。',
+        '存在だけを報告しろ。1〜2個。なければ省略可。',
+        '',
+        '■ 今日の一点',
+        '横断して読んだ結果、今日の分析群全体を貫いている一点があるなら、それを一文で書け。',
+        'ない場合は「今日は散らばったまま」と書いていい。無理に統合するな。',
+        '',
+        '- 全体で400〜700字',
+        '- 分析結果の引用は最小限にしろ。パターンの指摘に集中',
+        '- 各分析を均等に扱う必要はない。パターンがあるところに紙幅を割け',
+        '- 簡潔さが命。繰り返しの指摘よりも、一つの鋭い発見',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: [
+        `今日の${resultCount}種類の分析結果を横断して読んでください。`,
+        '形を変えて繰り返し現れるパターン、分析間のつながりを見つけてください。',
+        '',
+        '【今日の日記（参照用）】',
+        todayTexts,
+        '',
+        '【今日の分析結果】',
+        resultTexts,
+      ].join('\n\n'),
+    },
+  ], 1500);
+}
