@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
-import { getAllFragments, getRandomEntry } from '../db';
-import type { DiaryEntry, Fragment } from '../types';
+import { getRandomEntry } from '../db';
+import type { DiaryEntry } from '../types';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -17,7 +17,6 @@ function truncate(text: string, max: number): string {
 
 export function Home() {
   const { entries, count, loading } = useEntries();
-  const [fragments, setFragments] = useState<Fragment[]>([]);
   const [randomEntry, setRandomEntry] = useState<DiaryEntry | null>(null);
 
   useHead({
@@ -26,10 +25,6 @@ export function Home() {
     keywords: '日記ダッシュボード,日記管理,日記件数',
     path: '/home',
   });
-
-  useEffect(() => {
-    getAllFragments().then(setFragments);
-  }, []);
 
   useEffect(() => {
     if (!loading && count > 0) {
@@ -123,12 +118,6 @@ export function Home() {
             <span className="home-stat-label">お気に入り</span>
           </div>
         )}
-        {fragments.length > 0 && (
-          <div className="home-stat-item">
-            <span className="home-stat-value">{fragments.length}</span>
-            <span className="home-stat-label">宝物</span>
-          </div>
-        )}
       </div>
 
       {stats && stats.oldest && stats.newest && (
@@ -204,7 +193,7 @@ export function Home() {
           </Link>
           <Link to="/fragments" className="home-nav-card">
             <span className="home-nav-label">宝物庫</span>
-            <span className="home-nav-desc">大切な断片</span>
+            <span className="home-nav-desc">光る一文</span>
           </Link>
           <Link to="/analysis" className="home-nav-card">
             <span className="home-nav-label">AI分析</span>

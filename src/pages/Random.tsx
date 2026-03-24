@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { DiaryEntry, FutureComment } from '../types';
-import { getRandomEntry, updateEntry, addFragment } from '../db';
+import { getRandomEntry, updateEntry } from '../db';
 import { anonymize } from '../utils/emotionAnalyzer';
 import { useHead } from '../hooks/useHead';
 
@@ -64,25 +64,6 @@ export function Random() {
     } catch { /* ignore */ }
   }
 
-  async function handleSaveFragment() {
-    if (!entry) return;
-    // テキスト選択があればそれを保存、なければ全文
-    const selection = window.getSelection()?.toString().trim();
-    const text = selection || entry.content.slice(0, 500);
-    await addFragment({
-      id: crypto.randomUUID(),
-      entryId: entry.id,
-      text,
-      savedAt: new Date().toISOString(),
-    });
-    // フラグも立てる
-    if (!entry.isFavorite) {
-      const updated = { ...entry, isFavorite: true };
-      await updateEntry(updated);
-      setEntry(updated);
-    }
-  }
-
   const displayContent = entry
     ? strangerMode
       ? anonymize(entry.content)
@@ -129,9 +110,6 @@ export function Random() {
           </div>
 
           <div className="entry-actions">
-            <button onClick={handleSaveFragment} className="btn btn-small">
-              宝物庫に保存
-            </button>
             <button onClick={handleCopy} className="btn btn-small">
               {copied ? 'コピーしました' : 'コピー'}
             </button>
