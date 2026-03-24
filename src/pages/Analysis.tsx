@@ -84,9 +84,8 @@ const sampleLimits: Record<AnalysisType, number> = {
   crossReading: 30,     // 今日＋他の分析結果をインプットにする
 };
 
-// 「すべて実行」から除外する分析タイプ（個別実行は常に可能）
-// 横断読みは他の分析結果が必要なため、バッチには含めない
-const batchExcluded = new Set<AnalysisType>(['crossReading']);
+// 横断読みは他の分析結果をインプットにするため、すべて実行の最後に回す
+const runLastTypes = new Set<AnalysisType>(['crossReading']);
 
 const categories: AnalysisCategory[] = [
   {
@@ -195,31 +194,58 @@ export function Analysis() {
     }
     setRunningAll(true);
     setError(null);
-    const types = categories.flatMap(c => c.items).filter(t => !batchExcluded.has(t));
-    setAllProgress({ done: 0, total: types.length });
+    const mainTypes = categories.flatMap(c => c.items).filter(t => !runLastTypes.has(t));
+    const lastTypes = categories.flatMap(c => c.items).filter(t => runLastTypes.has(t));
+    const allTypes = [...mainTypes, ...lastTypes];
+    setAllProgress({ done: 0, total: allTypes.length });
 
-    for (let i = 0; i < types.length; i++) {
-      const type = types[i];
+    // 横断読み用に各分析結果をローカルに収集（cache のクロージャは古いため）
+    const collectedResults: Record<string, string> = {};
+    let aborted = false;
+
+    for (let i = 0; i < mainTypes.length; i++) {
+      const type = mainTypes[i];
       setRunning(type);
       try {
         const prevResult = cache[type]?.result;
+        let result: string;
         if (type === 'vitalPoint') {
           const pastLogs = await getAiLogsByType('vitalPoint');
           const pastResults = pastLogs
             .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt))
             .map(log => log.result);
-          const result = await analyzeVitalPoint(entries, prevResult, pastResults);
-          await save(type, result, count);
+          result = await analyzeVitalPoint(entries, prevResult, pastResults);
         } else {
-          const result = await analysisMap[type].fn(entries, prevResult);
-          await save(type, result, count);
+          result = await analysisMap[type].fn(entries, prevResult);
         }
+        await save(type, result, count);
+        if (result) collectedResults[type] = result;
       } catch (err) {
         setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
+        aborted = true;
         break;
       }
-      setAllProgress({ done: i + 1, total: types.length });
+      setAllProgress({ done: i + 1, total: allTypes.length });
     }
+
+    // 横断読みを最後に実行（他の分析結果を収集済み）
+    if (!aborted && lastTypes.length > 0 && Object.keys(collectedResults).length > 0) {
+      for (let i = 0; i < lastTypes.length; i++) {
+        const type = lastTypes[i];
+        setRunning(type);
+        try {
+          if (type === 'crossReading') {
+            const result = await analyzeCrossReading(entries, collectedResults);
+            await save(type, result, count);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
+          break;
+        }
+        setAllProgress({ done: mainTypes.length + i + 1, total: allTypes.length });
+      }
+    }
+
     setRunning(null);
     setRunningAll(false);
     setAllProgress(null);
