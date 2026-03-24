@@ -99,6 +99,48 @@ function runMigrations(
   // --- 次のマイグレーションはここに追加 ---
 }
 
+// --- カーソルベースの全件取得 ---
+// db.getAll() は一部のブラウザ/環境で大量レコード時に全件返さない場合がある。
+// カーソルで走査して確実に全件取得する。
+
+async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations'>(
+  db: IDBPDatabase<ClimbingLogDB>,
+  storeName: StoreName,
+): Promise<ClimbingLogDB[StoreName]['value'][]> {
+  const tx = db.transaction(storeName, 'readonly');
+  const results: ClimbingLogDB[StoreName]['value'][] = [];
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    results.push(cursor.value);
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+  return results;
+}
+
+// インデックス経由のカーソルベース全件取得
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function cursorGetAllFromIndex(
+  db: IDBPDatabase<ClimbingLogDB>,
+  storeName: 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations',
+  indexName: string,
+  query?: IDBKeyRange | IDBValidKey,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tx = db.transaction(storeName, 'readonly') as any;
+  const index = tx.store.index(indexName);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const results: any[] = [];
+  let cursor = await index.openCursor(query);
+  while (cursor) {
+    results.push(cursor.value);
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+  return results;
+}
+
 // --- DB接続 ---
 
 let dbInstance: IDBPDatabase<ClimbingLogDB> | null = null;
@@ -134,7 +176,7 @@ export async function addEntries(entries: DiaryEntry[]): Promise<number> {
   const db = await getDB();
 
   // 既存エントリの重複キーセットを構築
-  const existing = await db.getAll('entries');
+  const existing = await cursorGetAll(db, 'entries');
   const existingKeys = new Set<string>();
   for (const e of existing) {
     existingKeys.add(await deduplicationKey(e));
@@ -163,8 +205,8 @@ export async function addEntries(entries: DiaryEntry[]): Promise<number> {
 
 export async function getAllEntries(): Promise<DiaryEntry[]> {
   const db = await getDB();
-  // getAll を使用（getAllFromIndex('by-date') だと date: null のエントリが除外されるため）
-  const all = await db.getAll('entries');
+  // カーソルで全件取得（getAll は一部環境で件数制限があるため）
+  const all = await cursorGetAll(db, 'entries');
   // 日付あり→日付昇順、日付なし→末尾（importedAt降順）
   return all.sort((a, b) => {
     if (a.date && b.date) return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
@@ -192,7 +234,7 @@ export async function deleteAllEntries(): Promise<void> {
 
 export async function getRandomEntry(): Promise<DiaryEntry | undefined> {
   const db = await getDB();
-  const all = await db.getAll('entries');
+  const all = await cursorGetAll(db, 'entries');
   if (all.length === 0) return undefined;
   return all[Math.floor(Math.random() * all.length)];
 }
@@ -204,7 +246,7 @@ export async function addFragment(fragment: Fragment): Promise<void> {
 
 export async function getAllFragments(): Promise<Fragment[]> {
   const db = await getDB();
-  return db.getAllFromIndex('fragments', 'by-saved');
+  return cursorGetAllFromIndex(db, 'fragments', 'by-saved');
 }
 
 export async function deleteFragment(id: string): Promise<void> {
@@ -214,7 +256,7 @@ export async function deleteFragment(id: string): Promise<void> {
 
 export async function getFragmentEntryIds(): Promise<Set<string>> {
   const db = await getDB();
-  const all = await db.getAll('fragments');
+  const all = await cursorGetAll(db, 'fragments');
   return new Set(all.map(f => f.entryId));
 }
 
@@ -229,9 +271,9 @@ export async function exportAllData(): Promise<{
   observations: Observation[];
 }> {
   const db = await getDB();
-  const entries = await db.getAll('entries');
-  const fragments = await db.getAll('fragments');
-  const observations = await db.getAll('observations');
+  const entries = await cursorGetAll(db, 'entries');
+  const fragments = await cursorGetAll(db, 'fragments');
+  const observations = await cursorGetAll(db, 'observations');
   return { entries, fragments, observations };
 }
 
@@ -269,7 +311,7 @@ export async function getAiCache(type: string): Promise<AiCache | undefined> {
 
 export async function getAllAiCache(): Promise<AiCache[]> {
   const db = await getDB();
-  return db.getAll('aiCache');
+  return cursorGetAll(db, 'aiCache');
 }
 
 export async function putAiCache(cache: AiCache): Promise<void> {
@@ -302,12 +344,12 @@ export async function addAiLog(log: AiLog): Promise<void> {
 
 export async function getAllAiLogs(): Promise<AiLog[]> {
   const db = await getDB();
-  return db.getAllFromIndex('aiLogs', 'by-analyzed');
+  return cursorGetAllFromIndex(db, 'aiLogs', 'by-analyzed');
 }
 
 export async function getAiLogsByType(type: string): Promise<AiLog[]> {
   const db = await getDB();
-  return db.getAllFromIndex('aiLogs', 'by-type', type);
+  return cursorGetAllFromIndex(db, 'aiLogs', 'by-type', type);
 }
 
 // --- 観測所（Observations）操作 ---
@@ -319,12 +361,12 @@ export async function addObservation(observation: Observation): Promise<void> {
 
 export async function getAllObservations(): Promise<Observation[]> {
   const db = await getDB();
-  return db.getAllFromIndex('observations', 'by-date');
+  return cursorGetAllFromIndex(db, 'observations', 'by-date');
 }
 
 export async function getObservationsByDate(date: string): Promise<Observation[]> {
   const db = await getDB();
-  return db.getAllFromIndex('observations', 'by-date', date);
+  return cursorGetAllFromIndex(db, 'observations', 'by-date', date);
 }
 
 export async function getObservationCount(): Promise<number> {
