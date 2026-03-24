@@ -19,6 +19,8 @@ export interface Fragment {
   entryId: string;
   text: string;
   savedAt: string;
+  source?: 'manual' | 'auto';
+  entryDate?: string | null;
 }
 
 export interface EmotionAnalysis {

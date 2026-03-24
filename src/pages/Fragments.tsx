@@ -1,28 +1,95 @@
-import { useState, useEffect } from 'react';
-import type { Fragment } from '../types';
-import { getAllFragments, deleteFragment } from '../db';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { DiaryEntry, Fragment } from '../types';
+import { getAllFragments, deleteFragment, addFragment, getFragmentEntryIds, getAllEntries } from '../db';
+import { extractFragments } from '../utils/claude';
+import { hasApiKey } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
+
+const BATCH_SIZE = 5;
 
 export function Fragments() {
   useHead({
-    title: '宝物庫（お気に入り）',
-    description: '日記の中で光っている一文だけを集めたページ。お気に入りの文章断片を保存・管理・閲覧。テキストを選択して保存すれば、心に響いた言葉をいつでも読み返せます。',
-    keywords: 'お気に入り日記,日記断片,名文保存,宝物庫,日記ブックマーク',
+    title: '宝物庫',
+    description: '日記の中で光っている一文をAIが自動で見つけて集めるページ。過去の日記から印象的な一文だけを抜き出し、いつでも読み返せます。',
+    keywords: 'お気に入り日記,日記断片,名文保存,宝物庫,AI抽出',
     path: '/fragments',
   });
+
   const [fragments, setFragments] = useState<Fragment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collecting, setCollecting] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [error, setError] = useState<string | null>(null);
+  const cancelRef = useRef(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const all = await getAllFragments();
-    setFragments(all.reverse()); // 新しい順
+    // 日記の日付順（新しい順）でソート、日付不明は末尾
+    setFragments(all.sort((a, b) => {
+      const da = a.entryDate ?? '';
+      const db = b.entryDate ?? '';
+      if (da && db) return db.localeCompare(da);
+      if (da) return -1;
+      if (db) return 1;
+      return b.savedAt.localeCompare(a.savedAt);
+    }));
     setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleCollectAll() {
+    if (collecting) return;
+    setError(null);
+    setCollecting(true);
+    cancelRef.current = false;
+
+    try {
+      const allEntries = await getAllEntries();
+      const existingIds = await getFragmentEntryIds();
+      const unprocessed = allEntries.filter(e => !existingIds.has(e.id) && e.content.trim().length > 30);
+
+      if (unprocessed.length === 0) {
+        setError('すべての日記から収集済みです');
+        setCollecting(false);
+        return;
+      }
+
+      setProgress({ done: 0, total: unprocessed.length });
+
+      for (let i = 0; i < unprocessed.length; i += BATCH_SIZE) {
+        if (cancelRef.current) break;
+        const batch = unprocessed.slice(i, i + BATCH_SIZE);
+        await processBatch(batch);
+        setProgress({ done: Math.min(i + BATCH_SIZE, unprocessed.length), total: unprocessed.length });
+      }
+
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'エラーが発生しました');
+    } finally {
+      setCollecting(false);
+    }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  async function processBatch(entries: DiaryEntry[]) {
+    const results = await extractFragments(entries);
+    for (const r of results) {
+      await addFragment({
+        id: crypto.randomUUID(),
+        entryId: r.entryId,
+        text: r.text,
+        savedAt: new Date().toISOString(),
+        source: 'auto',
+        entryDate: r.entryDate,
+      });
+    }
+  }
+
+  function handleCancel() {
+    cancelRef.current = true;
+  }
 
   async function handleDelete(id: string) {
     await deleteFragment(id);
@@ -31,27 +98,65 @@ export function Fragments() {
 
   if (loading) return <div className="page"><p className="loading-text">読み込み中...</p></div>;
 
+  const hasKey = hasApiKey();
+
   return (
     <div className="page">
       <h1 className="page-title">宝物庫</h1>
-      <p className="subtitle">光ってる文だけ集めたページ</p>
+      <p className="subtitle">日記の中の、光っている一文</p>
 
+      {/* 収集コントロール */}
+      <div className="treasure-controls">
+        {!hasKey ? (
+          <p className="treasure-hint">
+            設定ページでAPIキーを登録すると、日記から自動で光る一文を集められます。
+          </p>
+        ) : collecting ? (
+          <div className="treasure-progress">
+            <div className="treasure-progress-bar-bg">
+              <div
+                className="treasure-progress-bar"
+                style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }}
+              />
+            </div>
+            <p className="treasure-progress-text">
+              {progress.done} / {progress.total} 件の日記から光を集めています...
+            </p>
+            <button onClick={handleCancel} className="btn btn-small">中断する</button>
+          </div>
+        ) : (
+          <button onClick={handleCollectAll} className="btn btn-primary">
+            すべての日記から光を集める
+          </button>
+        )}
+        {error && <p className="treasure-error">{error}</p>}
+      </div>
+
+      {/* フラグメント一覧 */}
       {fragments.length === 0 ? (
-        <p className="empty-message">まだ何も保存されていません</p>
+        <div className="treasure-empty">
+          <p className="treasure-empty-text">まだ何も集まっていません</p>
+          <p className="treasure-empty-hint">
+            ボタンを押すと、日記の中から光っている一文をAIが見つけてきます。
+          </p>
+        </div>
       ) : (
-        <div className="fragments-list">
+        <div className="treasure-list">
           {fragments.map(f => (
-            <div key={f.id} className="fragment-card">
-              <p className="fragment-text">{f.text}</p>
-              <div className="fragment-meta">
-                <span className="fragment-date">
-                  {new Date(f.savedAt).toLocaleDateString('ja-JP')}
+            <div key={f.id} className="treasure-card">
+              <blockquote className="treasure-text">{f.text}</blockquote>
+              <div className="treasure-meta">
+                <span className="treasure-date">
+                  {f.entryDate
+                    ? f.entryDate.replace(/-/g, '.')
+                    : new Date(f.savedAt).toLocaleDateString('ja-JP')}
                 </span>
                 <button
                   onClick={() => handleDelete(f.id)}
-                  className="btn btn-danger btn-small"
+                  className="treasure-delete"
+                  aria-label="削除"
                 >
-                  削除
+                  &times;
                 </button>
               </div>
             </div>

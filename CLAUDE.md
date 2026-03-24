@@ -103,7 +103,9 @@ OpenAI APIを使わないクライアント完結の分析:
 - 深層分析（deepAnalyzer.ts）: 移動平均・トレンド転機検出・季節クロス集計・語彙深度・存在論的密度・予測指標
 
 ### ビルドとデプロイ
+- **ビルド前に必ず `npm install` を実行すること**（絶対）
 ```bash
+npm install      # 依存関係のインストール（ビルド前に必ず実行）
 npm run dev      # 開発サーバー（Vite）
 npm run build    # tsc -b && vite build
 npm run lint     # eslint

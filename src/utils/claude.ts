@@ -3454,3 +3454,65 @@ export async function analyzeCrossReading(
     },
   ], 1500);
 }
+
+// ── 宝物庫: 日記から光っている一文を自動抽出 ──
+
+export async function extractFragments(
+  entries: DiaryEntry[],
+): Promise<{ entryId: string; entryDate: string | null; text: string }[]> {
+  if (entries.length === 0) return [];
+
+  const formatted = entries.map(e =>
+    `<entry id="${e.id}" date="${e.date ?? '不明'}">\n${e.content.slice(0, 600)}\n</entry>`
+  ).join('\n\n');
+
+  const result = await callChat([
+    {
+      role: 'system',
+      content: [
+        'あなたは日記の中から「光っている一文」を見つける目を持つ読み手です。',
+        '',
+        '日記のエントリが複数渡されます。各エントリから最も印象的な一文を1つだけ抜き出してください。',
+        '',
+        '「光っている一文」とは：',
+        '- その人自身の声が出ている瞬間',
+        '- 比喩や感覚が鮮やかに言語化されている文',
+        '- 短くても読み返したくなる、手触りのある文',
+        '- 業務報告や事実の羅列ではなく、内面が一瞬見える文',
+        '',
+        '日記の中に光る文が見つからない場合（業務メモだけ、箇条書きだけなど）は、そのエントリをスキップしてください。',
+        '無理に選ばないこと。',
+        '',
+        '出力形式（各エントリにつき1行、スキップしたエントリは出力しない）：',
+        'ENTRY_ID|抜き出した一文',
+        '',
+        '一文は原文のままコピーすること。改変しない。',
+        '一文は1〜3文程度（長すぎない）。',
+        '他には何も出力しないこと。',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: formatted,
+    },
+  ], Math.max(512, entries.length * 100));
+
+  const lines = result.split('\n').filter(l => l.includes('|'));
+  const entryMap = new Map(entries.map(e => [e.id, e]));
+  const fragments: { entryId: string; entryDate: string | null; text: string }[] = [];
+
+  for (const line of lines) {
+    const sepIdx = line.indexOf('|');
+    if (sepIdx < 0) continue;
+    const id = line.slice(0, sepIdx).trim();
+    const text = line.slice(sepIdx + 1).trim();
+    if (!text || !entryMap.has(id)) continue;
+    fragments.push({
+      entryId: id,
+      entryDate: entryMap.get(id)!.date,
+      text,
+    });
+  }
+
+  return fragments;
+}

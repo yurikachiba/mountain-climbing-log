@@ -212,6 +212,12 @@ export async function deleteFragment(id: string): Promise<void> {
   await db.delete('fragments', id);
 }
 
+export async function getFragmentEntryIds(): Promise<Set<string>> {
+  const db = await getDB();
+  const all = await db.getAll('fragments');
+  return new Set(all.map(f => f.entryId));
+}
+
 export async function getEntryCount(): Promise<number> {
   const db = await getDB();
   return db.count('entries');
