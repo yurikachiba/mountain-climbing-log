@@ -4,34 +4,10 @@ import { WebSiteJsonLd, WebAppJsonLd, FAQJsonLd, HowToJsonLd, SoftwareAppJsonLd,
 
 const features = [
   {
-    title: 'ランダム再会',
-    desc: '過去の日記にランダムで再会。「他人モード」で匿名化して新鮮な目線で読み返し、「未来からの報告」で過去の自分にコメントを残せる。ワンクリックで日記をコピー可能。',
-    icon: '🎲',
-    link: '/random',
-  },
-  {
-    title: 'この日の記録',
-    desc: '1年前、3年前、5年前の同じ日を振り返る。時間を縦に貫いて、自分の変化を感じる。各日記をワンクリックでコピー可能。',
-    icon: '📅',
-    link: '/onthisday',
-  },
-  {
-    title: '日月年の変化',
-    desc: '今日を基準に、1日前・1週間前・1ヶ月前・1年前の日記を並べて表示。時間のスケールを変えて、過去と今の変化を感じる。基準日は自由に変更可能。',
-    icon: '🔄',
-    link: '/datehistory',
-  },
-  {
-    title: 'キーワード検索',
-    desc: 'あの日のあの言葉を探す全文検索。日付範囲の絞り込みやソート順の切り替えにも対応。検索結果の日記をワンクリックでコピー可能。',
-    icon: '🔍',
-    link: '/search',
-  },
-  {
-    title: 'カレンダー表示',
-    desc: '書いた日、書かなかった日。記録の密度をヒートマップカレンダーで一望。日付クリックでその日の日記を表示・コピー。',
-    icon: '📆',
-    link: '/calendar',
+    title: 'AI分析（7種類）',
+    desc: 'Claude APIで日記を深層分析。「今日」は友人視点で深く読む。「今日の景色」は全トピックの並びを見せる。「急所」は本質を突く。「外基準の統合」は内側を守ったまま外基準を扱えているかを診る。「自然の眼」は比喩・メタファーから世界の捉え方を読む。「時間の地層」は3日〜5年の8つの距離から変化を描く。「横断読み」は複数の分析結果を横断して、形を変えて繰り返し現れるパターンを見つける。',
+    icon: '🤖',
+    link: '/analysis',
   },
   {
     title: '成長タイムライン',
@@ -40,43 +16,27 @@ const features = [
     link: '/timeline',
   },
   {
-    title: 'ワードクラウド',
-    desc: 'よく使う言葉を可視化して語彙の傾向を把握。全期間・年別の切り替え、出現回数のフィルタリングに対応。',
-    icon: '☁️',
-    link: '/wordcloud',
-  },
-  {
-    title: 'AI分析（7種類）',
-    desc: 'Claude APIで日記を深層分析。「今日」は友人視点で深く読む。「今日の景色」は全トピックの並びを見せる。「急所」は本質を突く。「外基準の統合」は内側を守ったまま外基準を扱えているかを診る。「自然の眼」は比喩・メタファーから世界の捉え方を読む。「時間の地層」は3日〜5年の8つの距離から変化を描く。「横断読み」は複数の分析結果を横断して、形を変えて繰り返し現れるパターンを見つける。',
-    icon: '🤖',
-    link: '/analysis',
-  },
-  {
-    title: '観測所',
-    desc: 'やさしい問いかけで日々を記録するジャーナリング。空模様・波の高さ・体温を選び、短いメモを残す。分析ではなく、ただ今日を観測する場所。',
-    icon: '🔭',
-    link: '/observatory',
-  },
-  {
     title: '宝物庫',
     desc: 'AIが日記の中から「光っている一文」を自動で見つけて集める。一括収集で過去の日記すべてから抽出。手動保存にも対応。',
     icon: '💎',
     link: '/fragments',
+  },
+  {
+    title: 'AI分析ログ',
+    desc: '過去のAI分析結果をすべて保存・一覧表示。分析タイプごとの絞り込み、結果のコピーに対応。分析の蓄積が、振り返りの資産になる。',
+    icon: '📋',
+    link: '/ai-logs',
   },
 ];
 
 const useCases = [
   {
     title: '日記を書き続けている方',
-    desc: '何年分もの日記をインポートして、過去の自分と再会。タイムラインで感情の推移を追い、書き続けてきた記録が「資産」になります。',
+    desc: '何年分もの日記をインポートして、AI分析で多角的に読み解く。タイムラインで感情の推移を追い、書き続けてきた記録が「資産」になります。',
   },
   {
     title: '自己分析・内省をしたい方',
     desc: 'ローカル感情分析でネガティブ比率やトレンドを把握。AI分析で友人視点の深い読み解きも。自分では気づけなかったパターンが見えてきます。',
-  },
-  {
-    title: '今日をやさしく記録したい方',
-    desc: '観測所のやさしい問いかけで、身体感覚や些細な気づきを記録。分析ではなく、ただ今日を観測する静かな場所。',
   },
   {
     title: 'プライバシーを重視する方',
@@ -87,7 +47,7 @@ const useCases = [
 const faqs = [
   {
     q: '登山ログとは何ですか？',
-    a: '登山ログは、個人の日記やメモを管理・分析するためのウェブアプリケーションです。「登山」は自分を高めるという意味の比喩で、実際の登山記録アプリではありません。テキストやMarkdownファイルをインポートし、検索・分析・可視化など様々な方法で過去の記録を振り返ることができます。無料で利用でき、アカウント登録も不要です。',
+    a: '登山ログは、個人の日記やメモをAIで深層分析するためのウェブアプリケーションです。「登山」は自分を高めるという意味の比喩で、実際の登山記録アプリではありません。テキストやMarkdownファイルをインポートし、7種類のAI分析・感情タイムライン・宝物庫で過去の記録を多角的に振り返ることができます。無料で利用でき、アカウント登録も不要です。',
   },
   {
     q: 'データはどこに保存されますか？',
@@ -99,7 +59,7 @@ const faqs = [
   },
   {
     q: 'オフラインでも使えますか？',
-    a: 'はい、PWA（Progressive Web App）に対応しているため、一度アクセスした後はオフラインでもご利用いただけます。日記の閲覧・検索・ワードクラウドなどすべての基本機能がオフラインで動作します。AI分析機能のみインターネット接続が必要です。',
+    a: 'はい、PWA（Progressive Web App）に対応しているため、一度アクセスした後はオフラインでもご利用いただけます。感情タイムラインなどの基本機能がオフラインで動作します。AI分析機能のみインターネット接続が必要です。',
   },
   {
     q: 'どのようなファイル形式に対応していますか？',
@@ -115,11 +75,11 @@ const faqs = [
   },
   {
     q: '登山ログの使い方を教えてください',
-    a: '3ステップで始められます。(1) 日記をインポート: テキストファイル(.txt)やMarkdown(.md)、JSON(.json)をドラッグ＆ドロップ、またはブラウザ上で直接入力。(2) 好きな方法で読み返す: ランダム再会、この日の記録、キーワード検索、カレンダーヒートマップなど。(3) 可視化・分析: タイムラインで感情の推移、ワードクラウドで語彙の傾向、AI分析7種類で新たな気づきを得る。アカウント登録不要で、すぐに使い始められます。',
+    a: '2ステップで始められます。(1) 日記をインポート: テキストファイル(.txt)やMarkdown(.md)、JSON(.json)をドラッグ＆ドロップ、またはブラウザ上で直接入力。(2) AI分析・可視化: 7種類のAI深層分析で日記を多角的に読み解く。タイムラインで感情の推移を追う。宝物庫で光る一文を集める。アカウント登録不要で、すぐに使い始められます。',
   },
   {
     q: '日記アプリのおすすめは？プライバシーが心配です',
-    a: '登山ログはプライバシーを最も重視した日記管理アプリです。すべてのデータはブラウザ内（IndexedDB）に保存され、外部サーバーへの送信は一切ありません。Cookie・トラッキング不使用、アカウント登録も不要。PWA対応でオフラインでも使えます。無料で、日記のインポート・検索・カレンダー表示・ワードクラウド・AI分析など多彩な機能を搭載しています。',
+    a: '登山ログはプライバシーを最も重視した日記分析アプリです。すべてのデータはブラウザ内（IndexedDB）に保存され、外部サーバーへの送信は一切ありません。Cookie・トラッキング不使用、アカウント登録も不要。PWA対応でオフラインでも使えます。無料で、7種類のAI深層分析・感情タイムライン・宝物庫を搭載しています。',
   },
   {
     q: '日記のAI分析ができるアプリはありますか？',
@@ -130,7 +90,7 @@ const faqs = [
 export function Landing() {
   useHead({
     title: undefined,
-    description: '登山ログは日記やメモを取り込んで、ランダム再会・キーワード検索・カレンダー表示・ワードクラウド・AI感情分析で過去の自分と再会できる無料ウェブアプリです。データは端末内に保存。PWA対応でオフラインでも利用可能。',
+    description: '昔の自分の言葉に、もう一度会える。日記を取り込んでAIで深層分析する無料ウェブアプリ。7種類のAI分析・感情タイムライン・宝物庫。データは端末内だけ、登録不要。',
     path: '/',
   });
 
@@ -146,30 +106,51 @@ export function Landing() {
 
       {/* Hero */}
       <section className="landing-hero">
-        <h1 className="landing-title">登山ログ</h1>
-        <p className="landing-tagline">未来から過去へロープを垂らす装置</p>
+        <p className="landing-brand">登山ログ</p>
+        <h1 className="landing-title">昔の自分の言葉に、もう一度会える</h1>
         <p className="landing-lead">
-          日記を取り込んで、過去の自分と再会する。<br />
-          検索・分析・可視化。静かに振り返るための無料ウェブアプリ。
-        </p>
-        <p className="landing-summary">
-          登山ログは、テキスト・Markdown・JSONの日記ファイルをインポートし、ランダム再会・キーワード検索・カレンダーヒートマップ・ワードクラウド・ローカル感情分析・Claude APIによる7種類のAI深層分析で過去の自分と再会できる無料ウェブアプリです。すべてのデータはブラウザ内に保存され、サーバー送信なし・Cookie不使用・アカウント登録不要のプライバシーファースト設計。PWA対応でオフラインでも利用可能です。
+          記録しただけで終わらない。<br />
+          日記をAIで深層分析して、自分の変化を見つける。
         </p>
         <p className="landing-sub-lead">
-          アカウント登録不要・データは端末内のみ保存・オフライン対応
+          データは端末内だけ。登録不要。無料。
         </p>
         <div className="landing-cta">
           <Link to="/import" className="btn btn-primary">はじめる（無料）</Link>
-          <Link to="/home" className="btn">ダッシュボードへ</Link>
+          <Link to="/analysis" className="btn">AI分析を見る</Link>
+        </div>
+      </section>
+
+      {/* 3 Pillars */}
+      <section className="landing-section" id="pillars">
+        <div className="landing-pillars">
+          <div className="landing-pillar">
+            <span className="landing-pillar-icon" aria-hidden="true">🤖</span>
+            <h2 className="landing-pillar-title">AIが日記を深く読む</h2>
+            <p className="landing-pillar-desc">
+              7種類の深層分析で、自分では気づけないパターンを発見。友人視点、急所、時間の地層、横断読み。日記が「自分を知る道具」になる。
+            </p>
+          </div>
+          <div className="landing-pillar">
+            <span className="landing-pillar-icon" aria-hidden="true">🔒</span>
+            <h2 className="landing-pillar-title">データは端末内だけで安全</h2>
+            <p className="landing-pillar-desc">
+              すべてのデータはブラウザ内に保存。外部送信なし、Cookie不使用、アカウント登録不要。日記という最もプライベートなデータを、最も安全な場所に。
+            </p>
+          </div>
+          <div className="landing-pillar">
+            <span className="landing-pillar-icon" aria-hidden="true">📈</span>
+            <h2 className="landing-pillar-title">変化がグラフで見える</h2>
+            <p className="landing-pillar-desc">
+              感情の推移・安定指数・トレンド検出をタイムラインで可視化。AIを使わず端末内で完結する分析で、長期的な自分の変化を追える。
+            </p>
+          </div>
         </div>
       </section>
 
       {/* Features */}
       <section className="landing-section" id="features">
-        <h2 className="landing-section-title">登山ログでできること ― 10の主要機能</h2>
-        <p className="landing-section-lead">
-          日記をインポートするだけで、検索・分析・可視化のすべてが使えます。
-        </p>
+        <h2 className="landing-section-title">すべての機能</h2>
         <div className="landing-features" role="list">
           {features.map(f => (
             <article key={f.title} className="landing-feature" role="listitem">
@@ -198,26 +179,6 @@ export function Landing() {
         </div>
 
         <div className="landing-detail-block">
-          <h3>日月年の変化 ― 過去と今を並べて見る</h3>
-          <p>
-            今日を基準に、1日前・1週間前・1ヶ月前・3ヶ月前・半年前・1年前…と、異なる時間スケールの日記を並べて表示します。
-            「この日の記録」が同じ月日を縦に見るのに対し、「日月年の変化」は異なるスケールで過去と今を比較できます。
-            基準日は自由に変更可能。各日記をワンクリックでコピーできます。
-          </p>
-          <p><Link to="/datehistory">日月年の変化を見る</Link></p>
-        </div>
-
-        <div className="landing-detail-block">
-          <h3>ローカル感情分析 ― タイムライン・安定指数・標高メタファー</h3>
-          <p>
-            AIを使わずに端末内で完結する感情分析機能です。
-            ネガティブ比率の推移、自己否定語の出現頻度、年ごとの安定指数をグラフで可視化。
-            「どれだけ登ったか」を標高メタファーで表現する独自の成長指標も搭載しています。
-          </p>
-          <p><Link to="/timeline">成長タイムラインを見る</Link></p>
-        </div>
-
-        <div className="landing-detail-block">
           <h3>AI分析 ― 7種類の深層分析</h3>
           <p>
             Claude APIを使って日記を多角的に分析。「今日」は友人視点で今日の日記だけを深く読む。
@@ -232,20 +193,20 @@ export function Landing() {
         </div>
 
         <div className="landing-detail-block">
-          <h3>観測所 ― やさしい問いかけで今日を記録</h3>
+          <h3>ローカル感情分析 ― タイムライン・安定指数・標高メタファー</h3>
           <p>
-            「今日、おいしいって感じたものはあった？」「体が冷えたとき、どうやって温めた？」
-            やさしい問いかけに答えるジャーナリング。空模様・波の高さ・体温を選び、短いメモを残す。
-            分析や評価ではなく、ただ今日を観測する場所です。
+            AIを使わずに端末内で完結する感情分析機能です。
+            ネガティブ比率の推移、自己否定語の出現頻度、年ごとの安定指数をグラフで可視化。
+            「どれだけ登ったか」を標高メタファーで表現する独自の成長指標も搭載しています。
           </p>
-          <p><Link to="/observatory">観測所を開く</Link></p>
+          <p><Link to="/timeline">成長タイムラインを見る</Link></p>
         </div>
 
         <div className="landing-detail-block">
           <h3>宝物庫 ― AIが光る一文を自動収集</h3>
           <p>
             Claude APIが日記の中から「光っている一文」を自動で見つけて集めます。
-            一括収集ボタンで過去の日記すべてから抽出。ランダムページからの手動保存にも対応しています。
+            一括収集ボタンで過去の日記すべてから抽出。手動保存にも対応しています。
           </p>
           <p><Link to="/fragments">宝物庫を見る</Link></p>
         </div>
@@ -253,7 +214,7 @@ export function Landing() {
 
       {/* How it works */}
       <section className="landing-section" id="howto">
-        <h2 className="landing-section-title">使い方 ― 3ステップで始められます</h2>
+        <h2 className="landing-section-title">使い方 ― 2ステップで始められます</h2>
         <ol className="landing-steps">
           <li className="landing-step">
             <span className="landing-step-num" aria-hidden="true">1</span>
@@ -268,20 +229,10 @@ export function Landing() {
           <li className="landing-step">
             <span className="landing-step-num" aria-hidden="true">2</span>
             <div>
-              <h3 className="landing-step-title">好きな方法で読み返す</h3>
+              <h3 className="landing-step-title">AI分析・可視化で新たな気づきを得る</h3>
               <p className="landing-step-desc">
-                ランダム表示で偶然の再会を楽しむ。「この日」で年をまたいだ振り返りをする。
-                キーワード検索であの日の言葉を探す。カレンダーで記録の密度を一望する。
-              </p>
-            </div>
-          </li>
-          <li className="landing-step">
-            <span className="landing-step-num" aria-hidden="true">3</span>
-            <div>
-              <h3 className="landing-step-title">可視化・分析で新たな気づきを得る</h3>
-              <p className="landing-step-desc">
-                タイムラインで感情の推移を追う。ワードクラウドで語彙の傾向を把握する。
-                AI分析で客観的な視点を得る。日記が「自己分析ツール」になります。
+                7種類のAI深層分析で日記を多角的に読み解く。タイムラインで感情の推移を追う。
+                宝物庫で日記の中の光る一文を集める。日記が「自己分析ツール」になります。
               </p>
             </div>
           </li>
@@ -372,7 +323,7 @@ export function Landing() {
 
       {/* Bottom CTA */}
       <section className="landing-bottom-cta">
-        <p className="landing-bottom-text">過去の自分に、ロープを垂らそう。</p>
+        <p className="landing-bottom-text">昔の自分の言葉に、もう一度会いに行く。</p>
         <p style={{ marginBottom: 16, color: 'var(--text-muted, #888)' }}>
           無料・登録不要・データは端末内のみ保存
         </p>
