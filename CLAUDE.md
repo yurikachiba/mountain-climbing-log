@@ -111,3 +111,21 @@ npm run build    # tsc -b && vite build
 npm run lint     # eslint
 npm run preview  # ビルド済みのプレビュー
 ```
+
+## 実装上の注意点
+
+### IndexedDB の全件取得
+- `db.getAll()` やインデックス経由のカーソル走査は、インデックス対象フィールドが欠落したレコードを取りこぼす
+- 全件取得が必要な場面では、必ず**ストア直接のカーソル走査**（`cursorGetAll`）を使うこと
+- インデックス経由（`cursorGetAllFromIndex`）はソート・フィルタ目的でのみ使い、全件取得には使わない
+
+### API呼び出し（callChat / callChatRaw）
+- `callChatRaw` は `{ text, stopReason }` を返す。レスポンスの切り詰めを検出する必要がある場合はこちらを使う
+- `callChat` は互換ラッパー（text のみ返す）。切り詰め検出が不要な通常の分析に使う
+- バッチ処理で API を呼ぶ場合、`max_tokens` を十分に確保すること（レスポンスが `stop_reason: 'max_tokens'` で切れるとデータが失われる）
+- 切り詰めが起きうる場面では `stopReason` をチェックし、必要に応じてリトライする
+
+### 宝物庫（Fragments）のスキップマーカー
+- AI が「光る文なし」と判断したエントリには `source: 'auto-skip'` のマーカーフラグメントが保存される
+- これにより `getFragmentEntryIds()` が処理済みと認識し、再処理を防止する
+- 表示時は `source !== 'auto-skip'` でフィルタすること

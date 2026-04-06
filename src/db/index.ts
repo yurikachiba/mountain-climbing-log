@@ -119,7 +119,6 @@ async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache
 }
 
 // インデックス経由のカーソルベース全件取得
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function cursorGetAllFromIndex(
   db: IDBPDatabase<ClimbingLogDB>,
   storeName: 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations',

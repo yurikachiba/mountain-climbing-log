@@ -17,7 +17,7 @@ export function useEntries() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    refresh(); // eslint-disable-line react-hooks/set-state-in-effect -- 初回マウント時の非同期データ取得
   }, [refresh]);
 
   return { entries, count, loading, refresh };

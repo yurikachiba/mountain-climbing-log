@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { deleteAllEntries, exportAllData, importAllData, clearAllAiCache, markAllAiCacheStale } from '../db';
 import { getApiKey, setApiKey, getKeyStorageMode, setKeyStorageMode } from '../utils/apiKey';
 import type { KeyStorageMode } from '../utils/apiKey';
@@ -23,18 +23,10 @@ export function Settings() {
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [keyMasked, setKeyMasked] = useState(false);
-  const [storageMode, setStorageMode] = useState<KeyStorageMode>('local');
-
-  useEffect(() => {
-    const saved = getApiKey();
-    if (saved) {
-      setApiKeyInput(saved);
-      setKeyMasked(true);
-    }
-    setStorageMode(getKeyStorageMode());
-  }, []);
+  const savedKey = getApiKey();
+  const [apiKeyInput, setApiKeyInput] = useState(() => savedKey ?? '');
+  const [keyMasked, setKeyMasked] = useState(() => !!savedKey);
+  const [storageMode, setStorageMode] = useState<KeyStorageMode>(() => getKeyStorageMode());
 
   function handleSaveKey() {
     setApiKey(apiKeyInput);

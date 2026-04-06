@@ -735,7 +735,8 @@ export function calcSeasonalCrossStats(monthly: MonthlyDeepAnalysis[]): Seasonal
   }
 
   // 内部用フィールドを除去して返す
-  return rawResults.map(({ _totalNeg: _n, _totalPos: _p, ...rest }) => rest);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  return rawResults.map(({ _totalNeg, _totalPos, ...rest }) => rest);
 }
 
 // ── 数値ベースの現在地評価 ──
@@ -1195,8 +1196,6 @@ export function calcDailyPredictiveContext(entries: DiaryEntry[]): DailyPredicti
   }
 
   // 3. 感覚症状×対人イベントの同時出現率
-  let sensoryDays = 0;
-  let coOccurrenceDays = 0;
   const sensoryCounts = new Map<string, { total: number; withInterpersonal: number }>();
 
   for (const date of dates) {
@@ -1205,9 +1204,6 @@ export function calcDailyPredictiveContext(entries: DiaryEntry[]): DailyPredicti
     const hasInterpersonal = countWords(text, interpersonalWords) > 0;
 
     if (hasSensory) {
-      sensoryDays++;
-      if (hasInterpersonal) coOccurrenceDays++;
-
       // 個別の感覚症状ごとに集計
       for (const word of sensorySymptomWords) {
         if (countWords(text, [word]) > 0) {
