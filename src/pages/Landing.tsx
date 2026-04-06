@@ -130,7 +130,7 @@ const faqs = [
 export function Landing() {
   useHead({
     title: undefined,
-    description: '登山ログは日記やメモを取り込んで、ランダム再会・キーワード検索・カレンダー表示・ワードクラウド・AI感情分析で過去の自分と再会できる無料ウェブアプリです。データは端末内に保存。PWA対応でオフラインでも利用可能。',
+    description: '昔の自分の言葉に、もう一度会える。日記を取り込んで過去の自分と再会する無料ウェブアプリ。データは端末内だけ、登録不要、無料。ランダム再会・AI分析・感情タイムラインで記録が資産になる。',
     path: '/',
   });
 
@@ -146,17 +146,14 @@ export function Landing() {
 
       {/* Hero */}
       <section className="landing-hero">
-        <h1 className="landing-title">登山ログ</h1>
-        <p className="landing-tagline">未来から過去へロープを垂らす装置</p>
+        <p className="landing-brand">登山ログ</p>
+        <h1 className="landing-title">昔の自分の言葉に、もう一度会える</h1>
         <p className="landing-lead">
-          日記を取り込んで、過去の自分と再会する。<br />
-          検索・分析・可視化。静かに振り返るための無料ウェブアプリ。
-        </p>
-        <p className="landing-summary">
-          登山ログは、テキスト・Markdown・JSONの日記ファイルをインポートし、ランダム再会・キーワード検索・カレンダーヒートマップ・ワードクラウド・ローカル感情分析・Claude APIによる7種類のAI深層分析で過去の自分と再会できる無料ウェブアプリです。すべてのデータはブラウザ内に保存され、サーバー送信なし・Cookie不使用・アカウント登録不要のプライバシーファースト設計。PWA対応でオフラインでも利用可能です。
+          記録しただけで終わらない。<br />
+          過去の自分を読み返して、変化を見つける日記アプリ。
         </p>
         <p className="landing-sub-lead">
-          アカウント登録不要・データは端末内のみ保存・オフライン対応
+          データは端末内だけ。登録不要。無料。
         </p>
         <div className="landing-cta">
           <Link to="/import" className="btn btn-primary">はじめる（無料）</Link>
@@ -164,12 +161,36 @@ export function Landing() {
         </div>
       </section>
 
+      {/* 3 Pillars */}
+      <section className="landing-section" id="pillars">
+        <div className="landing-pillars">
+          <div className="landing-pillar">
+            <span className="landing-pillar-icon" aria-hidden="true">🎲</span>
+            <h2 className="landing-pillar-title">過去の自分に再会できる</h2>
+            <p className="landing-pillar-desc">
+              ランダム再会で忘れていた日記と出会い直す。「この日の記録」で1年前・3年前の同じ日を振り返る。読み返すたびに、記録が意味を変える。
+            </p>
+          </div>
+          <div className="landing-pillar">
+            <span className="landing-pillar-icon" aria-hidden="true">🔒</span>
+            <h2 className="landing-pillar-title">データは端末内だけで安全</h2>
+            <p className="landing-pillar-desc">
+              すべてのデータはブラウザ内に保存。外部送信なし、Cookie不使用、アカウント登録不要。日記という最もプライベートなデータを、最も安全な場所に。
+            </p>
+          </div>
+          <div className="landing-pillar">
+            <span className="landing-pillar-icon" aria-hidden="true">📈</span>
+            <h2 className="landing-pillar-title">分析で自分の変化が見える</h2>
+            <p className="landing-pillar-desc">
+              感情の推移をグラフで可視化。AI分析で自分では気づけないパターンを発見。日記が「読み返すもの」から「自分を知る道具」になる。
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section className="landing-section" id="features">
-        <h2 className="landing-section-title">登山ログでできること ― 10の主要機能</h2>
-        <p className="landing-section-lead">
-          日記をインポートするだけで、検索・分析・可視化のすべてが使えます。
-        </p>
+        <h2 className="landing-section-title">すべての機能</h2>
         <div className="landing-features" role="list">
           {features.map(f => (
             <article key={f.title} className="landing-feature" role="listitem">
@@ -372,7 +393,7 @@ export function Landing() {
 
       {/* Bottom CTA */}
       <section className="landing-bottom-cta">
-        <p className="landing-bottom-text">過去の自分に、ロープを垂らそう。</p>
+        <p className="landing-bottom-text">昔の自分の言葉に、もう一度会いに行く。</p>
         <p style={{ marginBottom: 16, color: 'var(--text-muted, #888)' }}>
           無料・登録不要・データは端末内のみ保存
         </p>

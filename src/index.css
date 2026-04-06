@@ -2056,10 +2056,49 @@ body {
 
 /* ---- Landing: 追加セクション ---- */
 
+.landing-brand {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
 .landing-sub-lead {
   font-size: 0.9rem;
   color: var(--text-muted);
   margin-top: 8px;
+}
+
+/* 3 Pillars */
+.landing-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.landing-pillar {
+  text-align: center;
+  padding: 32px 24px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+}
+
+.landing-pillar-icon {
+  font-size: 1.75rem;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.landing-pillar-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.landing-pillar-desc {
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  line-height: 1.8;
 }
 
 .landing-section-lead {
@@ -2576,6 +2615,10 @@ body {
   }
 
   .landing-features {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-pillars {
     grid-template-columns: 1fr;
   }
 

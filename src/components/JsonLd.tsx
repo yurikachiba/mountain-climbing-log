@@ -7,7 +7,7 @@ export function WebSiteJsonLd() {
     name: '登山ログ',
     alternateName: 'Tozan Log',
     url: BASE_URL,
-    description: '登山ログは日記やメモを取り込んで、ランダム再会・キーワード検索・カレンダー表示・ワードクラウド・AI感情分析で過去の自分と再会できる無料ウェブアプリです。データは端末内に保存、プライバシーファースト設計。',
+    description: '昔の自分の言葉に、もう一度会える。日記を取り込んで過去の自分と再会する無料ウェブアプリ。データは端末内だけ、登録不要。',
     inLanguage: 'ja',
     potentialAction: {
       '@type': 'SearchAction',
@@ -33,7 +33,7 @@ export function WebAppJsonLd() {
     '@type': 'WebApplication',
     name: '登山ログ',
     url: BASE_URL,
-    description: '日記やメモを取り込んで、ランダム再会・検索・カレンダー・ワードクラウド・AI分析で過去の自分と再会するウェブアプリ。データは端末内のみ保存。',
+    description: '昔の自分の言葉に、もう一度会える日記アプリ。過去の自分と再会し、変化を見つける。データは端末内だけ、登録不要、無料。',
     applicationCategory: 'LifestyleApplication',
     applicationSubCategory: '日記管理・ナレッジ分析ツール',
     operatingSystem: 'All',
@@ -85,7 +85,7 @@ export function SoftwareAppJsonLd() {
     '@type': 'SoftwareApplication',
     name: '登山ログ',
     url: BASE_URL,
-    description: '日記やメモの管理・分析・可視化ができるプライバシーファーストな無料ウェブアプリ。アカウント登録不要、データは端末内のみ保存。PWAでオフライン対応。',
+    description: '昔の自分の言葉に、もう一度会える。日記の管理・分析・可視化ができる無料ウェブアプリ。データは端末内だけ、登録不要。',
     applicationCategory: 'LifestyleApplication',
     operatingSystem: 'Web Browser (Chrome, Firefox, Safari, Edge)',
     offers: {
