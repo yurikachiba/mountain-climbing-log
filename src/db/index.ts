@@ -239,7 +239,8 @@ export async function addFragment(fragment: Fragment): Promise<void> {
 
 export async function getAllFragments(): Promise<Fragment[]> {
   const db = await getDB();
-  return cursorGetAllFromIndex(db, 'fragments', 'by-saved');
+  // インデックス経由だと savedAt が欠落したレコードを取りこぼすため、ストア直接走査で全件取得
+  return cursorGetAll(db, 'fragments');
 }
 
 export async function deleteFragment(id: string): Promise<void> {
