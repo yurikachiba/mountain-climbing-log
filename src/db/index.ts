@@ -232,13 +232,6 @@ export async function deleteAllEntries(): Promise<void> {
   await db.clear('fragments');
 }
 
-export async function getRandomEntry(): Promise<DiaryEntry | undefined> {
-  const db = await getDB();
-  const all = await cursorGetAll(db, 'entries');
-  if (all.length === 0) return undefined;
-  return all[Math.floor(Math.random() * all.length)];
-}
-
 export async function addFragment(fragment: Fragment): Promise<void> {
   const db = await getDB();
   await db.put('fragments', fragment);
@@ -352,29 +345,3 @@ export async function getAiLogsByType(type: string): Promise<AiLog[]> {
   return cursorGetAllFromIndex(db, 'aiLogs', 'by-type', type);
 }
 
-// --- 観測所（Observations）操作 ---
-
-export async function addObservation(observation: Observation): Promise<void> {
-  const db = await getDB();
-  await db.put('observations', observation);
-}
-
-export async function getAllObservations(): Promise<Observation[]> {
-  const db = await getDB();
-  return cursorGetAllFromIndex(db, 'observations', 'by-date');
-}
-
-export async function getObservationsByDate(date: string): Promise<Observation[]> {
-  const db = await getDB();
-  return cursorGetAllFromIndex(db, 'observations', 'by-date', date);
-}
-
-export async function getObservationCount(): Promise<number> {
-  const db = await getDB();
-  return db.count('observations');
-}
-
-export async function deleteObservation(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('observations', id);
-}
