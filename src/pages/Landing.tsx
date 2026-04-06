@@ -6,13 +6,13 @@ const features = [
   {
     title: 'AI分析（7種類）',
     desc: 'Claude APIで日記を深層分析。「今日」は友人視点で深く読む。「今日の景色」は全トピックの並びを見せる。「急所」は本質を突く。「外基準の統合」は内側を守ったまま外基準を扱えているかを診る。「自然の眼」は比喩・メタファーから世界の捉え方を読む。「時間の地層」は3日〜5年の8つの距離から変化を描く。「横断読み」は複数の分析結果を横断して、形を変えて繰り返し現れるパターンを見つける。',
-    icon: '🤖',
+    icon: '🔭',
     link: '/analysis',
   },
   {
     title: '成長タイムライン',
     desc: 'AIを使わずに端末内で完結する感情分析。ネガティブ比率・安定指数・標高メタファー・トレンド検出・季節補正・レジリエンス指標をグラフで可視化。',
-    icon: '📈',
+    icon: '⛰️',
     link: '/timeline',
   },
   {
@@ -24,7 +24,7 @@ const features = [
   {
     title: 'AI分析ログ',
     desc: '過去のAI分析結果をすべて保存・一覧表示。分析タイプごとの絞り込み、結果のコピーに対応。分析の蓄積が、振り返りの資産になる。',
-    icon: '📋',
+    icon: '📜',
     link: '/ai-logs',
   },
 ];
@@ -125,21 +125,21 @@ export function Landing() {
       <section className="landing-section" id="pillars">
         <div className="landing-pillars">
           <div className="landing-pillar">
-            <span className="landing-pillar-icon" aria-hidden="true">🤖</span>
+            <span className="landing-pillar-icon" aria-hidden="true">🪞</span>
             <h2 className="landing-pillar-title">AIが日記を深く読む</h2>
             <p className="landing-pillar-desc">
               7種類の深層分析で、自分では気づけないパターンを発見。友人視点、急所、時間の地層、横断読み。日記が「自分を知る道具」になる。
             </p>
           </div>
           <div className="landing-pillar">
-            <span className="landing-pillar-icon" aria-hidden="true">🔒</span>
+            <span className="landing-pillar-icon" aria-hidden="true">🏠</span>
             <h2 className="landing-pillar-title">データは端末内だけで安全</h2>
             <p className="landing-pillar-desc">
               すべてのデータはブラウザ内に保存。外部送信なし、Cookie不使用、アカウント登録不要。日記という最もプライベートなデータを、最も安全な場所に。
             </p>
           </div>
           <div className="landing-pillar">
-            <span className="landing-pillar-icon" aria-hidden="true">📈</span>
+            <span className="landing-pillar-icon" aria-hidden="true">⛰️</span>
             <h2 className="landing-pillar-title">変化がグラフで見える</h2>
             <p className="landing-pillar-desc">
               感情の推移・安定指数・トレンド検出をタイムラインで可視化。AIを使わず端末内で完結する分析で、長期的な自分の変化を追える。
