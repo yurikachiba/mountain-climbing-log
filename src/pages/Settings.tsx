@@ -171,6 +171,27 @@ export function Settings() {
           日記の深層分析に使用します。キーはこの端末のブラウザにのみ保存されます。
         </p>
 
+        <div className="api-key-guide" style={{
+          background: 'var(--surface-bg, #f8f9fa)',
+          border: '1px solid var(--border, #e0e0e0)',
+          borderRadius: 8,
+          padding: '12px 16px',
+          marginBottom: 16,
+          fontSize: '0.85em',
+          lineHeight: 1.7,
+        }}>
+          <p style={{ fontWeight: 'bold', marginBottom: 8 }}>APIキーの取得方法</p>
+          <ol style={{ margin: 0, paddingLeft: 20, marginBottom: 12 }}>
+            <li><a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>Anthropic Console</a> にアクセスし、アカウントを作成・ログイン</li>
+            <li>ダッシュボードから「API Keys」を選択</li>
+            <li>「Create Key」で新しいキーを作成し、コピー</li>
+            <li>下のフィールドに貼り付けて「保存」を押す</li>
+          </ol>
+          <p style={{ color: 'var(--text-muted, #888)', fontSize: '0.95em', marginBottom: 8 }}>
+            ※ Anthropic Consoleは英語表示ですが、翻訳せずそのまま操作する方がスムーズです。ブラウザの自動翻訳をオフにしてお使いください。
+          </p>
+        </div>
+
         <div className="api-key-warning" style={{
           background: 'var(--warning-bg, #fff8e1)',
           border: '1px solid var(--warning-border, #ffe082)',
