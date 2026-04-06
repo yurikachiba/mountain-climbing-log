@@ -6,29 +6,16 @@ const pages = [
     category: 'メイン',
     items: [
       { to: '/', label: 'トップ', desc: 'ランディングページ・アプリの紹介' },
-      { to: '/home', label: 'ホーム', desc: 'ダッシュボード・記録数の表示' },
-      { to: '/import', label: 'インポート', desc: '日記ファイルの取り込み' },
-    ],
-  },
-  {
-    category: '日記を読む',
-    items: [
-      { to: '/random', label: 'ランダム', desc: 'ランダムな日記を表示' },
-      { to: '/onthisday', label: 'この日', desc: '過去の同じ日の日記を振り返る' },
-      { to: '/search', label: '検索', desc: 'キーワード・日付で日記を検索' },
-      { to: '/calendar', label: 'カレンダー', desc: 'カレンダー形式で日記を閲覧' },
-      { to: '/fragments', label: '宝物庫', desc: 'AIが日記から光る一文を自動収集' },
-      { to: '/datehistory', label: '日月年の変化', desc: '過去と今を日・月・年のスケールで比較' },
+      { to: '/import', label: 'インポート', desc: '日記ファイルの取り込み・直接入力' },
     ],
   },
   {
     category: '分析・可視化',
     items: [
-      { to: '/timeline', label: 'タイムライン', desc: '時系列グラフによる記録の推移' },
-      { to: '/wordcloud', label: 'ワード', desc: '頻出語のワードクラウド表示' },
-      { to: '/analysis', label: 'AI分析', desc: 'Claude APIによる日記の分析' },
+      { to: '/analysis', label: 'AI分析', desc: 'Claude APIによる7種類の深層分析' },
       { to: '/ai-logs', label: 'AI分析ログ', desc: '過去のAI分析結果の閲覧' },
-      { to: '/observatory', label: '観測所', desc: '毎日の気分や状態をやさしく記録する' },
+      { to: '/timeline', label: 'タイムライン', desc: '感情分析グラフ・トレンド検出' },
+      { to: '/fragments', label: '宝物庫', desc: 'AIが日記から光る一文を自動収集' },
     ],
   },
   {
@@ -44,7 +31,7 @@ const pages = [
 export function Sitemap() {
   useHead({
     title: 'サイトマップ',
-    description: '登山ログの全ページ一覧。インポート、ランダム再会、検索、カレンダー、ワードクラウド、AI分析、タイムラインなど全16ページへの導線を確認できます。',
+    description: '登山ログの全ページ一覧。インポート、AI分析、タイムライン、宝物庫など全ページへの導線を確認できます。',
     keywords: 'サイトマップ,ページ一覧,機能一覧',
     path: '/sitemap',
   });

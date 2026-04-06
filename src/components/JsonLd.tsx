@@ -9,14 +9,6 @@ export function WebSiteJsonLd() {
     url: BASE_URL,
     description: '昔の自分の言葉に、もう一度会える。日記を取り込んで過去の自分と再会する無料ウェブアプリ。データは端末内だけ、登録不要。',
     inLanguage: 'ja',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${BASE_URL}/search?q={search_term_string}`,
-      },
-      'query-input': 'required name=search_term_string',
-    },
   };
 
   return (
@@ -35,7 +27,7 @@ export function WebAppJsonLd() {
     url: BASE_URL,
     description: '昔の自分の言葉に、もう一度会える日記アプリ。過去の自分と再会し、変化を見つける。データは端末内だけ、登録不要、無料。',
     applicationCategory: 'LifestyleApplication',
-    applicationSubCategory: '日記管理・ナレッジ分析ツール',
+    applicationSubCategory: '日記分析ツール',
     operatingSystem: 'All',
     offers: {
       '@type': 'Offer',
@@ -45,15 +37,9 @@ export function WebAppJsonLd() {
     },
     featureList: [
       '日記インポート（テキスト・Markdown・JSON対応、自動日付認識）',
-      'ランダム再会（他人モード・未来からの報告機能付き・日記コピー対応）',
-      'この日の記録（年をまたいだ同じ日の振り返り・日記コピー対応）',
-      '日月年の変化（1日前・1週間前・1ヶ月前・1年前の日記を並べて比較・基準日変更対応）',
-      'キーワード全文検索（日付範囲絞り込み・ソート対応・日記コピー対応）',
-      'カレンダーヒートマップ（記録密度の可視化・日記コピー対応）',
-      '成長タイムライン（ローカル感情分析・トレンド検出・レジリエンス指標）',
-      'ワードクラウド（語彙傾向の可視化）',
       'AI分析7種類（今日・今日の景色・急所・外基準の統合・自然の眼・時間の地層・横断読み ― Claude API連携）',
-      '観測所（やさしい問いかけジャーナリング）',
+      'AI分析ログ（過去の分析結果の一覧・絞り込み・コピー）',
+      '成長タイムライン（ローカル感情分析・トレンド検出・レジリエンス指標）',
       '宝物庫（AIが日記から光る一文を自動収集）',
       'オフライン対応（PWA）',
       'データエクスポート・バックアップ機能',
@@ -96,7 +82,7 @@ export function SoftwareAppJsonLd() {
     softwareVersion: '1.0',
     inLanguage: 'ja',
     isAccessibleForFree: true,
-    keywords: '日記管理,ナレッジ分析,AI分析,感情分析,ワードクラウド,カレンダー,PWA,オフライン',
+    keywords: '日記分析,AI分析,感情分析,タイムライン,PWA,オフライン',
   };
 
   return (
@@ -111,8 +97,8 @@ export function HowToJsonLd() {
   const data = {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
-    name: '登山ログの使い方 ― 日記を取り込んで振り返る3ステップ',
-    description: '登山ログで日記をインポートし、検索・分析・可視化で過去の自分と再会する方法を3ステップで解説します。',
+    name: '登山ログの使い方 ― 日記を取り込んでAI分析する2ステップ',
+    description: '登山ログで日記をインポートし、AI分析・感情タイムライン・宝物庫で過去の自分と再会する方法を2ステップで解説します。',
     totalTime: 'PT3M',
     tool: [
       { '@type': 'HowToTool', name: 'ウェブブラウザ（Chrome、Firefox、Safari、Edge）' },
@@ -131,16 +117,9 @@ export function HowToJsonLd() {
       {
         '@type': 'HowToStep',
         position: 2,
-        name: '好きな方法で読み返す',
-        text: 'ランダム表示で偶然の再会を楽しむ、「この日」で年をまたいだ振り返りをする、キーワード検索であの日の言葉を探す、カレンダーで記録の密度を一望するなど、多彩な方法で日記を読み返せます。',
-        url: `${BASE_URL}/random`,
-      },
-      {
-        '@type': 'HowToStep',
-        position: 3,
-        name: '可視化・分析で新たな気づきを得る',
-        text: 'タイムラインで感情の推移を追う、ワードクラウドで語彙の傾向を把握する、AI分析（7種類）で客観的な視点を得る。日記が自己分析ツールになります。',
-        url: `${BASE_URL}/timeline`,
+        name: 'AI分析・可視化で新たな気づきを得る',
+        text: '7種類のAI深層分析で日記を多角的に読み解く。タイムラインで感情の推移を追う。宝物庫で日記の中の光る一文を集める。日記が自己分析ツールになります。',
+        url: `${BASE_URL}/analysis`,
       },
     ],
   };
@@ -160,7 +139,7 @@ export function OrganizationJsonLd() {
     name: '登山ログ',
     url: BASE_URL,
     logo: `${BASE_URL}/favicon.svg`,
-    description: 'プライバシーファーストな日記管理・分析ウェブアプリ「登山ログ」の開発・運営',
+    description: 'プライバシーファーストな日記分析ウェブアプリ「登山ログ」の開発・運営',
     sameAs: [],
   };
 
@@ -177,19 +156,13 @@ export function ItemListJsonLd() {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: '登山ログの主要機能一覧',
-    description: '登山ログが提供する10の主要機能',
-    numberOfItems: 10,
+    description: '登山ログが提供する主要機能',
+    numberOfItems: 4,
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'ランダム再会', description: '過去の日記にランダムで再会。他人モード・未来からの報告機能付き。', url: `${BASE_URL}/random` },
-      { '@type': 'ListItem', position: 2, name: 'この日の記録', description: '1年前、3年前、5年前の同じ日を振り返る。', url: `${BASE_URL}/onthisday` },
-      { '@type': 'ListItem', position: 3, name: '日月年の変化', description: '1日前・1週間前・1ヶ月前・1年前の日記を並べて比較。', url: `${BASE_URL}/datehistory` },
-      { '@type': 'ListItem', position: 4, name: 'キーワード検索', description: '日記の全文キーワード検索。日付範囲絞り込み・ソート対応。', url: `${BASE_URL}/search` },
-      { '@type': 'ListItem', position: 5, name: 'カレンダーヒートマップ', description: '記録密度をヒートマップカレンダーで一望。', url: `${BASE_URL}/calendar` },
-      { '@type': 'ListItem', position: 6, name: '成長タイムライン', description: 'ローカル感情分析。ネガティブ比率・安定指数・標高メタファーをグラフで可視化。', url: `${BASE_URL}/timeline` },
-      { '@type': 'ListItem', position: 7, name: 'ワードクラウド', description: 'よく使う言葉を可視化して語彙の傾向を把握。', url: `${BASE_URL}/wordcloud` },
-      { '@type': 'ListItem', position: 8, name: 'AI分析（7種類）', description: 'Claude APIで今日・今日の景色・急所・外基準の統合・自然の眼・時間の地層・横断読みの7種類の深層分析。', url: `${BASE_URL}/analysis` },
-      { '@type': 'ListItem', position: 9, name: '観測所', description: 'やさしい問いかけで日々を記録するジャーナリング。', url: `${BASE_URL}/observatory` },
-      { '@type': 'ListItem', position: 10, name: '宝物庫', description: 'AIが日記から光る一文を自動収集。', url: `${BASE_URL}/fragments` },
+      { '@type': 'ListItem', position: 1, name: 'AI分析（7種類）', description: 'Claude APIで今日・今日の景色・急所・外基準の統合・自然の眼・時間の地層・横断読みの7種類の深層分析。', url: `${BASE_URL}/analysis` },
+      { '@type': 'ListItem', position: 2, name: '成長タイムライン', description: 'ローカル感情分析。ネガティブ比率・安定指数・標高メタファーをグラフで可視化。', url: `${BASE_URL}/timeline` },
+      { '@type': 'ListItem', position: 3, name: '宝物庫', description: 'AIが日記から光る一文を自動収集。', url: `${BASE_URL}/fragments` },
+      { '@type': 'ListItem', position: 4, name: 'AI分析ログ', description: '過去のAI分析結果をすべて保存・一覧表示。', url: `${BASE_URL}/ai-logs` },
     ],
   };
 
@@ -239,7 +212,7 @@ export function FAQJsonLd() {
         name: '登山ログとは何ですか？',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: '登山ログは、個人の日記やメモを管理・分析するためのウェブアプリケーションです。「登山」は自分を高めるという意味の比喩で、実際の登山記録アプリではありません。テキストやMarkdownファイルをインポートし、検索・分析・可視化など様々な方法で過去の記録を振り返ることができます。無料で利用でき、アカウント登録も不要です。',
+          text: '登山ログは、個人の日記やメモをAIで深層分析するための無料ウェブアプリケーションです。「登山」は自分を高めるという意味の比喩で、実際の登山記録アプリではありません。テキストやMarkdownファイルをインポートし、7種類のAI分析・感情タイムライン・宝物庫で過去の記録を多角的に振り返ることができます。無料で利用でき、アカウント登録も不要です。',
         },
       },
       {
@@ -263,7 +236,7 @@ export function FAQJsonLd() {
         name: 'オフラインでも使えますか？',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'はい、PWA（Progressive Web App）に対応しているため、一度アクセスした後はオフラインでもご利用いただけます。日記の閲覧・検索・ワードクラウドなどすべての基本機能がオフラインで動作します。AI分析機能のみインターネット接続が必要です。',
+          text: 'はい、PWA（Progressive Web App）に対応しているため、一度アクセスした後はオフラインでもご利用いただけます。感情タイムラインなどの基本機能がオフラインで動作します。AI分析機能のみインターネット接続が必要です。',
         },
       },
       {
@@ -295,7 +268,7 @@ export function FAQJsonLd() {
         name: '登山ログの使い方を教えてください',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: '3ステップで始められます。(1) 日記をインポート: テキストファイル(.txt)やMarkdown(.md)、JSON(.json)をドラッグ＆ドロップ、またはブラウザ上で直接入力。(2) 好きな方法で読み返す: ランダム再会、この日の記録、キーワード検索、カレンダーヒートマップなど。(3) 可視化・分析: タイムラインで感情の推移、ワードクラウドで語彙の傾向、AI分析7種類で新たな気づきを得る。アカウント登録不要で、すぐに使い始められます。',
+          text: '2ステップで始められます。(1) 日記をインポート: テキストファイル(.txt)やMarkdown(.md)、JSON(.json)をドラッグ＆ドロップ、またはブラウザ上で直接入力。(2) AI分析・可視化: 7種類のAI深層分析で日記を多角的に読み解く。タイムラインで感情の推移を追う。宝物庫で光る一文を集める。アカウント登録不要で、すぐに使い始められます。',
         },
       },
       {
@@ -303,7 +276,7 @@ export function FAQJsonLd() {
         name: '日記アプリのおすすめは？プライバシーが心配です',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: '登山ログはプライバシーを最も重視した日記管理アプリです。すべてのデータはブラウザ内（IndexedDB）に保存され、外部サーバーへの送信は一切ありません。Cookie・トラッキング不使用、アカウント登録も不要。PWA対応でオフラインでも使えます。無料で、日記のインポート・検索・カレンダー表示・ワードクラウド・AI分析など多彩な機能を搭載しています。',
+          text: '登山ログはプライバシーを最も重視した日記分析アプリです。すべてのデータはブラウザ内（IndexedDB）に保存され、外部サーバーへの送信は一切ありません。Cookie・トラッキング不使用、アカウント登録も不要。PWA対応でオフラインでも使えます。無料で、7種類のAI深層分析・感情タイムライン・宝物庫を搭載しています。',
         },
       },
       {
