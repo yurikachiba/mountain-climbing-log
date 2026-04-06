@@ -19,7 +19,7 @@ export interface Fragment {
   entryId: string;
   text: string;
   savedAt: string;
-  source?: 'manual' | 'auto';
+  source?: 'manual' | 'auto' | 'auto-skip';
   entryDate?: string | null;
 }
 

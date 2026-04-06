@@ -11,7 +11,12 @@ interface ChatMessage {
   content: string;
 }
 
-async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<string> {
+interface ChatResult {
+  text: string;
+  stopReason: string;
+}
+
+async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<ChatResult> {
   const key = getApiKey();
   if (!key) throw new Error('APIキーが設定されていません。設定ページで入力してください。');
 
@@ -45,7 +50,15 @@ async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<stri
   }
 
   const data = await res.json();
-  return data.content?.[0]?.text ?? '';
+  return {
+    text: data.content?.[0]?.text ?? '',
+    stopReason: data.stop_reason ?? 'unknown',
+  };
+}
+
+async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<string> {
+  const result = await callChatRaw(messages, maxTokens);
+  return result.text;
 }
 
 // 年ごとに均等にスライスしてサンプリングする（均等にサンプリング）
@@ -1630,7 +1643,7 @@ export async function extractFragments(
     `<entry id="${e.id}" date="${e.date ?? '不明'}">\n${e.content.slice(0, 600)}\n</entry>`
   ).join('\n\n');
 
-  const result = await callChat([
+  const messages: ChatMessage[] = [
     {
       role: 'system',
       content: [
@@ -1659,9 +1672,20 @@ export async function extractFragments(
       role: 'user',
       content: formatted,
     },
-  ], Math.max(512, entries.length * 100));
+  ];
 
-  const lines = result.split('\n').filter(l => l.includes('|'));
+  // max_tokens を十分に確保（UUID36文字+区切り+日本語テキストで1エントリ約80トークン）
+  // 切り詰められた場合は倍のトークンでリトライ
+  let maxTokens = Math.max(1024, entries.length * 200);
+  let result: ChatResult | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    result = await callChatRaw(messages, maxTokens);
+    if (result.stopReason !== 'max_tokens') break;
+    maxTokens *= 2;
+  }
+  if (!result) return [];
+
+  const lines = result.text.split('\n').filter(l => l.includes('|'));
   const entryMap = new Map(entries.map(e => [e.id, e]));
   const fragments: { entryId: string; entryDate: string | null; text: string }[] = [];
 
