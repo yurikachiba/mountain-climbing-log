@@ -153,6 +153,54 @@ export function HowToJsonLd() {
   );
 }
 
+export function OrganizationJsonLd() {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: '登山ログ',
+    url: BASE_URL,
+    logo: `${BASE_URL}/favicon.svg`,
+    description: 'プライバシーファーストな日記管理・分析ウェブアプリ「登山ログ」の開発・運営',
+    sameAs: [],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
+
+export function ItemListJsonLd() {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: '登山ログの主要機能一覧',
+    description: '登山ログが提供する10の主要機能',
+    numberOfItems: 10,
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'ランダム再会', description: '過去の日記にランダムで再会。他人モード・未来からの報告機能付き。', url: `${BASE_URL}/random` },
+      { '@type': 'ListItem', position: 2, name: 'この日の記録', description: '1年前、3年前、5年前の同じ日を振り返る。', url: `${BASE_URL}/onthisday` },
+      { '@type': 'ListItem', position: 3, name: '日月年の変化', description: '1日前・1週間前・1ヶ月前・1年前の日記を並べて比較。', url: `${BASE_URL}/datehistory` },
+      { '@type': 'ListItem', position: 4, name: 'キーワード検索', description: '日記の全文キーワード検索。日付範囲絞り込み・ソート対応。', url: `${BASE_URL}/search` },
+      { '@type': 'ListItem', position: 5, name: 'カレンダーヒートマップ', description: '記録密度をヒートマップカレンダーで一望。', url: `${BASE_URL}/calendar` },
+      { '@type': 'ListItem', position: 6, name: '成長タイムライン', description: 'ローカル感情分析。ネガティブ比率・安定指数・標高メタファーをグラフで可視化。', url: `${BASE_URL}/timeline` },
+      { '@type': 'ListItem', position: 7, name: 'ワードクラウド', description: 'よく使う言葉を可視化して語彙の傾向を把握。', url: `${BASE_URL}/wordcloud` },
+      { '@type': 'ListItem', position: 8, name: 'AI分析（7種類）', description: 'Claude APIで今日・今日の景色・急所・外基準の統合・自然の眼・時間の地層・横断読みの7種類の深層分析。', url: `${BASE_URL}/analysis` },
+      { '@type': 'ListItem', position: 9, name: '観測所', description: 'やさしい問いかけで日々を記録するジャーナリング。', url: `${BASE_URL}/observatory` },
+      { '@type': 'ListItem', position: 10, name: '宝物庫', description: 'AIが日記から光る一文を自動収集。', url: `${BASE_URL}/fragments` },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
+
 interface BreadcrumbItem {
   name: string;
   path: string;
@@ -240,6 +288,30 @@ export function FAQJsonLd() {
         acceptedAnswer: {
           '@type': 'Answer',
           text: 'はい、レスポンシブデザインに対応しており、スマートフォン・タブレット・PCなどあらゆるデバイスでご利用いただけます。PWAとしてホーム画面に追加することも可能です。',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: '登山ログの使い方を教えてください',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: '3ステップで始められます。(1) 日記をインポート: テキストファイル(.txt)やMarkdown(.md)、JSON(.json)をドラッグ＆ドロップ、またはブラウザ上で直接入力。(2) 好きな方法で読み返す: ランダム再会、この日の記録、キーワード検索、カレンダーヒートマップなど。(3) 可視化・分析: タイムラインで感情の推移、ワードクラウドで語彙の傾向、AI分析7種類で新たな気づきを得る。アカウント登録不要で、すぐに使い始められます。',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: '日記アプリのおすすめは？プライバシーが心配です',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: '登山ログはプライバシーを最も重視した日記管理アプリです。すべてのデータはブラウザ内（IndexedDB）に保存され、外部サーバーへの送信は一切ありません。Cookie・トラッキング不使用、アカウント登録も不要。PWA対応でオフラインでも使えます。無料で、日記のインポート・検索・カレンダー表示・ワードクラウド・AI分析など多彩な機能を搭載しています。',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: '日記のAI分析ができるアプリはありますか？',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: '登山ログはClaude APIを使った7種類のAI深層分析に対応しています。「今日」は友人視点で日記を深く読む分析、「急所」は本質を突く指摘、「時間の地層」は3日〜5年の8つの距離から変化を描く分析など、多角的に日記を分析できます。さらにAIを使わないローカル感情分析（タイムライン）も搭載。ユーザー自身のAPIキーを使うため、日記データがサービス提供者に渡ることはありません。',
         },
       },
     ],

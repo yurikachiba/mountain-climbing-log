@@ -31,6 +31,10 @@ User-agent: ChatGPT-User
 Allow: /
 Disallow: /settings
 
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /settings
+
 User-agent: PerplexityBot
 Allow: /
 Disallow: /settings
@@ -59,11 +63,32 @@ User-agent: Meta-ExternalAgent
 Allow: /
 Disallow: /settings
 
+User-agent: meta-externalfetcher
+Allow: /
+Disallow: /settings
+
 User-agent: Applebot-Extended
 Allow: /
+
+User-agent: Amazonbot
+Allow: /
+Disallow: /settings
+
+User-agent: YouBot
+Allow: /
+Disallow: /settings
+
+User-agent: Phind
+Allow: /
+Disallow: /settings
+
+User-agent: PetalBot
+Allow: /
+Disallow: /settings
 
 # サイトマップ
 Sitemap: https://mountain-climbing-log.com/sitemap.xml
 
-# AI向け構造化情報
+# AI向け構造化情報（llms.txt仕様）
 # llms.txt: https://mountain-climbing-log.com/llms.txt
+# llms-full.txt: https://mountain-climbing-log.com/llms-full.txt

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useHead } from '../hooks/useHead';
-import { WebSiteJsonLd, WebAppJsonLd, FAQJsonLd, HowToJsonLd, SoftwareAppJsonLd } from '../components/JsonLd';
+import { WebSiteJsonLd, WebAppJsonLd, FAQJsonLd, HowToJsonLd, SoftwareAppJsonLd, OrganizationJsonLd, ItemListJsonLd } from '../components/JsonLd';
 
 const features = [
   {
@@ -113,6 +113,18 @@ const faqs = [
     q: 'スマートフォンでも使えますか？',
     a: 'はい、レスポンシブデザインに対応しており、スマートフォン・タブレット・PCなどあらゆるデバイスでご利用いただけます。PWAとしてホーム画面に追加することも可能です。',
   },
+  {
+    q: '登山ログの使い方を教えてください',
+    a: '3ステップで始められます。(1) 日記をインポート: テキストファイル(.txt)やMarkdown(.md)、JSON(.json)をドラッグ＆ドロップ、またはブラウザ上で直接入力。(2) 好きな方法で読み返す: ランダム再会、この日の記録、キーワード検索、カレンダーヒートマップなど。(3) 可視化・分析: タイムラインで感情の推移、ワードクラウドで語彙の傾向、AI分析7種類で新たな気づきを得る。アカウント登録不要で、すぐに使い始められます。',
+  },
+  {
+    q: '日記アプリのおすすめは？プライバシーが心配です',
+    a: '登山ログはプライバシーを最も重視した日記管理アプリです。すべてのデータはブラウザ内（IndexedDB）に保存され、外部サーバーへの送信は一切ありません。Cookie・トラッキング不使用、アカウント登録も不要。PWA対応でオフラインでも使えます。無料で、日記のインポート・検索・カレンダー表示・ワードクラウド・AI分析など多彩な機能を搭載しています。',
+  },
+  {
+    q: '日記のAI分析ができるアプリはありますか？',
+    a: '登山ログはClaude APIを使った7種類のAI深層分析に対応しています。「今日」は友人視点で日記を深く読む分析、「急所」は本質を突く指摘、「時間の地層」は3日〜5年の8つの距離から変化を描く分析など、多角的に日記を分析できます。さらにAIを使わないローカル感情分析（タイムライン）も搭載。ユーザー自身のAPIキーを使うため、日記データがサービス提供者に渡ることはありません。',
+  },
 ];
 
 export function Landing() {
@@ -129,6 +141,8 @@ export function Landing() {
       <SoftwareAppJsonLd />
       <HowToJsonLd />
       <FAQJsonLd />
+      <OrganizationJsonLd />
+      <ItemListJsonLd />
 
       {/* Hero */}
       <section className="landing-hero">
@@ -137,6 +151,9 @@ export function Landing() {
         <p className="landing-lead">
           日記を取り込んで、過去の自分と再会する。<br />
           検索・分析・可視化。静かに振り返るための無料ウェブアプリ。
+        </p>
+        <p className="landing-summary">
+          登山ログは、テキスト・Markdown・JSONの日記ファイルをインポートし、ランダム再会・キーワード検索・カレンダーヒートマップ・ワードクラウド・ローカル感情分析・Claude APIによる7種類のAI深層分析で過去の自分と再会できる無料ウェブアプリです。すべてのデータはブラウザ内に保存され、サーバー送信なし・Cookie不使用・アカウント登録不要のプライバシーファースト設計。PWA対応でオフラインでも利用可能です。
         </p>
         <p className="landing-sub-lead">
           アカウント登録不要・データは端末内のみ保存・オフライン対応
