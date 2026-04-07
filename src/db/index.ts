@@ -99,15 +99,17 @@ function runMigrations(
   // --- 次のマイグレーションはここに追加 ---
 }
 
-// --- カーソルベースの全件取得 ---
-// db.getAll() は一部のブラウザ/環境で大量レコード時に全件返さない場合がある。
-// カーソルで走査して確実に全件取得する。
+// --- 堅牢な全件取得 ---
+// カーソル走査を基本とし、db.count() と照合して不足があれば getAll() でフォールバック。
+// さらに getAll() でも不足する場合は getAllKeys() + 個別 get() で確実に全件取得する。
 
 async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations'>(
   db: IDBPDatabase<ClimbingLogDB>,
   storeName: StoreName,
 ): Promise<ClimbingLogDB[StoreName]['value'][]> {
+  // 1. カーソル走査
   const tx = db.transaction(storeName, 'readonly');
+  const expectedCount = await tx.store.count();
   const results: ClimbingLogDB[StoreName]['value'][] = [];
   let cursor = await tx.store.openCursor();
   while (cursor) {
@@ -115,7 +117,47 @@ async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache
     cursor = await cursor.continue();
   }
   await tx.done;
-  return results;
+
+  if (results.length >= expectedCount) {
+    return results;
+  }
+
+  console.warn(
+    `[cursorGetAll] ${storeName}: cursor returned ${results.length} / ${expectedCount}, trying getAll fallback`,
+  );
+
+  // 2. getAll() フォールバック
+  const tx2 = db.transaction(storeName, 'readonly');
+  const all = await tx2.store.getAll();
+  await tx2.done;
+
+  if (all.length >= expectedCount) {
+    return all;
+  }
+
+  console.warn(
+    `[cursorGetAll] ${storeName}: getAll returned ${all.length} / ${expectedCount}, trying key-based fallback`,
+  );
+
+  // 3. getAllKeys() + 個別 get() フォールバック
+  const tx3 = db.transaction(storeName, 'readonly');
+  const keys = await tx3.store.getAllKeys();
+  await tx3.done;
+
+  const keyResults: ClimbingLogDB[StoreName]['value'][] = [];
+  for (const key of keys) {
+    const value = await db.get(storeName, key as ClimbingLogDB[StoreName]['key']);
+    if (value) keyResults.push(value);
+  }
+
+  // 最も多く取得できた結果を返す
+  const best = [results, all, keyResults].sort((a, b) => b.length - a.length)[0];
+  if (best.length < expectedCount) {
+    console.warn(
+      `[cursorGetAll] ${storeName}: best effort returned ${best.length} / ${expectedCount}`,
+    );
+  }
+  return best;
 }
 
 // --- DB接続 ---

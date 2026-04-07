@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { deleteAllEntries, exportAllData, importAllData, clearAllAiCache, markAllAiCacheStale } from '../db';
+import { deleteAllEntries, exportAllData, importAllData, clearAllAiCache, markAllAiCacheStale, getAllEntries, getEntryCount } from '../db';
 import { getApiKey, setApiKey, getKeyStorageMode, setKeyStorageMode } from '../utils/apiKey';
 import type { KeyStorageMode } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
@@ -86,6 +86,28 @@ export function Settings() {
     }
   }
 
+  async function handleCopyAll() {
+    try {
+      const [entries, totalCount] = await Promise.all([getAllEntries(), getEntryCount()]);
+      if (entries.length === 0) {
+        setMessage('日記がありません');
+        return;
+      }
+      const lines = entries.map(e => {
+        const date = e.date ?? '日付不明';
+        return `${date}\n${e.content}`;
+      });
+      const text = lines.join('\n\n---\n\n');
+      await navigator.clipboard.writeText(text);
+      const countNote = entries.length < totalCount
+        ? `（※ DB上は${totalCount}件ですが${entries.length}件しか取得できませんでした）`
+        : '';
+      setMessage(`${entries.length}件の日記をコピーしました${countNote}`);
+    } catch {
+      setMessage('コピーに失敗しました');
+    }
+  }
+
   async function handleDeleteAll() {
     if (!confirmDelete) {
       setConfirmDelete(true);
@@ -137,6 +159,16 @@ export function Settings() {
               style={{ display: 'none' }}
             />
           </label>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <p className="settings-label">全日記をテキストコピー</p>
+            <p className="settings-desc">すべての日記をクリップボードにコピー</p>
+          </div>
+          <button onClick={handleCopyAll} className="btn">
+            コピー
+          </button>
         </div>
 
         <div className="settings-row danger-zone">
