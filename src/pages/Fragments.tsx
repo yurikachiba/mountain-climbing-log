@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DiaryEntry, Fragment } from '../types';
-import { getAllFragments, deleteFragment, addFragments, getFragmentEntryIds, getAllEntries } from '../db';
+import { getAllFragments, deleteFragment, addFragments, getFragmentEntryIds, getAllEntries, getEntryCount } from '../db';
 import { extractFragments } from '../utils/claude';
 import { hasApiKey } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
@@ -48,14 +48,24 @@ export function Fragments() {
     cancelRef.current = false;
 
     try {
-      const allEntries = await getAllEntries();
-      const existingIds = await getFragmentEntryIds();
-      const unprocessed = allEntries
-        .filter(e => !existingIds.has(e.id) && e.content.trim().length > 30)
+      const [allEntries, existingIds, totalCount] = await Promise.all([
+        getAllEntries(),
+        getFragmentEntryIds(),
+        getEntryCount(),
+      ]);
+      const notProcessed = allEntries.filter(e => !existingIds.has(e.id));
+      const unprocessed = notProcessed
+        .filter(e => e.content.trim().length > 30)
         .reverse(); // 新しい日記から優先的に処理する（getAllEntries は日付昇順のため reverse）
 
+      const skippedShort = notProcessed.length - unprocessed.length;
+      const alreadyProcessed = totalCount - notProcessed.length;
+
       if (unprocessed.length === 0) {
-        setError('すべての日記から収集済みです');
+        const details: string[] = [];
+        if (alreadyProcessed > 0) details.push(`収集済み ${alreadyProcessed}件`);
+        if (skippedShort > 0) details.push(`短文除外 ${skippedShort}件`);
+        setError(`すべての日記から収集済みです（全${totalCount}件${details.length > 0 ? '、' + details.join('、') : ''}）`);
         setCollecting(false);
         return;
       }
