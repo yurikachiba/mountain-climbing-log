@@ -528,6 +528,13 @@ body {
   letter-spacing: 0.05em;
 }
 
+.treasure-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.treasure-copy,
 .treasure-delete {
   background: none;
   border: none;
@@ -539,10 +546,12 @@ body {
   transition: opacity 0.2s;
 }
 
+.treasure-card:hover .treasure-copy,
 .treasure-card:hover .treasure-delete {
   opacity: 0.4;
 }
 
+.treasure-copy:hover,
 .treasure-delete:hover {
   opacity: 1 !important;
 }

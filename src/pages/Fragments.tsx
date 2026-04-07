@@ -20,6 +20,7 @@ export function Fragments() {
   const [collecting, setCollecting] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const cancelRef = useRef(false);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
@@ -167,6 +168,12 @@ export function Fragments() {
     setFragments(prev => prev.filter(f => f.id !== id));
   }
 
+  async function handleCopy(id: string, text: string) {
+    await navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1500);
+  }
+
   if (loading) return <div className="page"><p className="loading-text">読み込み中...</p></div>;
 
   const hasKey = hasApiKey();
@@ -223,15 +230,24 @@ export function Fragments() {
                 <span className="treasure-date">
                   {f.entryDate
                     ? f.entryDate.replace(/-/g, '.')
-                    : new Date(f.savedAt).toLocaleDateString('ja-JP')}
+                    : '日付不明'}
                 </span>
-                <button
-                  onClick={() => handleDelete(f.id)}
-                  className="treasure-delete"
-                  aria-label="削除"
-                >
-                  &times;
-                </button>
+                <div className="treasure-actions">
+                  <button
+                    onClick={() => handleCopy(f.id, f.text)}
+                    className="treasure-copy"
+                    aria-label="コピー"
+                  >
+                    {copiedId === f.id ? '!' : '\u2398'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(f.id)}
+                    className="treasure-delete"
+                    aria-label="削除"
+                  >
+                    &times;
+                  </button>
+                </div>
               </div>
             </div>
           ))}
