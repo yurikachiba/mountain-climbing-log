@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DiaryEntry, Fragment } from '../types';
-import { getAllFragments, deleteFragment, addFragments, getFragmentEntryIds, getAllEntries, getEntryCount } from '../db';
+import { getAllFragments, addFragments, getFragmentEntryIds, getAllEntries, getEntryCount } from '../db';
 import { extractFragments } from '../utils/claude';
 import { hasApiKey } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
@@ -163,15 +163,21 @@ export function Fragments() {
     cancelRef.current = true;
   }
 
-  async function handleDelete(id: string) {
-    await deleteFragment(id);
-    setFragments(prev => prev.filter(f => f.id !== id));
-  }
-
   async function handleCopy(id: string, text: string) {
     await navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1500);
+  }
+
+  async function handleCopyAll() {
+    if (fragments.length === 0) return;
+    const text = fragments.map(f => {
+      const date = f.entryDate ? f.entryDate.replace(/-/g, '.') : '日付不明';
+      return `${f.text}\n${date}`;
+    }).join('\n\n');
+    await navigator.clipboard.writeText(text);
+    setCopiedId('__all__');
+    setTimeout(() => setCopiedId(prev => prev === '__all__' ? null : prev), 1500);
   }
 
   if (loading) return <div className="page"><p className="loading-text">読み込み中...</p></div>;
@@ -222,17 +228,23 @@ export function Fragments() {
           </p>
         </div>
       ) : (
-        <div className="treasure-list">
-          {fragments.map(f => (
-            <div key={f.id} className="treasure-card">
-              <blockquote className="treasure-text">{f.text}</blockquote>
-              <div className="treasure-meta">
-                <span className="treasure-date">
-                  {f.entryDate
-                    ? f.entryDate.replace(/-/g, '.')
-                    : '日付不明'}
-                </span>
-                <div className="treasure-actions">
+        <>
+          <div className="treasure-bulk-actions">
+            <button onClick={handleCopyAll} className="btn btn-small">
+              {copiedId === '__all__' ? 'コピーしました！' : 'すべてコピー'}
+            </button>
+            <span className="treasure-count">{fragments.length}件</span>
+          </div>
+          <div className="treasure-list">
+            {fragments.map(f => (
+              <div key={f.id} className="treasure-card">
+                <blockquote className="treasure-text">{f.text}</blockquote>
+                <div className="treasure-meta">
+                  <span className="treasure-date">
+                    {f.entryDate
+                      ? f.entryDate.replace(/-/g, '.')
+                      : '日付不明'}
+                  </span>
                   <button
                     onClick={() => handleCopy(f.id, f.text)}
                     className="treasure-copy"
@@ -240,18 +252,11 @@ export function Fragments() {
                   >
                     {copiedId === f.id ? '!' : '\u2398'}
                   </button>
-                  <button
-                    onClick={() => handleDelete(f.id)}
-                    className="treasure-delete"
-                    aria-label="削除"
-                  >
-                    &times;
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
