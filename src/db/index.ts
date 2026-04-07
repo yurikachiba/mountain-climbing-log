@@ -232,13 +232,14 @@ export async function deleteFragment(id: string): Promise<void> {
 
 export async function getFragmentEntryIds(): Promise<Set<string>> {
   const db = await getDB();
-  // 全フラグメントを読み込まず、by-entry インデックスのキーだけ走査して軽量に取得
+  // ストア直接走査で全件取得（インデックス経由だと entryId 欠落レコードを取りこぼす）
   const tx = db.transaction('fragments', 'readonly');
-  const index = tx.store.index('by-entry');
   const ids = new Set<string>();
-  let cursor = await index.openKeyCursor();
+  let cursor = await tx.store.openCursor();
   while (cursor) {
-    ids.add(cursor.key);
+    if (cursor.value.entryId) {
+      ids.add(cursor.value.entryId);
+    }
     cursor = await cursor.continue();
   }
   await tx.done;
@@ -329,15 +330,10 @@ export async function addAiLog(log: AiLog): Promise<void> {
 
 export async function getAllAiLogs(): Promise<AiLog[]> {
   const db = await getDB();
-  const tx = db.transaction('aiLogs', 'readonly');
-  const results: AiLog[] = [];
-  let cursor = await tx.store.index('by-analyzed').openCursor();
-  while (cursor) {
-    results.push(cursor.value);
-    cursor = await cursor.continue();
-  }
-  await tx.done;
-  return results;
+  // ストア直接走査で全件取得（インデックス経由だと analyzedAt 欠落レコードを取りこぼす）
+  const all = await cursorGetAll(db, 'aiLogs');
+  // analyzedAt 降順ソート（インデックス経由で得ていた順序を維持）
+  return all.sort((a, b) => (b.analyzedAt ?? '').localeCompare(a.analyzedAt ?? ''));
 }
 
 export async function getAiLogsByType(type: string): Promise<AiLog[]> {
