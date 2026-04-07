@@ -92,6 +92,8 @@ export interface AiCache {
   analyzedAt: string; // ISO timestamp
   entryCount: number; // 分析時のエントリ数
   isStale: boolean; // データ更新があれば true になる
+  analyzedForDate?: string; // 分析対象の「今日」日付 (YYYY-MM-DD)
+  todayEntryCount?: number; // 「今日」として分析されたエントリ数
 }
 
 // AIログ: 過去の分析結果をすべて蓄積

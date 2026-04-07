@@ -22,7 +22,13 @@ export function useAiCache() {
   }, [load]);
 
   // 分析結果をキャッシュに保存し、ログにも蓄積する
-  const save = useCallback(async (type: string, result: string, entryCount: number) => {
+  const save = useCallback(async (
+    type: string,
+    result: string,
+    entryCount: number,
+    analyzedForDate?: string,
+    todayEntryCount?: number,
+  ) => {
     const now = new Date().toISOString();
 
     const cacheEntry: AiCache = {
@@ -31,6 +37,8 @@ export function useAiCache() {
       analyzedAt: now,
       entryCount,
       isStale: false,
+      analyzedForDate,
+      todayEntryCount,
     };
     await putAiCache(cacheEntry);
 

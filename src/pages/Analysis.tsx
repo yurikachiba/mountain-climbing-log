@@ -12,6 +12,7 @@ import {
   analyzeNatureReflection,
   analyzeTimeChanges,
   analyzeCrossReading,
+  detectAnalysisToday,
 } from '../utils/claude';
 import type { DiaryEntry } from '../types';
 import { AiResultBody } from '../components/AiResultBody';
@@ -134,18 +135,16 @@ export function Analysis() {
     return cache[type]?.result;
   }
 
-  function isStale(type: AnalysisType): boolean {
-    return cache[type]?.isStale ?? false;
-  }
-
-  // 横断読みに必要な他の分析結果を収集する
-  function collectAnalysisResults(): Record<string, string> {
+  // 横断読みに必要な他の分析結果を収集する（日付不一致のキャッシュは除外）
+  function collectAnalysisResultsForDate(currentDate?: string): Record<string, string> {
     const otherTypes: AnalysisType[] = ['todaysEntry', 'vitalPoint', 'externalStandardsMastery', 'todaysLandscape', 'natureReflection', 'timeChanges'];
     const results: Record<string, string> = {};
     for (const t of otherTypes) {
-      if (cache[t]?.result) {
-        results[t] = cache[t].result;
-      }
+      const c = cache[t];
+      if (!c?.result) continue;
+      // analyzedForDate がある場合、現在の「今日」と一致するもののみ使う
+      if (currentDate && c.analyzedForDate && c.analyzedForDate !== currentDate) continue;
+      results[t] = c.result;
     }
     return results;
   }
@@ -161,6 +160,7 @@ export function Analysis() {
       // 分析実行前にDBから最新エントリを取得（ステートが古い可能性があるため）
       const freshEntries = await getAllEntries();
       const freshCount = await getEntryCount();
+      const today = detectAnalysisToday(freshEntries);
 
       // 急所の場合、過去ログから問い追跡用の結果を取得
       if (type === 'vitalPoint') {
@@ -170,20 +170,21 @@ export function Analysis() {
           .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt))
           .map(log => log.result);
         const result = await analyzeVitalPoint(freshEntries, prevResult, pastResults);
-        await save(type, result, freshCount);
+        await save(type, result, freshCount, today?.date, today?.count);
       } else if (type === 'crossReading') {
         // 横断読みは他の分析結果をインプットにする
-        const analysisResults = collectAnalysisResults();
+        // キャッシュ汚染防止: 現在の「今日」と一致する分析結果のみ使う
+        const analysisResults = collectAnalysisResultsForDate(today?.date);
         if (Object.keys(analysisResults).length === 0) {
           setError('横断読みには他の分析結果が必要です。先に他の分析を実行してください。');
           return;
         }
         const result = await analyzeCrossReading(freshEntries, analysisResults);
-        await save(type, result, freshCount);
+        await save(type, result, freshCount, today?.date, today?.count);
       } else {
         const prevResult = cache[type]?.result;
         const result = await analysisMap[type].fn(freshEntries, prevResult);
-        await save(type, result, freshCount);
+        await save(type, result, freshCount, today?.date, today?.count);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析に失敗しました');
@@ -204,6 +205,7 @@ export function Analysis() {
     // 分析実行前にDBから最新エントリを取得（ステートが古い可能性があるため）
     const freshEntries = await getAllEntries();
     const freshCount = await getEntryCount();
+    const today = detectAnalysisToday(freshEntries);
 
     const mainTypes = categories.flatMap(c => c.items).filter(t => !runLastTypes.has(t));
     const lastTypes = categories.flatMap(c => c.items).filter(t => runLastTypes.has(t));
@@ -229,7 +231,7 @@ export function Analysis() {
         } else {
           result = await analysisMap[type].fn(freshEntries, prevResult);
         }
-        await save(type, result, freshCount);
+        await save(type, result, freshCount, today?.date, today?.count);
         if (result) collectedResults[type] = result;
       } catch (err) {
         errors.push(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
@@ -245,7 +247,7 @@ export function Analysis() {
         try {
           if (type === 'crossReading') {
             const result = await analyzeCrossReading(freshEntries, collectedResults);
-            await save(type, result, freshCount);
+            await save(type, result, freshCount, today?.date, today?.count);
           }
         } catch (err) {
           errors.push(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
@@ -278,7 +280,18 @@ export function Analysis() {
   const isRunning = running !== null;
   const validTypes = new Set(Object.keys(analysisMap));
   const completedCount = Object.keys(cache).filter(k => validTypes.has(k) && cache[k]?.result).length;
-  const staleCount = Object.keys(cache).filter(k => validTypes.has(k) && cache[k]?.isStale).length;
+
+  // 現在の「今日」を検出し、キャッシュの日付不一致を stale 扱いにする
+  const currentToday = detectAnalysisToday(entries);
+  const staleCount = Object.keys(cache).filter(k => {
+    if (!validTypes.has(k)) return false;
+    const c = cache[k];
+    if (!c) return false;
+    if (c.isStale) return true;
+    // analyzedForDate がある場合、現在の「今日」と不一致なら stale
+    if (currentToday && c.analyzedForDate && c.analyzedForDate !== currentToday.date) return true;
+    return false;
+  }).length;
 
   return (
     <div className="page">
@@ -328,9 +341,13 @@ export function Analysis() {
           <div className="analysis-list">
             {cat.items.map(type => {
               const result = getResult(type);
-              const stale = isStale(type);
-              const cachedAt = cache[type]?.analyzedAt;
-              const cachedCount = cache[type]?.entryCount;
+              const c = cache[type];
+              const stale = c?.isStale || (currentToday && c?.analyzedForDate && c.analyzedForDate !== currentToday.date);
+              const cachedAt = c?.analyzedAt;
+              const cachedCount = c?.entryCount;
+              const forDate = c?.analyzedForDate;
+              const todayCount = c?.todayEntryCount;
+              const dateMismatch = currentToday && forDate && forDate !== currentToday.date;
               return (
                 <section key={type} className="analysis-section">
                   <div className="analysis-header">
@@ -340,7 +357,7 @@ export function Analysis() {
                     </div>
                     <div className="analysis-header-actions">
                       {result && !stale && <span className="analysis-done-badge">完了</span>}
-                      {result && stale && <span className="analysis-done-badge" style={{ background: 'var(--warning, #b8860b)', color: '#fff' }}>更新あり</span>}
+                      {result && stale && <span className="analysis-done-badge" style={{ background: dateMismatch ? 'var(--danger, #c0392b)' : 'var(--warning, #b8860b)', color: '#fff' }}>{dateMismatch ? '日付不一致' : '更新あり'}</span>}
                       <button
                         onClick={() => run(type)}
                         disabled={isRunning}
@@ -352,7 +369,12 @@ export function Analysis() {
                   </div>
                   {result && (
                     <div className="analysis-result">
-                      {stale && (
+                      {dateMismatch && (
+                        <p className="analysis-stale-notice" style={{ fontSize: '0.8em', color: 'var(--danger, #c0392b)', marginBottom: 8, fontWeight: 'bold' }}>
+                          この結果は {forDate} の分析です（最新の日記は {currentToday?.date}）。再実行してください。
+                        </p>
+                      )}
+                      {!dateMismatch && stale && (
                         <p className="analysis-stale-notice" style={{ fontSize: '0.8em', color: 'var(--warning, #b8860b)', marginBottom: 8 }}>
                           データが更新されています。再実行で最新の分析結果を取得できます。
                         </p>
@@ -361,6 +383,8 @@ export function Analysis() {
                       {cachedAt && (
                         <p className="analysis-meta" style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)', marginTop: 8 }}>
                           分析日時: {formatDate(cachedAt)}
+                          {forDate && ` / 対象日: ${forDate}`}
+                          {todayCount != null && ` / 「今日」のエントリ: ${todayCount}件`}
                           {cachedCount != null && cachedCount > sampleLimits[type]
                             ? ` / 全${cachedCount}件中、代表${sampleLimits[type]}件を分析`
                             : ` / ${cachedCount}件を分析`}
