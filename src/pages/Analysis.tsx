@@ -3,6 +3,7 @@ import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
 import { useAiCache } from '../hooks/useAiCache';
 import { hasApiKey } from '../utils/apiKey';
+import { getAllEntries, getEntryCount } from '../db';
 import {
   analyzeVitalPoint,
   analyzeTodaysEntry,
@@ -120,7 +121,7 @@ export function Analysis() {
     path: '/analysis',
   });
 
-  const { entries, count, loading } = useEntries();
+  const { entries, loading } = useEntries();
   const { cache, loading: cacheLoading, save } = useAiCache();
   const [running, setRunning] = useState<AnalysisType | null>(null);
   const [runningAll, setRunningAll] = useState(false);
@@ -157,6 +158,10 @@ export function Analysis() {
     setRunning(type);
     setError(null);
     try {
+      // 分析実行前にDBから最新エントリを取得（ステートが古い可能性があるため）
+      const freshEntries = await getAllEntries();
+      const freshCount = await getEntryCount();
+
       // 急所の場合、過去ログから問い追跡用の結果を取得
       if (type === 'vitalPoint') {
         const prevResult = cache[type]?.result;
@@ -164,8 +169,8 @@ export function Analysis() {
         const pastResults = pastLogs
           .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt))
           .map(log => log.result);
-        const result = await analyzeVitalPoint(entries, prevResult, pastResults);
-        await save(type, result, count);
+        const result = await analyzeVitalPoint(freshEntries, prevResult, pastResults);
+        await save(type, result, freshCount);
       } else if (type === 'crossReading') {
         // 横断読みは他の分析結果をインプットにする
         const analysisResults = collectAnalysisResults();
@@ -173,12 +178,12 @@ export function Analysis() {
           setError('横断読みには他の分析結果が必要です。先に他の分析を実行してください。');
           return;
         }
-        const result = await analyzeCrossReading(entries, analysisResults);
-        await save(type, result, count);
+        const result = await analyzeCrossReading(freshEntries, analysisResults);
+        await save(type, result, freshCount);
       } else {
         const prevResult = cache[type]?.result;
-        const result = await analysisMap[type].fn(entries, prevResult);
-        await save(type, result, count);
+        const result = await analysisMap[type].fn(freshEntries, prevResult);
+        await save(type, result, freshCount);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析に失敗しました');
@@ -194,6 +199,11 @@ export function Analysis() {
     }
     setRunningAll(true);
     setError(null);
+
+    // 分析実行前にDBから最新エントリを取得（ステートが古い可能性があるため）
+    const freshEntries = await getAllEntries();
+    const freshCount = await getEntryCount();
+
     const mainTypes = categories.flatMap(c => c.items).filter(t => !runLastTypes.has(t));
     const lastTypes = categories.flatMap(c => c.items).filter(t => runLastTypes.has(t));
     const allTypes = [...mainTypes, ...lastTypes];
@@ -214,11 +224,11 @@ export function Analysis() {
           const pastResults = pastLogs
             .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt))
             .map(log => log.result);
-          result = await analyzeVitalPoint(entries, prevResult, pastResults);
+          result = await analyzeVitalPoint(freshEntries, prevResult, pastResults);
         } else {
-          result = await analysisMap[type].fn(entries, prevResult);
+          result = await analysisMap[type].fn(freshEntries, prevResult);
         }
-        await save(type, result, count);
+        await save(type, result, freshCount);
         if (result) collectedResults[type] = result;
       } catch (err) {
         errors.push(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
@@ -233,8 +243,8 @@ export function Analysis() {
         setRunning(type);
         try {
           if (type === 'crossReading') {
-            const result = await analyzeCrossReading(entries, collectedResults);
-            await save(type, result, count);
+            const result = await analyzeCrossReading(freshEntries, collectedResults);
+            await save(type, result, freshCount);
           }
         } catch (err) {
           errors.push(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
