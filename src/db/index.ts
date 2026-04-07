@@ -139,14 +139,20 @@ async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache
     `[cursorGetAll] ${storeName}: getAll returned ${all.length} / ${expectedCount}, trying key-based fallback`,
   );
 
-  // 3. getAllKeys() + 個別 get() フォールバック
+  // 3. キーカーソル走査 + 個別 get() フォールバック
+  // Safari/iOS では getAllKeys() にも件数制限があるため、openKeyCursor() で全キーを取得する
   const tx3 = db.transaction(storeName, 'readonly');
-  const keys = await tx3.store.getAllKeys();
+  const allKeys: ClimbingLogDB[StoreName]['key'][] = [];
+  let keyCursor = await tx3.store.openKeyCursor();
+  while (keyCursor) {
+    allKeys.push(keyCursor.key as ClimbingLogDB[StoreName]['key']);
+    keyCursor = await keyCursor.continue();
+  }
   await tx3.done;
 
   const keyResults: ClimbingLogDB[StoreName]['value'][] = [];
-  for (const key of keys) {
-    const value = await db.get(storeName, key as ClimbingLogDB[StoreName]['key']);
+  for (const key of allKeys) {
+    const value = await db.get(storeName, key);
     if (value) keyResults.push(value);
   }
 
