@@ -21,12 +21,13 @@ function subtractDaysISO(dateStr: string, days: number): string {
   return d.toISOString().substring(0, 10);
 }
 
-/** YYYY-MM-DD 文字列を正規化（タイムスタンプが混入していても安全） */
+/** YYYY-MM-DD 文字列を正規化（タイムスタンプ混入・セパレータ混在でも安全） */
 function toDateOnly(dateStr: string): string {
-  return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+  const d = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+  return d.replace(/[/.]/g, '-');
 }
 
-/** 日付ソート比較関数（タイムスタンプ混在でも日付部分のみで比較） */
+/** 日付ソート比較関数（タイムスタンプ・セパレータ混在でも日付部分のみで比較） */
 function compareDateOnly(a: string, b: string): number {
   const ad = toDateOnly(a);
   const bd = toDateOnly(b);

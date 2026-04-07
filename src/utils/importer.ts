@@ -1,13 +1,15 @@
 import type { DiaryEntry } from '../types';
 import { extractDate, extractDateFromFilename, DATE_LINE_REGEX } from './dateExtractor';
 
-/** 日付文字列を YYYY-MM-DD に正規化（タイムスタンプが混入していても安全） */
+/** 日付文字列を YYYY-MM-DD に正規化（タイムスタンプ混入・セパレータ混在でも安全） */
 function toDateOnly(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
   // YYYY-MM-DD (10文字) より長ければタイムスタンプ → 切り詰め
   const d = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
-  // YYYY-MM-DD 形式かどうか簡易チェック
-  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : dateStr;
+  // セパレータを正規化（. や / を - に統一）
+  const normalized = d.replace(/[/.]/g, '-');
+  // YYYY-MM-DD 形式かどうか簡易チェック（正規化できなければ null で extractDate にフォールバック）
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null;
 }
 
 function generateId(): string {

@@ -14,10 +14,10 @@ import type {
 } from '../types';
 import { negativeWords as allNegativeWords, positiveWords as allPositiveWords, countWords } from './emotionDictionaries';
 
-/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ混在対策） */
+/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ・セパレータ混在対策） */
 function compareDateOnly(a: string, b: string): number {
-  const ad = a.length > 10 ? a.substring(0, 10) : a;
-  const bd = b.length > 10 ? b.substring(0, 10) : b;
+  const ad = (a.length > 10 ? a.substring(0, 10) : a).replace(/[/.]/g, '-');
+  const bd = (b.length > 10 ? b.substring(0, 10) : b).replace(/[/.]/g, '-');
   return ad < bd ? -1 : ad > bd ? 1 : 0;
 }
 

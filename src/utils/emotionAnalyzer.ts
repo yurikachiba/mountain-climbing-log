@@ -1,10 +1,10 @@
 import type { DiaryEntry, EmotionAnalysis, EmotionAnalysisDaily, StabilityIndex, ElevationPoint, ElevationPointMonthly, ElevationPointDaily, ResilienceMetrics } from '../types';
 import { negativeWords, selfDenialWords, positiveWords, countWords, getEmotionWordCounts } from './emotionDictionaries';
 
-/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ混在対策） */
+/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ・セパレータ混在対策） */
 function compareDateOnly(a: string, b: string): number {
-  const ad = a.length > 10 ? a.substring(0, 10) : a;
-  const bd = b.length > 10 ? b.substring(0, 10) : b;
+  const ad = (a.length > 10 ? a.substring(0, 10) : a).replace(/[/.]/g, '-');
+  const bd = (b.length > 10 ? b.substring(0, 10) : b).replace(/[/.]/g, '-');
   return ad < bd ? -1 : ad > bd ? 1 : 0;
 }
 
@@ -428,13 +428,16 @@ export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContex
   }
 
   // 最新の日付から3ヶ月以内をrecentとする（UTC安全）
-  const latestDateStr = sorted[sorted.length - 1].date!.substring(0, 10);
+  const latestDateStr = (sorted[sorted.length - 1].date!.length > 10
+    ? sorted[sorted.length - 1].date!.substring(0, 10)
+    : sorted[sorted.length - 1].date!).replace(/[/.]/g, '-');
   const threeMonthsAgo = new Date(latestDateStr + 'T00:00:00Z');
   threeMonthsAgo.setUTCMonth(threeMonthsAgo.getUTCMonth() - 3);
   const cutoffStr = threeMonthsAgo.toISOString().substring(0, 10);
 
-  const recentEntries = sorted.filter(e => e.date! >= cutoffStr);
-  const olderEntries = sorted.filter(e => e.date! < cutoffStr);
+  const normalizeDate = (d: string) => (d.length > 10 ? d.substring(0, 10) : d).replace(/[/.]/g, '-');
+  const recentEntries = sorted.filter(e => normalizeDate(e.date!) >= cutoffStr);
+  const olderEntries = sorted.filter(e => normalizeDate(e.date!) < cutoffStr);
 
   // 直近のエントリが少なすぎる場合はコンテキストを生成しない
   // ただし直近1件でもあれば現在の状態は伝える（材料が少ないからと見逃さない）
@@ -582,12 +585,15 @@ export function formatRecentEntriesHighlight(entries: DiaryEntry[], maxChars = 5
   );
   if (sorted.length === 0) return '';
 
-  const latestDateStr = sorted[sorted.length - 1].date!.substring(0, 10);
+  const latestDateStr = (sorted[sorted.length - 1].date!.length > 10
+    ? sorted[sorted.length - 1].date!.substring(0, 10)
+    : sorted[sorted.length - 1].date!).replace(/[/.]/g, '-');
   const cutoffD = new Date(latestDateStr + 'T00:00:00Z');
   cutoffD.setUTCDate(cutoffD.getUTCDate() - 30);
   const cutoffStr = cutoffD.toISOString().substring(0, 10);
 
-  const recentEntries = sorted.filter(e => e.date! >= cutoffStr);
+  const normDate = (d: string) => (d.length > 10 ? d.substring(0, 10) : d).replace(/[/.]/g, '-');
+  const recentEntries = sorted.filter(e => normDate(e.date!) >= cutoffStr);
   if (recentEntries.length === 0) return '';
 
   const lines = recentEntries.map(e => `[${e.date}] ${e.content.slice(0, 500)}`);

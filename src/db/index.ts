@@ -248,8 +248,8 @@ export async function getAllEntries(): Promise<DiaryEntry[]> {
   // 日付あり→日付昇順、日付なし→末尾（importedAt降順）
   return all.sort((a, b) => {
     if (a.date && b.date) {
-      const ad = a.date.length > 10 ? a.date.substring(0, 10) : a.date;
-      const bd = b.date.length > 10 ? b.date.substring(0, 10) : b.date;
+      const ad = (a.date.length > 10 ? a.date.substring(0, 10) : a.date).replace(/[/.]/g, '-');
+      const bd = (b.date.length > 10 ? b.date.substring(0, 10) : b.date).replace(/[/.]/g, '-');
       return ad < bd ? -1 : ad > bd ? 1 : 0;
     }
     if (a.date) return -1;
