@@ -1,5 +1,5 @@
 import type { DiaryEntry } from '../types';
-import { extractDate, extractDateFromFilename } from './dateExtractor';
+import { extractDate, extractDateFromFilename, DATE_LINE_REGEX } from './dateExtractor';
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -7,7 +7,7 @@ function generateId(): string {
 
 // テキスト内の区切り（日付行など）でエントリを分割
 function splitByDates(text: string): { date: string | null; content: string }[] {
-  const dateLineRegex = /^(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{4}年\d{1,2}月\d{1,2}日|令和\d{1,2}年\d{1,2}月\d{1,2}日|平成\d{1,2}年\d{1,2}月\d{1,2}日)/;
+  const dateLineRegex = DATE_LINE_REGEX;
   const lines = text.split('\n');
   const entries: { date: string | null; content: string }[] = [];
   let current: string[] = [];

@@ -12,8 +12,9 @@ import type {
   DailyPredictiveContext,
   ExistentialDensity,
 } from '../types';
+import { negativeWords as allNegativeWords, positiveWords as allPositiveWords, countWords } from './emotionDictionaries';
 
-// ── 辞書定義 ──
+// ── 辞書定義（deepAnalyzer 固有） ──
 
 // ネガティブ語を深度別に分類
 const lightNegativeWords = [
@@ -26,24 +27,6 @@ const deepNegativeWords = [
   '生きてる意味', '価値がない', '自分なんか', '無価値',
   '地獄', '惨め', '情けない',
 ];
-
-const allNegativeWords = [
-  '辛い', 'つらい', '苦しい', '悲しい', '寂しい', '怖い',
-  '不安', '孤独', '絶望', '死にたい', '消えたい', '無理',
-  '嫌だ', '嫌い', '最悪', '地獄', '痛い', '泣', '涙',
-  '疲れ', '限界', '逃げたい', 'しんどい', 'だるい', '憂鬱',
-  '鬱', '落ち込', '暗い', '重い', '苦手', '怒り', '腹が立つ',
-  'イライラ', 'ストレス', '後悔', '失敗', '惨め', '情けない',
-];
-
-const allPositiveWords = [
-  '嬉しい', '楽しい', '幸せ', '好き', '感謝', 'ありがとう',
-  '笑', '元気', '希望', '安心', '心地よい', '穏やか',
-  '面白い', '素敵', '美しい', '温かい', '優しい', '喜び',
-  '達成', '成功', '前向き', '光', '明るい', '自由',
-];
-
-// selfDenialWords は emotionAnalyzer.ts 側で使用。deepAnalyzer は negativeWords の深度分類を使用
 
 // 身体症状辞書
 const physicalSymptomWords = [
@@ -232,15 +215,6 @@ export const influenceControlWords = [
 ];
 
 // ── ユーティリティ ──
-
-function countWords(text: string, words: string[]): number {
-  let count = 0;
-  for (const word of words) {
-    const matches = text.match(new RegExp(word, 'g'));
-    if (matches) count += matches.length;
-  }
-  return count;
-}
 
 function splitSentences(text: string): string[] {
   return text.split(/[。！？\n]+/).filter(s => s.trim().length > 0);

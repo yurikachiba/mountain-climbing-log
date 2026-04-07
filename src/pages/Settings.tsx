@@ -3,16 +3,8 @@ import { deleteAllEntries, exportAllData, importAllData, clearAllAiCache, markAl
 import { getApiKey, setApiKey, getKeyStorageMode, setKeyStorageMode } from '../utils/apiKey';
 import type { KeyStorageMode } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
-
-function downloadJson(data: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { downloadJson, downloadText } from '../utils/download';
+import { toErrorMessage } from '../utils/errorMessage';
 
 export function Settings() {
   useHead({
@@ -63,8 +55,8 @@ export function Settings() {
       const data = await exportAllData();
       downloadJson(data, `climbing-log-backup-${new Date().toISOString().slice(0, 10)}.json`);
       setMessage('エクスポートしました');
-    } catch {
-      setMessage('エクスポートに失敗しました');
+    } catch (err) {
+      setMessage(toErrorMessage(err, 'エクスポートに失敗しました'));
     }
   }
 
@@ -81,8 +73,8 @@ export function Settings() {
       await importAllData(data);
       await markAllAiCacheStale();
       setMessage('バックアップを復元しました');
-    } catch {
-      setMessage('復元に失敗しました');
+    } catch (err) {
+      setMessage(toErrorMessage(err, '復元に失敗しました'));
     }
   }
 
@@ -97,19 +89,13 @@ export function Settings() {
         const date = e.date ?? '日付不明';
         return `${date}\n${e.content}`;
       }).join('\n\n---\n\n');
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `climbing-log-diary-${new Date().toISOString().slice(0, 10)}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadText(text, `climbing-log-diary-${new Date().toISOString().slice(0, 10)}.txt`);
       const countNote = entries.length < totalCount
         ? `（※ DB上は${totalCount}件ですが${entries.length}件しか取得できませんでした）`
         : '';
       setMessage(`${entries.length}件の日記をダウンロードしました${countNote}`);
-    } catch {
-      setMessage('ダウンロードに失敗しました');
+    } catch (err) {
+      setMessage(toErrorMessage(err, 'ダウンロードに失敗しました'));
     }
   }
 

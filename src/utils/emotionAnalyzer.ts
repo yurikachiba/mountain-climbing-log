@@ -1,51 +1,48 @@
 import type { DiaryEntry, EmotionAnalysis, EmotionAnalysisDaily, StabilityIndex, ElevationPoint, ElevationPointMonthly, ElevationPointDaily, ResilienceMetrics } from '../types';
+import { negativeWords, selfDenialWords, positiveWords, countWords, getEmotionWordCounts } from './emotionDictionaries';
 
-// 感情ワード辞書（日本語）
-const negativeWords = [
-  '辛い', 'つらい', '苦しい', '悲しい', '寂しい', '怖い',
-  '不安', '孤独', '絶望', '死にたい', '消えたい', '無理',
-  '嫌だ', '嫌い', '最悪', '地獄', '痛い', '泣', '涙',
-  '疲れ', '限界', '逃げたい', 'しんどい', 'だるい', '憂鬱',
-  '鬱', '落ち込', '暗い', '重い', '苦手', '怒り', '腹が立つ',
-  'イライラ', 'ストレス', '後悔', '失敗', '惨め', '情けない',
-];
+// ── スコアリング定数 ──
 
-const selfDenialWords = [
-  '自分が嫌', '自分なんか', '価値がない', 'どうせ', '無価値',
-  '存在意義', '生きてる意味', 'いらない人間', '迷惑',
-  'ダメな', '何もできない', '役に立たない', '自己嫌悪',
-  '自分のせい', '自分が悪い', '能力がない', '才能がない',
-];
+// 年単位の安定指数（calcStabilityByYear）
+const STABILITY_POSITIVE_MAX = 40;       // ポジティブ比率の最大スコア
+const STABILITY_VOLATILITY_MAX = 30;     // ばらつきの最大スコア
+const STABILITY_VOLATILITY_SCALE = 150;  // σ=0.2で0点になるスケール
+const STABILITY_DENIAL_MAX = 30;         // 自己否定語の最大スコア
+const STABILITY_DENIAL_SCALE = 3;        // 月10回で0点になるスケール
 
-const positiveWords = [
-  '嬉しい', '楽しい', '幸せ', '好き', '感謝', 'ありがとう',
-  '笑', '元気', '希望', '安心', '心地よい', '穏やか',
-  '面白い', '素敵', '美しい', '温かい', '優しい', '喜び',
-  '達成', '成功', '前向き', '光', '明るい', '自由',
-];
+// 年単位の累積標高（calcElevationByYear）
+const YEAR_BASE_ELEVATION = 1000;        // 基準点 1000m
+const YEAR_WRITING_BONUS_MAX = 30;       // 書いた量ボーナスの上限
+const YEAR_WRITING_BONUS_RATE = 0.3;     // 1エントリあたりのボーナス
+const YEAR_STABILITY_NEUTRAL = 50;       // 安定度の中立点
+const YEAR_STABILITY_SCALE = 3;          // score 100→+150m, 0→-150m
+const YEAR_CHANGE_MAX = 30;              // 前年比変化の上限
+const YEAR_CHANGE_RATE = 0.5;            // 前年比変化の係数
+const YEAR_CLIMB_MIN = -150;
+const YEAR_CLIMB_MAX = 250;
 
-function countOccurrences(text: string, words: string[]): number {
-  let count = 0;
-  for (const word of words) {
-    const regex = new RegExp(word, 'g');
-    const matches = text.match(regex);
-    if (matches) count += matches.length;
-  }
-  return count;
-}
+// 月単位の累積標高（calcElevationByMonth）
+const MONTH_WRITING_BONUS_MAX = 2.5;
+const MONTH_WRITING_BONUS_RATE = 0.2;
+const MONTH_EMOTION_NEUTRAL = 0.5;       // ネガ率の中立点
+const MONTH_EMOTION_SCALE = 24;          // 0→+12m, 1→-12m
+const MONTH_DENIAL_MAX = 3;
+const MONTH_DENIAL_RATE = 0.3;
+const MONTH_CHANGE_MAX = 3;
+const MONTH_CHANGE_SCALE = 15;
+const MONTH_CLIMB_MIN = -15;
+const MONTH_CLIMB_MAX = 20;
 
-function getEmotionWordCounts(text: string): { word: string; count: number }[] {
-  const allWords = [...negativeWords, ...positiveWords];
-  const counts: { word: string; count: number }[] = [];
-  for (const word of allWords) {
-    const regex = new RegExp(word, 'g');
-    const matches = text.match(regex);
-    if (matches && matches.length > 0) {
-      counts.push({ word, count: matches.length });
-    }
-  }
-  return counts.sort((a, b) => b.count - a.count);
-}
+// 日単位の累積標高（calcElevationEveryOtherDay）
+const DAY_WRITING_BONUS_MAX = 0.15;
+const DAY_WRITING_BONUS_RATE = 0.1;
+const DAY_EMOTION_SCALE = 1.6;           // 0→+0.8m, 1→-0.8m
+const DAY_DENIAL_MAX = 0.2;
+const DAY_DENIAL_RATE = 0.02;
+const DAY_CHANGE_MAX = 0.2;
+const DAY_CHANGE_SCALE = 1.0;
+const DAY_CLIMB_MIN = -1.0;
+const DAY_CLIMB_MAX = 1.2;
 
 export function analyzeEntries(entries: DiaryEntry[]): EmotionAnalysis[] {
   // 月単位でグループ化
@@ -63,11 +60,11 @@ export function analyzeEntries(entries: DiaryEntry[]): EmotionAnalysis[] {
 
   for (const [month, monthEntries] of byMonth) {
     const allText = monthEntries.map(e => e.content).join('\n');
-    const negCount = countOccurrences(allText, negativeWords);
-    const posCount = countOccurrences(allText, positiveWords);
+    const negCount = countWords(allText, negativeWords);
+    const posCount = countWords(allText, positiveWords);
     const total = negCount + posCount;
     const negativeRatio = total > 0 ? negCount / total : 0;
-    const selfDenialCount = countOccurrences(allText, selfDenialWords);
+    const selfDenialCount = countWords(allText, selfDenialWords);
     const topEmotionWords = getEmotionWordCounts(allText).slice(0, 10);
 
     results.push({
@@ -110,13 +107,9 @@ export function calcStabilityByYear(monthlyAnalysis: EmotionAnalysis[]): Stabili
     // 3. 月平均自己否定語数
     const selfDenialAvg = months.reduce((s, m) => s + m.selfDenialCount, 0) / months.length;
 
-    // スコア算出:
-    // - ポジティブ比率が高い → +（最大40点）
-    // - ばらつきが小さい → +（最大30点）
-    // - 自己否定語が少ない → +（最大30点）
-    const positiveScore = positiveRatio * 40;
-    const stabilityScore = Math.max(0, 30 - volatility * 150); // σ=0.2で0点
-    const denialScore = Math.max(0, 30 - selfDenialAvg * 3); // 月10回で0点
+    const positiveScore = positiveRatio * STABILITY_POSITIVE_MAX;
+    const stabilityScore = Math.max(0, STABILITY_VOLATILITY_MAX - volatility * STABILITY_VOLATILITY_SCALE);
+    const denialScore = Math.max(0, STABILITY_DENIAL_MAX - selfDenialAvg * STABILITY_DENIAL_SCALE);
 
     const score = Math.round(Math.min(100, Math.max(0, positiveScore + stabilityScore + denialScore)));
 
@@ -146,31 +139,24 @@ export function calcElevationByYear(
 
   const sorted = [...stability].sort((a, b) => a.year.localeCompare(b.year));
   const results: ElevationPoint[] = [];
-  let cumulative = 1000; // 基準点 1000m
+  let cumulative = YEAR_BASE_ELEVATION;
 
   for (let i = 0; i < sorted.length; i++) {
     const s = sorted[i];
     const entryCount = countByYear.get(s.year) ?? 0;
 
-    // 書いた量による控えめなボーナス（最大30m）— 書いただけでは救われない
-    const writingBonus = Math.min(30, Math.max(0, entryCount * 0.3));
+    const writingBonus = Math.min(YEAR_WRITING_BONUS_MAX, Math.max(0, entryCount * YEAR_WRITING_BONUS_RATE));
+    const stabilityDelta = (s.score - YEAR_STABILITY_NEUTRAL) * YEAR_STABILITY_SCALE;
 
-    // 安定度スコアによる変動: 50が中立点
-    // score 100 → +150m, score 50 → 0m, score 0 → -150m
-    const stabilityDelta = (s.score - 50) * 3;
-
-    // 前年比の変化ボーナス/ペナルティ
     let changeDelta = 0;
     if (i > 0) {
       const prev = sorted[i - 1];
       const scoreDiff = s.score - prev.score;
-      // 改善も悪化もそのまま反映（最大±30m）
-      changeDelta = Math.max(-30, Math.min(30, scoreDiff * 0.5));
+      changeDelta = Math.max(-YEAR_CHANGE_MAX, Math.min(YEAR_CHANGE_MAX, scoreDiff * YEAR_CHANGE_RATE));
     }
 
-    // 年間変動量（マイナスあり）
     const rawClimb = writingBonus + stabilityDelta + changeDelta;
-    const climb = Math.round(Math.max(-150, Math.min(250, rawClimb)));
+    const climb = Math.round(Math.max(YEAR_CLIMB_MIN, Math.min(YEAR_CLIMB_MAX, rawClimb)));
     const isSlide = climb < 0;
 
     cumulative += climb;
@@ -198,32 +184,25 @@ export function calcElevationByMonth(
 
   const sorted = [...monthlyAnalysis].sort((a, b) => a.month.localeCompare(b.month));
   const results: ElevationPointMonthly[] = [];
-  let cumulative = 1000;
+  let cumulative = YEAR_BASE_ELEVATION;
 
   for (let i = 0; i < sorted.length; i++) {
     const a = sorted[i];
     const entryCount = countByMonth.get(a.month) ?? 0;
 
-    // 書いた量（控えめ。最大2.5m）
-    const writingBonus = Math.min(2.5, Math.max(0, entryCount * 0.2));
+    const writingBonus = Math.min(MONTH_WRITING_BONUS_MAX, Math.max(0, entryCount * MONTH_WRITING_BONUS_RATE));
+    const emotionDelta = (MONTH_EMOTION_NEUTRAL - a.negativeRatio) * MONTH_EMOTION_SCALE;
+    const denialPenalty = Math.min(MONTH_DENIAL_MAX, a.selfDenialCount * MONTH_DENIAL_RATE);
 
-    // ネガ率による変動: 0.5が中立（0m）、0→+12m、1→-12m
-    const emotionDelta = (0.5 - a.negativeRatio) * 24;
-
-    // 自己否定語ペナルティ（多ければ引く）
-    const denialPenalty = Math.min(3, a.selfDenialCount * 0.3);
-
-    // 前月比の変化
     let changeDelta = 0;
     if (i > 0) {
       const prev = sorted[i - 1];
-      const diff = prev.negativeRatio - a.negativeRatio; // 改善ならプラス
-      changeDelta = Math.max(-3, Math.min(3, diff * 15));
+      const diff = prev.negativeRatio - a.negativeRatio;
+      changeDelta = Math.max(-MONTH_CHANGE_MAX, Math.min(MONTH_CHANGE_MAX, diff * MONTH_CHANGE_SCALE));
     }
 
-    // 月間変動量（マイナスあり）
     const rawClimb = writingBonus + emotionDelta - denialPenalty + changeDelta;
-    const climb = Math.round(Math.max(-15, Math.min(20, rawClimb)));
+    const climb = Math.round(Math.max(MONTH_CLIMB_MIN, Math.min(MONTH_CLIMB_MAX, rawClimb)));
     const isSlide = climb < 0;
 
     cumulative += climb;
@@ -253,11 +232,11 @@ export function analyzeEntriesEveryOtherDay(entries: DiaryEntry[]): EmotionAnaly
     const date = sortedDates[i];
     const dateEntries = byDate.get(date)!;
     const allText = dateEntries.map(e => e.content).join('\n');
-    const negCount = countOccurrences(allText, negativeWords);
-    const posCount = countOccurrences(allText, positiveWords);
+    const negCount = countWords(allText, negativeWords);
+    const posCount = countWords(allText, positiveWords);
     const total = negCount + posCount;
     const negativeRatio = total > 0 ? negCount / total : 0;
-    const selfDenialCount = countOccurrences(allText, selfDenialWords);
+    const selfDenialCount = countWords(allText, selfDenialWords);
     const topEmotionWords = getEmotionWordCounts(allText).slice(0, 10);
 
     results.push({ date, negativeRatio, selfDenialCount, topEmotionWords });
@@ -282,32 +261,25 @@ export function calcElevationEveryOtherDay(
 
   const sorted = [...dailyAnalysis].sort((a, b) => a.date.localeCompare(b.date));
   const results: ElevationPointDaily[] = [];
-  let cumulative = 1000;
+  let cumulative = YEAR_BASE_ELEVATION;
 
   for (let i = 0; i < sorted.length; i++) {
     const a = sorted[i];
     const entryCount = countByDate.get(a.date) ?? 0;
 
-    // 書いた量（控えめ。最大0.15m）
-    const writingBonus = Math.min(0.15, Math.max(0, entryCount * 0.1));
+    const writingBonus = Math.min(DAY_WRITING_BONUS_MAX, Math.max(0, entryCount * DAY_WRITING_BONUS_RATE));
+    const emotionDelta = (MONTH_EMOTION_NEUTRAL - a.negativeRatio) * DAY_EMOTION_SCALE;
+    const denialPenalty = Math.min(DAY_DENIAL_MAX, a.selfDenialCount * DAY_DENIAL_RATE);
 
-    // ネガ率による変動: 0.5が中立、0→+0.8m、1→-0.8m
-    const emotionDelta = (0.5 - a.negativeRatio) * 1.6;
-
-    // 自己否定語ペナルティ
-    const denialPenalty = Math.min(0.2, a.selfDenialCount * 0.02);
-
-    // 前回比の変化
     let changeDelta = 0;
     if (i > 0) {
       const prev = sorted[i - 1];
       const diff = prev.negativeRatio - a.negativeRatio;
-      changeDelta = Math.max(-0.2, Math.min(0.2, diff * 1.0));
+      changeDelta = Math.max(-DAY_CHANGE_MAX, Math.min(DAY_CHANGE_MAX, diff * DAY_CHANGE_SCALE));
     }
 
-    // 日次変動量（マイナスあり）
     const rawClimb = writingBonus + emotionDelta - denialPenalty + changeDelta;
-    const climb = Math.round(Math.max(-1.0, Math.min(1.2, rawClimb)) * 10) / 10;
+    const climb = Math.round(Math.max(DAY_CLIMB_MIN, Math.min(DAY_CLIMB_MAX, rawClimb)) * 10) / 10;
     const isSlide = climb < 0;
 
     cumulative = Math.round((cumulative + climb) * 10) / 10;
@@ -342,11 +314,11 @@ export function calcPeriodStats(entries: DiaryEntry[]): PeriodEmotionStats[] {
   const results: PeriodEmotionStats[] = [];
   for (const [month, monthEntries] of [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const allText = monthEntries.map(e => e.content).join('\n');
-    const negCount = countOccurrences(allText, negativeWords);
-    const posCount = countOccurrences(allText, positiveWords);
+    const negCount = countWords(allText, negativeWords);
+    const posCount = countWords(allText, positiveWords);
     const total = negCount + posCount;
     const negRatio = total > 0 ? negCount / total : 0;
-    const selfDenial = countOccurrences(allText, selfDenialWords);
+    const selfDenial = countWords(allText, selfDenialWords);
 
     const negWordCounts = negativeWords
       .map(w => ({ word: w, count: (allText.match(new RegExp(w, 'g')) ?? []).length }))
@@ -472,11 +444,11 @@ export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContex
 
   const calcStats = (group: DiaryEntry[]) => {
     const allText = group.map(e => e.content).join('\n');
-    const negCount = countOccurrences(allText, negativeWords);
-    const posCount = countOccurrences(allText, positiveWords);
+    const negCount = countWords(allText, negativeWords);
+    const posCount = countWords(allText, positiveWords);
     const total = negCount + posCount;
     const negRatio = total > 0 ? negCount / total : 0;
-    const selfDenial = countOccurrences(allText, selfDenialWords);
+    const selfDenial = countWords(allText, selfDenialWords);
     // 月数で割って月平均を算出
     const months = new Set(group.map(e => e.date!.substring(0, 7))).size;
     const selfDenialPerMonth = months > 0 ? selfDenial / months : 0;

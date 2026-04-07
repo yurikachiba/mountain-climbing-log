@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { importFile, parseTextFile } from '../utils/importer';
 import { addEntries, markAllAiCacheStale } from '../db';
 import { useHead } from '../hooks/useHead';
+import { toErrorMessage } from '../utils/errorMessage';
 
 export function Import() {
   useHead({
@@ -44,7 +45,7 @@ export function Import() {
       await markAllAiCacheStale();
       setResult({ count: addedCount, total: allEntries.length, files: fileNames });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '読み込みに失敗しました');
+      setError(toErrorMessage(err, '読み込みに失敗しました'));
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -66,7 +67,7 @@ export function Import() {
       setDirectResult({ count: addedCount, total: entries.length });
       setDirectText('');
     } catch (err) {
-      setDirectError(err instanceof Error ? err.message : '保存に失敗しました');
+      setDirectError(toErrorMessage(err, '保存に失敗しました'));
     } finally {
       setDirectSaving(false);
     }
