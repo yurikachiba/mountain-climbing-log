@@ -26,6 +26,13 @@ function toDateOnly(dateStr: string): string {
   return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
 }
 
+/** 日付ソート比較関数（タイムスタンプ混在でも日付部分のみで比較） */
+function compareDateOnly(a: string, b: string): number {
+  const ad = toDateOnly(a);
+  const bd = toDateOnly(b);
+  return ad < bd ? -1 : ad > bd ? 1 : 0;
+}
+
 interface ChatMessage {
   role: 'system' | 'user';
   content: string;
@@ -92,7 +99,7 @@ function sampleSliceFromArray(slice: DiaryEntry[], count: number): DiaryEntry[] 
 // 追加: 直近30日のエントリは必ず全件含める
 function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length <= maxCount) return sorted;
 
@@ -171,7 +178,7 @@ export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: 
   if (entries.length === 0) return '';
 
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 
@@ -552,7 +559,7 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   if (entries.length === 0) return '';
 
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 
@@ -747,7 +754,7 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
   if (entries.length === 0) return '';
 
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 
@@ -1052,7 +1059,7 @@ export async function analyzeTodaysLandscape(entries: DiaryEntry[]): Promise<str
   if (entries.length === 0) return '';
 
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 
@@ -1204,7 +1211,7 @@ export async function analyzeNatureReflection(entries: DiaryEntry[]): Promise<st
   if (entries.length === 0) return '';
 
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 
@@ -1332,7 +1339,7 @@ export async function analyzeTimeChanges(entries: DiaryEntry[]): Promise<string>
   if (entries.length === 0) return '';
 
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 
@@ -1489,7 +1496,7 @@ export async function analyzeCrossReading(
   analysisResults: Record<string, string>,
 ): Promise<string> {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 
