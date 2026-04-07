@@ -21,6 +21,22 @@ export function Fragments() {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const cancelRef = useRef(false);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  async function acquireWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+      }
+    } catch {
+      // Wake Lock API 非対応 or 権限拒否 — 無視して続行
+    }
+  }
+
+  function releaseWakeLock() {
+    wakeLockRef.current?.release();
+    wakeLockRef.current = null;
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,11 +57,23 @@ export function Fragments() {
 
   useEffect(() => { load(); }, [load]);
 
+  // タブが再びアクティブになったら Wake Lock を再取得
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible' && collecting) {
+        acquireWakeLock();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [collecting]);
+
   async function handleCollectAll() {
     if (collecting) return;
     setError(null);
     setCollecting(true);
     cancelRef.current = false;
+    await acquireWakeLock();
 
     try {
       const [allEntries, existingIds, totalCount] = await Promise.all([
@@ -53,6 +81,19 @@ export function Fragments() {
         getFragmentEntryIds(),
         getEntryCount(),
       ]);
+
+      // 取得件数と db.count() の照合 — 不一致があればユーザーに警告
+      if (allEntries.length < totalCount) {
+        console.warn(
+          `[Fragments] エントリ取得数の不一致: 取得=${allEntries.length}, DB件数=${totalCount}`,
+        );
+        setError(
+          `⚠ 日記の取得が不完全です（${allEntries.length} / ${totalCount}件）。ブラウザを再起動してから再度お試しください。`,
+        );
+        setCollecting(false);
+        return;
+      }
+
       const notProcessed = allEntries.filter(e => !existingIds.has(e.id));
       const unprocessed = notProcessed
         .filter(e => e.content.trim().length > 30)
@@ -83,6 +124,7 @@ export function Fragments() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'エラーが発生しました');
     } finally {
+      releaseWakeLock();
       setCollecting(false);
     }
   }
@@ -150,6 +192,9 @@ export function Fragments() {
             </div>
             <p className="treasure-progress-text">
               {progress.done} / {progress.total} 件の日記から光を集めています...
+            </p>
+            <p className="treasure-progress-hint">
+              画面を表示したままにしてください
             </p>
             <button onClick={handleCancel} className="btn btn-small">中断する</button>
           </div>

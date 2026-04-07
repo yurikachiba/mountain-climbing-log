@@ -274,17 +274,14 @@ export async function deleteFragment(id: string): Promise<void> {
 
 export async function getFragmentEntryIds(): Promise<Set<string>> {
   const db = await getDB();
-  // ストア直接走査で全件取得（インデックス経由だと entryId 欠落レコードを取りこぼす）
-  const tx = db.transaction('fragments', 'readonly');
+  // cursorGetAll で堅牢に全件取得（生カーソルだと大量レコードで取りこぼす）
+  const all = await cursorGetAll(db, 'fragments');
   const ids = new Set<string>();
-  let cursor = await tx.store.openCursor();
-  while (cursor) {
-    if (cursor.value.entryId) {
-      ids.add(cursor.value.entryId);
+  for (const f of all) {
+    if (f.entryId) {
+      ids.add(f.entryId);
     }
-    cursor = await cursor.continue();
   }
-  await tx.done;
   return ids;
 }
 
