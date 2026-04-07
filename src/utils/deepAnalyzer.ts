@@ -14,10 +14,10 @@ import type {
 } from '../types';
 import { negativeWords as allNegativeWords, positiveWords as allPositiveWords, countWords } from './emotionDictionaries';
 
-/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ混在対策） */
+/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ・セパレータ混在対策） */
 function compareDateOnly(a: string, b: string): number {
-  const ad = a.length > 10 ? a.substring(0, 10) : a;
-  const bd = b.length > 10 ? b.substring(0, 10) : b;
+  const ad = (a.length > 10 ? a.substring(0, 10) : a).replace(/[/.]/g, '-');
+  const bd = (b.length > 10 ? b.substring(0, 10) : b).replace(/[/.]/g, '-');
   return ad < bd ? -1 : ad > bd ? 1 : 0;
 }
 
@@ -970,12 +970,16 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
   }
 
   // 最新エントリの日付から30日遡る（UTC安全）
-  const latestDate = sorted[0].date!.substring(0, 10);
+  const latestDate = (sorted[0].date!.length > 10 ? sorted[0].date!.substring(0, 10) : sorted[0].date!).replace(/[/.]/g, '-');
   const cutoffD = new Date(latestDate + 'T00:00:00Z');
   cutoffD.setUTCDate(cutoffD.getUTCDate() - 30);
   const cutoff = cutoffD.toISOString().substring(0, 10);
 
-  const recentEntries = entries.filter(e => e.date && e.date >= cutoff);
+  const recentEntries = entries.filter(e => {
+    if (!e.date) return false;
+    const d = (e.date.length > 10 ? e.date.substring(0, 10) : e.date).replace(/[/.]/g, '-');
+    return d >= cutoff;
+  });
   if (recentEntries.length === 0) {
     return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0, agency: 0 }, recentEntryCount: 0, highlightWords: [] };
   }
