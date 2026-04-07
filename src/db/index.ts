@@ -118,7 +118,6 @@ async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache
   return results;
 }
 
-
 // --- DB接続 ---
 
 let dbInstance: IDBPDatabase<ClimbingLogDB> | null = null;
@@ -208,11 +207,6 @@ export async function deleteAllEntries(): Promise<void> {
   const db = await getDB();
   await db.clear('entries');
   await db.clear('fragments');
-}
-
-export async function addFragment(fragment: Fragment): Promise<void> {
-  const db = await getDB();
-  await db.put('fragments', fragment);
 }
 
 export async function addFragments(fragments: Fragment[]): Promise<void> {
