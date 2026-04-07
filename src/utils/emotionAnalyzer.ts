@@ -1,6 +1,13 @@
 import type { DiaryEntry, EmotionAnalysis, EmotionAnalysisDaily, StabilityIndex, ElevationPoint, ElevationPointMonthly, ElevationPointDaily, ResilienceMetrics } from '../types';
 import { negativeWords, selfDenialWords, positiveWords, countWords, getEmotionWordCounts } from './emotionDictionaries';
 
+/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ混在対策） */
+function compareDateOnly(a: string, b: string): number {
+  const ad = a.length > 10 ? a.substring(0, 10) : a;
+  const bd = b.length > 10 ? b.substring(0, 10) : b;
+  return ad < bd ? -1 : ad > bd ? 1 : 0;
+}
+
 // ── スコアリング定数 ──
 
 // 年単位の安定指数（calcStabilityByYear）
@@ -259,7 +266,7 @@ export function calcElevationEveryOtherDay(
     countByDate.set(d, (countByDate.get(d) ?? 0) + 1);
   }
 
-  const sorted = [...dailyAnalysis].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...dailyAnalysis].sort((a, b) => compareDateOnly(a.date, b.date));
   const results: ElevationPointDaily[] = [];
   let cumulative = YEAR_BASE_ELEVATION;
 
@@ -406,7 +413,7 @@ export interface RecentStateContext {
 
 export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContext {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
 
   if (sorted.length === 0) {
@@ -571,7 +578,7 @@ export function calcResilience(elevationPoints: { climb: number; isSlide: boolea
 // 直近30日のエントリを丸ごと別枠で渡し、AIが見逃さないようにする
 export function formatRecentEntriesHighlight(entries: DiaryEntry[], maxChars = 5000): string {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
   if (sorted.length === 0) return '';
 

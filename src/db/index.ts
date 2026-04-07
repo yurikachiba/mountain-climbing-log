@@ -247,7 +247,11 @@ export async function getAllEntries(): Promise<DiaryEntry[]> {
   const all = await cursorGetAll(db, 'entries');
   // 日付あり→日付昇順、日付なし→末尾（importedAt降順）
   return all.sort((a, b) => {
-    if (a.date && b.date) return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+    if (a.date && b.date) {
+      const ad = a.date.length > 10 ? a.date.substring(0, 10) : a.date;
+      const bd = b.date.length > 10 ? b.date.substring(0, 10) : b.date;
+      return ad < bd ? -1 : ad > bd ? 1 : 0;
+    }
     if (a.date) return -1;
     if (b.date) return 1;
     return (b.importedAt ?? '').localeCompare(a.importedAt ?? '');
