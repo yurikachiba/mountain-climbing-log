@@ -26,6 +26,15 @@ function toDateOnly(dateStr: string): string {
   return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
 }
 
+/** ユーザーのローカル日付を YYYY-MM-DD で返す */
+function getLocalTodayStr(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /** 日付ソート比較関数（タイムスタンプ混在でも日付部分のみで比較） */
 function compareDateOnly(a: string, b: string): number {
   const ad = toDateOnly(a);
@@ -182,9 +191,9 @@ export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: 
   );
   if (sorted.length === 0) return '';
 
-  // 最新日（今日）のエントリのみ
-  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
-  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
+  // 実際の今日の日付でフィルタ（DBの最新エントリ日付ではなくシステム日付を使う）
+  const todayDateStr = getLocalTodayStr();
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === todayDateStr);
   if (todayEntries.length === 0) return '今日の日記がありません。';
 
   // 今日の全文 — ここに急所がある
@@ -563,11 +572,11 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   );
   if (sorted.length === 0) return '';
 
-  // 最新日のエントリのみを「今日」として扱う
-  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  // 実際の今日の日付でフィルタ（DBの最新エントリ日付ではなくシステム日付を使う）
+  const latestDateStr = getLocalTodayStr();
   const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
-  if (todayEntries.length === 0) return '';
+  if (todayEntries.length === 0) return '今日の日記がありません。';
 
   // 今日のエントリは全文で渡す（分析の主対象）
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
@@ -758,11 +767,11 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
   );
   if (sorted.length === 0) return '';
 
-  // 最新日のエントリのみを「今日」として扱う
-  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  // 実際の今日の日付でフィルタ（DBの最新エントリ日付ではなくシステム日付を使う）
+  const latestDateStr = getLocalTodayStr();
   const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
-  if (todayEntries.length === 0) return '';
+  if (todayEntries.length === 0) return '今日の日記がありません。';
 
   // 今日のエントリは全文で渡す（分析の主対象）
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
@@ -1063,11 +1072,11 @@ export async function analyzeTodaysLandscape(entries: DiaryEntry[]): Promise<str
   );
   if (sorted.length === 0) return '';
 
-  // 最新日のエントリのみを「今日」として扱う
-  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  // 実際の今日の日付でフィルタ（DBの最新エントリ日付ではなくシステム日付を使う）
+  const latestDateStr = getLocalTodayStr();
   const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
-  if (todayEntries.length === 0) return '';
+  if (todayEntries.length === 0) return '今日の日記がありません。';
 
   // 今日のエントリは全文で渡す
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
@@ -1215,11 +1224,11 @@ export async function analyzeNatureReflection(entries: DiaryEntry[]): Promise<st
   );
   if (sorted.length === 0) return '';
 
-  // 最新日のエントリのみを「今日」として扱う
-  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  // 実際の今日の日付でフィルタ（DBの最新エントリ日付ではなくシステム日付を使う）
+  const latestDateStr = getLocalTodayStr();
   const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
-  if (todayEntries.length === 0) return '';
+  if (todayEntries.length === 0) return '今日の日記がありません。';
 
   // 今日のエントリは全文で渡す
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
@@ -1343,10 +1352,11 @@ export async function analyzeTimeChanges(entries: DiaryEntry[]): Promise<string>
   );
   if (sorted.length === 0) return '';
 
-  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  // 実際の今日の日付でフィルタ（DBの最新エントリ日付ではなくシステム日付を使う）
+  const latestDateStr = getLocalTodayStr();
   const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
-  if (todayEntries.length === 0) return '';
+  if (todayEntries.length === 0) return '今日の日記がありません。';
 
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
@@ -1500,7 +1510,8 @@ export async function analyzeCrossReading(
   );
   if (sorted.length === 0) return '';
 
-  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  // 実際の今日の日付でフィルタ（DBの最新エントリ日付ではなくシステム日付を使う）
+  const latestDateStr = getLocalTodayStr();
   const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
