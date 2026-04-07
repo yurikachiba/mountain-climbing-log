@@ -121,7 +121,7 @@ export function Analysis() {
     path: '/analysis',
   });
 
-  const { entries, loading } = useEntries();
+  const { entries, loading, refresh: refreshEntries } = useEntries();
   const { cache, loading: cacheLoading, save } = useAiCache();
   const [running, setRunning] = useState<AnalysisType | null>(null);
   const [runningAll, setRunningAll] = useState(false);
@@ -189,6 +189,7 @@ export function Analysis() {
       setError(err instanceof Error ? err.message : '分析に失敗しました');
     } finally {
       setRunning(null);
+      refreshEntries();
     }
   }
 
@@ -260,6 +261,7 @@ export function Analysis() {
     setRunning(null);
     setRunningAll(false);
     setAllProgress(null);
+    refreshEntries();
   }
 
   if (loading || cacheLoading) return <div className="page"><p className="loading-text">読み込み中...</p></div>;
