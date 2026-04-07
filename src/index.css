@@ -1440,6 +1440,84 @@ body {
   line-height: 1.85;
 }
 
+/* ---- Diary Lookup ---- */
+
+.diary-lookup-summary {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 24px;
+}
+
+.diary-lookup-selectors {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.diary-lookup-selectors label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diary-lookup-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.diary-lookup-selectors select {
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-family: var(--font);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.diary-lookup-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.diary-lookup-current {
+  font-size: 1.1rem;
+  font-weight: 600;
+  min-width: 140px;
+  text-align: center;
+}
+
+.diary-lookup-entry {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.diary-lookup-entry-num {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.diary-lookup-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.85;
+  font-size: 0.95rem;
+}
+
+.diary-lookup-meta {
+  margin-top: 16px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 600px) {

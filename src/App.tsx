@@ -11,6 +11,7 @@ import { Terms } from './pages/Terms';
 import { Sitemap } from './pages/Sitemap';
 import { Landing } from './pages/Landing';
 import { AiLogs } from './pages/AiLogs';
+import { DiaryLookup } from './pages/DiaryLookup';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/fragments" element={<Fragments />} />
             <Route path="/timeline" element={<Timeline />} />
             <Route path="/analysis" element={<Analysis />} />
+            <Route path="/diary" element={<DiaryLookup />} />
             <Route path="/ai-logs" element={<AiLogs />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/privacy" element={<Privacy />} />

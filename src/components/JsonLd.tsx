@@ -40,6 +40,7 @@ export function WebAppJsonLd() {
       'AI分析7種類（今日・今日の景色・急所・外基準の統合・自然の眼・時間の地層・横断読み ― Claude API連携）',
       'AI分析ログ（過去の分析結果の一覧・絞り込み・コピー）',
       '成長タイムライン（ローカル感情分析・トレンド検出・レジリエンス指標）',
+      '日記検索（年月日で一件ずつ読み返し）',
       '宝物庫（AIが日記から光る一文を自動収集）',
       'オフライン対応（PWA）',
       'データエクスポート・バックアップ機能',
@@ -157,12 +158,13 @@ export function ItemListJsonLd() {
     '@type': 'ItemList',
     name: '登山ログの主要機能一覧',
     description: '登山ログが提供する主要機能',
-    numberOfItems: 4,
+    numberOfItems: 5,
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'AI分析（7種類）', description: 'Claude APIで今日・今日の景色・急所・外基準の統合・自然の眼・時間の地層・横断読みの7種類の深層分析。', url: `${BASE_URL}/analysis` },
       { '@type': 'ListItem', position: 2, name: '成長タイムライン', description: 'ローカル感情分析。ネガティブ比率・安定指数・標高メタファーをグラフで可視化。', url: `${BASE_URL}/timeline` },
-      { '@type': 'ListItem', position: 3, name: '宝物庫', description: 'AIが日記から光る一文を自動収集。', url: `${BASE_URL}/fragments` },
-      { '@type': 'ListItem', position: 4, name: 'AI分析ログ', description: '過去のAI分析結果をすべて保存・一覧表示。', url: `${BASE_URL}/ai-logs` },
+      { '@type': 'ListItem', position: 3, name: '日記検索', description: '年月日を指定して日記を一件ずつ読み返し。', url: `${BASE_URL}/diary` },
+      { '@type': 'ListItem', position: 4, name: '宝物庫', description: 'AIが日記から光る一文を自動収集。', url: `${BASE_URL}/fragments` },
+      { '@type': 'ListItem', position: 5, name: 'AI分析ログ', description: '過去のAI分析結果をすべて保存・一覧表示。', url: `${BASE_URL}/ai-logs` },
     ],
   };
 

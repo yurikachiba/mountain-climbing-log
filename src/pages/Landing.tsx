@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useHead } from '../hooks/useHead';
 import { WebSiteJsonLd, WebAppJsonLd, FAQJsonLd, HowToJsonLd, SoftwareAppJsonLd, OrganizationJsonLd, ItemListJsonLd } from '../components/JsonLd';
-import { Telescope, Mountain, Gem, ScrollText, BookOpenText, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Telescope, Mountain, Gem, ScrollText, BookOpenText, ShieldCheck, TrendingUp, CalendarSearch } from 'lucide-react';
 
 const features: { title: string; desc: string; icon: ReactNode; link: string }[] = [
   {
@@ -22,6 +22,12 @@ const features: { title: string; desc: string; icon: ReactNode; link: string }[]
     desc: 'AIが日記の中から「光っている一文」を自動で見つけて集める。一括収集で過去の日記すべてから抽出。手動保存にも対応。',
     icon: <Gem size={28} strokeWidth={1.5} />,
     link: '/fragments',
+  },
+  {
+    title: '日記検索',
+    desc: '年月日を指定して日記を一件ずつ読み返せる。過去の特定の日に何を書いていたか、すぐに見つかる。前後の日付への移動にも対応。',
+    icon: <CalendarSearch size={28} strokeWidth={1.5} />,
+    link: '/diary',
   },
   {
     title: 'AI分析ログ',
@@ -202,6 +208,15 @@ export function Landing() {
             「どれだけ登ったか」を標高メタファーで表現する独自の成長指標も搭載しています。
           </p>
           <p><Link to="/timeline">成長タイムラインを見る</Link></p>
+        </div>
+
+        <div className="landing-detail-block">
+          <h3>日記検索 ― 年月日で一件ずつ読み返す</h3>
+          <p>
+            年・月・日のセレクターで日付を指定し、その日の日記を一件ずつ読み返せます。
+            前後の日付へのナビゲーションにも対応。過去の特定の日に何を書いていたか、すぐに見つかります。
+          </p>
+          <p><Link to="/diary">日記検索を試す</Link></p>
         </div>
 
         <div className="landing-detail-block">
