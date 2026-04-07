@@ -111,6 +111,18 @@ describe('analyzeEntries', () => {
     expect(result[0].negativeRatio).toBe(0);
   });
 
+  it('混在フォーマットの日付が同じ月にグループ化される', () => {
+    const entries = [
+      makeEntry('2024-01-15', '辛い日だった'),
+      makeEntry('2024.01.20', '嬉しい日だった'),
+      makeEntry('2024-01-25T10:00:00Z', '楽しい'),
+    ];
+    const result = analyzeEntries(entries);
+    // 3つとも 2024-01 に入るはず
+    expect(result).toHaveLength(1);
+    expect(result[0].month).toBe('2024-01');
+  });
+
   it('topEmotionWords が最大10件', () => {
     // 多くの感情語を含むテキスト
     const text = negativeWords.concat(positiveWords).join('。');

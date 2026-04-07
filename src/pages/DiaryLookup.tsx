@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useEntries } from '../hooks/useEntries';
 import { useHead } from '../hooks/useHead';
 import { BreadcrumbJsonLd } from '../components/JsonLd';
+import { toDateOnly, compareDateOnly } from '../utils/dateNormalize';
 
 export function DiaryLookup() {
   useHead({
@@ -16,12 +17,12 @@ export function DiaryLookup() {
   // 日付のあるエントリだけを日付順にソート
   const dated = useMemo(() => {
     const filtered = entries.filter((e): e is typeof e & { date: string } => e.date !== null);
-    filtered.sort((a, b) => a.date.localeCompare(b.date));
+    filtered.sort((a, b) => compareDateOnly(a.date, b.date));
     return filtered;
   }, [entries]);
 
-  // 日付リスト（重複なし）
-  const dates = useMemo(() => [...new Set(dated.map(e => e.date))], [dated]);
+  // 日付リスト（正規化して重複なし）
+  const dates = useMemo(() => [...new Set(dated.map(e => toDateOnly(e.date)))], [dated]);
 
   // 年・月の選択肢を生成
   const years = useMemo(() => [...new Set(dates.map(d => d.slice(0, 4)))].sort(), [dates]);
@@ -48,7 +49,7 @@ export function DiaryLookup() {
 
   // 該当日のエントリ
   const matchedEntries = useMemo(
-    () => (currentDate ? dated.filter(e => e.date === currentDate) : []),
+    () => (currentDate ? dated.filter(e => toDateOnly(e.date) === currentDate) : []),
     [dated, currentDate],
   );
 

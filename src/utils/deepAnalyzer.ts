@@ -13,13 +13,7 @@ import type {
   ExistentialDensity,
 } from '../types';
 import { negativeWords as allNegativeWords, positiveWords as allPositiveWords, countWords } from './emotionDictionaries';
-
-/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ・セパレータ混在対策） */
-function compareDateOnly(a: string, b: string): number {
-  const ad = (a.length > 10 ? a.substring(0, 10) : a).replace(/[/.]/g, '-');
-  const bd = (b.length > 10 ? b.substring(0, 10) : b).replace(/[/.]/g, '-');
-  return ad < bd ? -1 : ad > bd ? 1 : 0;
-}
+import { toDateOnly, toMonthKey, compareDateOnly } from './dateNormalize';
 
 // ── 辞書定義（deepAnalyzer 固有） ──
 
@@ -249,7 +243,7 @@ export function calcMonthlyDeepAnalysis(entries: DiaryEntry[]): MonthlyDeepAnaly
   const byMonth = new Map<string, DiaryEntry[]>();
   for (const entry of entries) {
     if (!entry.date) continue;
-    const month = entry.date.substring(0, 7);
+    const month = toMonthKey(entry.date);
     const existing = byMonth.get(month) ?? [];
     existing.push(entry);
     byMonth.set(month, existing);
@@ -970,15 +964,14 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
   }
 
   // 最新エントリの日付から30日遡る（UTC安全）
-  const latestDate = (sorted[0].date!.length > 10 ? sorted[0].date!.substring(0, 10) : sorted[0].date!).replace(/[/.]/g, '-');
+  const latestDate = toDateOnly(sorted[0].date!);
   const cutoffD = new Date(latestDate + 'T00:00:00Z');
   cutoffD.setUTCDate(cutoffD.getUTCDate() - 30);
   const cutoff = cutoffD.toISOString().substring(0, 10);
 
   const recentEntries = entries.filter(e => {
     if (!e.date) return false;
-    const d = (e.date.length > 10 ? e.date.substring(0, 10) : e.date).replace(/[/.]/g, '-');
-    return d >= cutoff;
+    return toDateOnly(e.date) >= cutoff;
   });
   if (recentEntries.length === 0) {
     return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0, agency: 0 }, recentEntryCount: 0, highlightWords: [] };
@@ -1064,7 +1057,7 @@ export function calcDailyPredictiveContext(entries: DiaryEntry[]): DailyPredicti
   // 日付ごとにグループ化
   const byDate = new Map<string, DiaryEntry[]>();
   for (const e of sorted) {
-    const d = e.date!.substring(0, 10);
+    const d = toDateOnly(e.date!);
     const list = byDate.get(d) ?? [];
     list.push(e);
     byDate.set(d, list);
