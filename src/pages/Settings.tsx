@@ -86,25 +86,30 @@ export function Settings() {
     }
   }
 
-  async function handleCopyAll() {
+  async function handleDownloadText() {
     try {
       const [entries, totalCount] = await Promise.all([getAllEntries(), getEntryCount()]);
       if (entries.length === 0) {
         setMessage('日記がありません');
         return;
       }
-      const lines = entries.map(e => {
+      const text = entries.map(e => {
         const date = e.date ?? '日付不明';
         return `${date}\n${e.content}`;
-      });
-      const text = lines.join('\n\n---\n\n');
-      await navigator.clipboard.writeText(text);
+      }).join('\n\n---\n\n');
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `climbing-log-diary-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
       const countNote = entries.length < totalCount
         ? `（※ DB上は${totalCount}件ですが${entries.length}件しか取得できませんでした）`
         : '';
-      setMessage(`${entries.length}件の日記をコピーしました${countNote}`);
+      setMessage(`${entries.length}件の日記をダウンロードしました${countNote}`);
     } catch {
-      setMessage('コピーに失敗しました');
+      setMessage('ダウンロードに失敗しました');
     }
   }
 
@@ -163,11 +168,11 @@ export function Settings() {
 
         <div className="settings-row">
           <div>
-            <p className="settings-label">全日記をテキストコピー</p>
-            <p className="settings-desc">すべての日記をクリップボードにコピー</p>
+            <p className="settings-label">全日記をテキストで保存</p>
+            <p className="settings-desc">すべての日記をテキストファイルとしてダウンロード</p>
           </div>
-          <button onClick={handleCopyAll} className="btn">
-            コピー
+          <button onClick={handleDownloadText} className="btn">
+            ダウンロード
           </button>
         </div>
 
