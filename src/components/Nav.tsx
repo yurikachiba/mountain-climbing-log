@@ -3,11 +3,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 const links = [
   { to: '/', label: 'トップ' },
+  { to: '/timeline', label: 'タイムライン' },
+  { to: '/fragments', label: '宝物庫' },
   { to: '/import', label: 'インポート' },
   { to: '/analysis', label: 'AI分析' },
   { to: '/ai-logs', label: 'AIログ' },
-  { to: '/timeline', label: 'タイムライン' },
-  { to: '/fragments', label: '宝物庫' },
   { to: '/settings', label: '設定' },
 ];
 

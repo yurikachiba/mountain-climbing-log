@@ -66,15 +66,22 @@ export function parseJsonFile(text: string, filename: string): DiaryEntry[] {
 
   // 配列の場合
   if (Array.isArray(data)) {
-    return data.map((item: Record<string, unknown>) => ({
-      id: generateId(),
-      date: (item.date as string) ?? extractDate(String(item.content ?? '')) ?? null,
-      content: String(item.content ?? item.text ?? item.body ?? JSON.stringify(item)),
-      sourceFile: filename,
-      importedAt: now,
-      comments: [],
-      isFavorite: false,
-    }));
+    return data
+      .filter((item: Record<string, unknown>) => {
+        // content / text / body のいずれかが文字列として存在するエントリのみ取り込む
+        // JSON.stringify フォールバックで非日記データが混入するのを防止
+        const raw = item.content ?? item.text ?? item.body;
+        return raw != null && String(raw).trim().length > 0;
+      })
+      .map((item: Record<string, unknown>) => ({
+        id: generateId(),
+        date: (item.date as string) ?? extractDate(String(item.content ?? '')) ?? null,
+        content: String(item.content ?? item.text ?? item.body),
+        sourceFile: filename,
+        importedAt: now,
+        comments: [],
+        isFavorite: false,
+      }));
   }
 
   // 単一オブジェクト
@@ -83,10 +90,15 @@ export function parseJsonFile(text: string, filename: string): DiaryEntry[] {
     if (Array.isArray(data.entries)) {
       return parseJsonFile(JSON.stringify(data.entries), filename);
     }
+    // content / text / body がないオブジェクトは日記データではないのでスキップ
+    const raw = data.content ?? data.text ?? data.body;
+    if (raw == null || String(raw).trim().length === 0) {
+      return [];
+    }
     return [{
       id: generateId(),
       date: data.date ?? extractDate(String(data.content ?? '')) ?? null,
-      content: String(data.content ?? data.text ?? data.body ?? JSON.stringify(data)),
+      content: String(raw),
       sourceFile: filename,
       importedAt: now,
       comments: [],
