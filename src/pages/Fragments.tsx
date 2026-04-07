@@ -50,7 +50,9 @@ export function Fragments() {
     try {
       const allEntries = await getAllEntries();
       const existingIds = await getFragmentEntryIds();
-      const unprocessed = allEntries.filter(e => !existingIds.has(e.id) && e.content.trim().length > 30);
+      const unprocessed = allEntries
+        .filter(e => !existingIds.has(e.id) && e.content.trim().length > 30)
+        .reverse(); // 新しい日記から優先的に処理する（getAllEntries は日付昇順のため reverse）
 
       if (unprocessed.length === 0) {
         setError('すべての日記から収集済みです');
