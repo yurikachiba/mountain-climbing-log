@@ -37,6 +37,12 @@ npm run build    # tsc -b && vite build
 npm run lint     # eslint
 ```
 
+## 最終確認（コミット前に毎回やること）
+
+- `npm run build`（`tsc -b && vite build`）が通ること
+- `npm run lint`（eslint）がエラー・警告なしで通ること
+- 変更したファイルを目視で読み返し、意図通りか確認すること
+
 ## 実装上の注意点
 
 ### IndexedDB のデータ取得
