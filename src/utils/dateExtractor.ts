@@ -2,9 +2,9 @@
 // 日本語・英語の日付パターンに対応
 
 const patterns: { regex: RegExp; extract: (m: RegExpMatchArray) => string | null }[] = [
-  // 2024-01-15, 2024/01/15
+  // 2024-01-15, 2024/01/15, 2024.01.15
   {
-    regex: /(\d{4})[-/](\d{1,2})[-/](\d{1,2})/,
+    regex: /(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/,
     extract: (m) => toISO(m[1], m[2], m[3]),
   },
   // 2024年1月15日
@@ -69,7 +69,7 @@ function monthToNum(s: string): number | null {
 /** 行が日付行かどうかを判定する正規表現（importer.ts と共有）
  * 日付の直後に助詞（に、は、を、が、の、で、と、も、から、まで等）が続く場合は
  * 文中の日付参照であり、エントリ区切りではないため除外する */
-export const DATE_LINE_REGEX = /^(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{4}年\d{1,2}月\d{1,2}日|令和\d{1,2}年\d{1,2}月\d{1,2}日|平成\d{1,2}年\d{1,2}月\d{1,2}日)(?:$|\s|（|【)/;
+export const DATE_LINE_REGEX = /^(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{4}年\d{1,2}月\d{1,2}日|令和\d{1,2}年\d{1,2}月\d{1,2}日|平成\d{1,2}年\d{1,2}月\d{1,2}日)(?:$|\s|（|【)/;
 
 export function extractDate(text: string): string | null {
   // 最初の数行から日付を探す

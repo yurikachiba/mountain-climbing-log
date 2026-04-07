@@ -23,7 +23,9 @@ function splitByDates(text: string): { date: string | null; content: string }[] 
   let currentDate: string | null = null;
 
   for (const line of lines) {
-    if (dateLineRegex.test(line.trim())) {
+    const trimmedLine = line.trim();
+    // 日付行は短い（日付 + 曜日等で40文字以内）。長い行は本文中の日付参照
+    if (trimmedLine.length <= 40 && dateLineRegex.test(trimmedLine)) {
       if (current.length > 0 && current.some(l => l.trim())) {
         entries.push({ date: currentDate, content: current.join('\n').trim() });
       }
