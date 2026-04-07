@@ -1,6 +1,15 @@
 import type { DiaryEntry } from '../types';
 import { extractDate, extractDateFromFilename, DATE_LINE_REGEX } from './dateExtractor';
 
+/** 日付文字列を YYYY-MM-DD に正規化（タイムスタンプが混入していても安全） */
+function toDateOnly(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  // YYYY-MM-DD (10文字) より長ければタイムスタンプ → 切り詰め
+  const d = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+  // YYYY-MM-DD 形式かどうか簡易チェック
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : dateStr;
+}
+
 function generateId(): string {
   return crypto.randomUUID();
 }
@@ -75,7 +84,7 @@ export function parseJsonFile(text: string, filename: string): DiaryEntry[] {
       })
       .map((item: Record<string, unknown>) => ({
         id: generateId(),
-        date: (item.date as string) ?? extractDate(String(item.content ?? '')) ?? null,
+        date: toDateOnly(item.date as string) ?? extractDate(String(item.content ?? '')) ?? null,
         content: String(item.content ?? item.text ?? item.body),
         sourceFile: filename,
         importedAt: now,
@@ -97,7 +106,7 @@ export function parseJsonFile(text: string, filename: string): DiaryEntry[] {
     }
     return [{
       id: generateId(),
-      date: data.date ?? extractDate(String(data.content ?? '')) ?? null,
+      date: toDateOnly(data.date) ?? extractDate(String(data.content ?? '')) ?? null,
       content: String(raw),
       sourceFile: filename,
       importedAt: now,
