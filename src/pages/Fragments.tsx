@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DiaryEntry, Fragment } from '../types';
-import { getAllFragments, deleteFragment, addFragment, getFragmentEntryIds, getAllEntries } from '../db';
+import { getAllFragments, deleteFragment, addFragments, getFragmentEntryIds, getAllEntries } from '../db';
 import { extractFragments } from '../utils/claude';
 import { hasApiKey } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
@@ -80,21 +80,18 @@ export function Fragments() {
     const foundEntryIds = new Set(results.map(r => r.entryId));
     const now = new Date().toISOString();
 
-    for (const r of results) {
-      await addFragment({
-        id: crypto.randomUUID(),
-        entryId: r.entryId,
-        text: r.text,
-        savedAt: now,
-        source: 'auto',
-        entryDate: r.entryDate,
-      });
-    }
-
-    // AIがスキップしたエントリにもマーカーを保存し、再処理を防ぐ
+    // 抽出結果とスキップマーカーをまとめて1トランザクションで書き込む
+    const toSave: Fragment[] = results.map(r => ({
+      id: crypto.randomUUID(),
+      entryId: r.entryId,
+      text: r.text,
+      savedAt: now,
+      source: 'auto',
+      entryDate: r.entryDate,
+    }));
     for (const entry of entries) {
       if (!foundEntryIds.has(entry.id)) {
-        await addFragment({
+        toSave.push({
           id: crypto.randomUUID(),
           entryId: entry.id,
           text: '',
@@ -104,6 +101,7 @@ export function Fragments() {
         });
       }
     }
+    await addFragments(toSave);
   }
 
   function handleCancel() {
