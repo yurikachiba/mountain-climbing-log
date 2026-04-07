@@ -13,25 +13,13 @@ import {
   BANNED_PHRASES_BASE,
   OTHER_PERSON_BEHAVIOR_RULE,
 } from './promptParts';
+import { toDateOnly, compareDateOnly } from './dateNormalize';
 
 /** YYYY-MM-DD 文字列からN日前の YYYY-MM-DD を返す（UTC安全） */
 function subtractDaysISO(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().substring(0, 10);
-}
-
-/** YYYY-MM-DD 文字列を正規化（タイムスタンプ混入・セパレータ混在でも安全） */
-function toDateOnly(dateStr: string): string {
-  const d = dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
-  return d.replace(/[/.]/g, '-');
-}
-
-/** 日付ソート比較関数（タイムスタンプ・セパレータ混在でも日付部分のみで比較） */
-function compareDateOnly(a: string, b: string): number {
-  const ad = toDateOnly(a);
-  const bd = toDateOnly(b);
-  return ad < bd ? -1 : ad > bd ? 1 : 0;
 }
 
 interface ChatMessage {

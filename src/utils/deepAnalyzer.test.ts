@@ -29,6 +29,17 @@ describe('calcMonthlyDeepAnalysis', () => {
     expect(result[1].month).toBe('2024-02');
   });
 
+  it('混在フォーマットの日付が同じ月にグループ化', () => {
+    const entries = [
+      makeEntry('2024-01-10', '辛かった。'),
+      makeEntry('2024.01.20', '嬉しい。'),
+      makeEntry('2024-01-25T10:00:00Z', '楽しい。'),
+    ];
+    const result = calcMonthlyDeepAnalysis(entries);
+    expect(result).toHaveLength(1);
+    expect(result[0].month).toBe('2024-01');
+  });
+
   it('date null のエントリは除外', () => {
     const entries = [
       { ...makeEntry('2024-01-01', '辛い'), date: null },

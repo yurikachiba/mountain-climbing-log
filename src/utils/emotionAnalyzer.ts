@@ -1,12 +1,6 @@
 import type { DiaryEntry, EmotionAnalysis, EmotionAnalysisDaily, StabilityIndex, ElevationPoint, ElevationPointMonthly, ElevationPointDaily, ResilienceMetrics } from '../types';
 import { negativeWords, selfDenialWords, positiveWords, countWords, getEmotionWordCounts } from './emotionDictionaries';
-
-/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ・セパレータ混在対策） */
-function compareDateOnly(a: string, b: string): number {
-  const ad = (a.length > 10 ? a.substring(0, 10) : a).replace(/[/.]/g, '-');
-  const bd = (b.length > 10 ? b.substring(0, 10) : b).replace(/[/.]/g, '-');
-  return ad < bd ? -1 : ad > bd ? 1 : 0;
-}
+import { toDateOnly, toMonthKey, toYearKey, compareDateOnly } from './dateNormalize';
 
 // ── スコアリング定数 ──
 
@@ -57,7 +51,7 @@ export function analyzeEntries(entries: DiaryEntry[]): EmotionAnalysis[] {
 
   for (const entry of entries) {
     if (!entry.date) continue;
-    const month = entry.date.substring(0, 7); // YYYY-MM
+    const month = toMonthKey(entry.date);
     const existing = byMonth.get(month) ?? [];
     existing.push(entry);
     byMonth.set(month, existing);
@@ -90,7 +84,7 @@ export function calcStabilityByYear(monthlyAnalysis: EmotionAnalysis[]): Stabili
   // 年ごとにグループ化
   const byYear = new Map<string, EmotionAnalysis[]>();
   for (const a of monthlyAnalysis) {
-    const year = a.month.substring(0, 4);
+    const year = toYearKey(a.month);
     const list = byYear.get(year) ?? [];
     list.push(a);
     byYear.set(year, list);
@@ -140,7 +134,7 @@ export function calcElevationByYear(
   const countByYear = new Map<string, number>();
   for (const e of entries) {
     if (!e.date) continue;
-    const y = e.date.substring(0, 4);
+    const y = toYearKey(e.date);
     countByYear.set(y, (countByYear.get(y) ?? 0) + 1);
   }
 
@@ -185,7 +179,7 @@ export function calcElevationByMonth(
   const countByMonth = new Map<string, number>();
   for (const e of entries) {
     if (!e.date) continue;
-    const m = e.date.substring(0, 7);
+    const m = toMonthKey(e.date);
     countByMonth.set(m, (countByMonth.get(m) ?? 0) + 1);
   }
 
@@ -226,7 +220,7 @@ export function analyzeEntriesEveryOtherDay(entries: DiaryEntry[]): EmotionAnaly
 
   for (const entry of entries) {
     if (!entry.date) continue;
-    const date = entry.date.substring(0, 10); // YYYY-MM-DD
+    const date = toDateOnly(entry.date);
     const existing = byDate.get(date) ?? [];
     existing.push(entry);
     byDate.set(date, existing);
@@ -262,7 +256,7 @@ export function calcElevationEveryOtherDay(
   const countByDate = new Map<string, number>();
   for (const e of entries) {
     if (!e.date) continue;
-    const d = e.date.substring(0, 10);
+    const d = toDateOnly(e.date);
     countByDate.set(d, (countByDate.get(d) ?? 0) + 1);
   }
 
@@ -312,7 +306,7 @@ export function calcPeriodStats(entries: DiaryEntry[]): PeriodEmotionStats[] {
   const byMonth = new Map<string, DiaryEntry[]>();
   for (const e of entries) {
     if (!e.date) continue;
-    const month = e.date.substring(0, 7);
+    const month = toMonthKey(e.date);
     const list = byMonth.get(month) ?? [];
     list.push(e);
     byMonth.set(month, list);
@@ -362,8 +356,9 @@ export function formatPeriodStatsForPrompt(stats: PeriodEmotionStats[]): string 
   // 半年ごとに集約して大きな変動を見せる
   const byHalf = new Map<string, PeriodEmotionStats[]>();
   for (const s of stats) {
-    const year = s.period.substring(0, 4);
-    const month = parseInt(s.period.substring(5, 7), 10);
+    const normalized = toDateOnly(s.period);
+    const year = normalized.substring(0, 4);
+    const month = parseInt(normalized.substring(5, 7), 10);
     const half = month <= 6 ? `${year}前半` : `${year}後半`;
     const list = byHalf.get(half) ?? [];
     list.push(s);
@@ -428,16 +423,13 @@ export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContex
   }
 
   // 最新の日付から3ヶ月以内をrecentとする（UTC安全）
-  const latestDateStr = (sorted[sorted.length - 1].date!.length > 10
-    ? sorted[sorted.length - 1].date!.substring(0, 10)
-    : sorted[sorted.length - 1].date!).replace(/[/.]/g, '-');
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
   const threeMonthsAgo = new Date(latestDateStr + 'T00:00:00Z');
   threeMonthsAgo.setUTCMonth(threeMonthsAgo.getUTCMonth() - 3);
   const cutoffStr = threeMonthsAgo.toISOString().substring(0, 10);
 
-  const normalizeDate = (d: string) => (d.length > 10 ? d.substring(0, 10) : d).replace(/[/.]/g, '-');
-  const recentEntries = sorted.filter(e => normalizeDate(e.date!) >= cutoffStr);
-  const olderEntries = sorted.filter(e => normalizeDate(e.date!) < cutoffStr);
+  const recentEntries = sorted.filter(e => toDateOnly(e.date!) >= cutoffStr);
+  const olderEntries = sorted.filter(e => toDateOnly(e.date!) < cutoffStr);
 
   // 直近のエントリが少なすぎる場合はコンテキストを生成しない
   // ただし直近1件でもあれば現在の状態は伝える（材料が少ないからと見逃さない）
@@ -460,7 +452,7 @@ export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContex
     const negRatio = total > 0 ? negCount / total : 0;
     const selfDenial = countWords(allText, selfDenialWords);
     // 月数で割って月平均を算出
-    const months = new Set(group.map(e => e.date!.substring(0, 7))).size;
+    const months = new Set(group.map(e => toMonthKey(e.date!))).size;
     const selfDenialPerMonth = months > 0 ? selfDenial / months : 0;
     return { negRatio, selfDenialPerMonth };
   };
@@ -585,15 +577,12 @@ export function formatRecentEntriesHighlight(entries: DiaryEntry[], maxChars = 5
   );
   if (sorted.length === 0) return '';
 
-  const latestDateStr = (sorted[sorted.length - 1].date!.length > 10
-    ? sorted[sorted.length - 1].date!.substring(0, 10)
-    : sorted[sorted.length - 1].date!).replace(/[/.]/g, '-');
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
   const cutoffD = new Date(latestDateStr + 'T00:00:00Z');
   cutoffD.setUTCDate(cutoffD.getUTCDate() - 30);
   const cutoffStr = cutoffD.toISOString().substring(0, 10);
 
-  const normDate = (d: string) => (d.length > 10 ? d.substring(0, 10) : d).replace(/[/.]/g, '-');
-  const recentEntries = sorted.filter(e => normDate(e.date!) >= cutoffStr);
+  const recentEntries = sorted.filter(e => toDateOnly(e.date!) >= cutoffStr);
   if (recentEntries.length === 0) return '';
 
   const lines = recentEntries.map(e => `[${e.date}] ${e.content.slice(0, 500)}`);

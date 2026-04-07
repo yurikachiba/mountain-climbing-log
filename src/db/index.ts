@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from 'idb';
 import type { DiaryEntry, Fragment, AiCache, AiLog, Observation } from '../types';
+import { compareDateOnly } from '../utils/dateNormalize';
 
 // --- スキーマ定義 ---
 // 最新のスキーマを反映する。マイグレーションで段階的にここへ到達する。
@@ -248,9 +249,7 @@ export async function getAllEntries(): Promise<DiaryEntry[]> {
   // 日付あり→日付昇順、日付なし→末尾（importedAt降順）
   return all.sort((a, b) => {
     if (a.date && b.date) {
-      const ad = (a.date.length > 10 ? a.date.substring(0, 10) : a.date).replace(/[/.]/g, '-');
-      const bd = (b.date.length > 10 ? b.date.substring(0, 10) : b.date).replace(/[/.]/g, '-');
-      return ad < bd ? -1 : ad > bd ? 1 : 0;
+      return compareDateOnly(a.date, b.date);
     }
     if (a.date) return -1;
     if (b.date) return 1;
