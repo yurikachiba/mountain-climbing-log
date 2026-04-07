@@ -15,6 +15,17 @@ import {
 } from './promptParts';
 import { toDateOnly, compareDateOnly } from './dateNormalize';
 
+/** 分析関数が「今日」として認識する日付とエントリ数を返す（診断用） */
+export function detectAnalysisToday(entries: DiaryEntry[]): { date: string; count: number } | null {
+  const sorted = [...entries].filter(e => e.date).sort((a, b) =>
+    compareDateOnly(a.date ?? '', b.date ?? '')
+  );
+  if (sorted.length === 0) return null;
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
+  return { date: latestDateStr, count: todayEntries.length };
+}
+
 /** YYYY-MM-DD 文字列からN日前の YYYY-MM-DD を返す（UTC安全） */
 function subtractDaysISO(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00Z');
