@@ -14,6 +14,13 @@ import type {
 } from '../types';
 import { negativeWords as allNegativeWords, positiveWords as allPositiveWords, countWords } from './emotionDictionaries';
 
+/** YYYY-MM-DD 部分のみで日付ソート比較（タイムスタンプ混在対策） */
+function compareDateOnly(a: string, b: string): number {
+  const ad = a.length > 10 ? a.substring(0, 10) : a;
+  const bd = b.length > 10 ? b.substring(0, 10) : b;
+  return ad < bd ? -1 : ad > bd ? 1 : 0;
+}
+
 // ── 辞書定義（deepAnalyzer 固有） ──
 
 // ネガティブ語を深度別に分類
@@ -956,7 +963,7 @@ export function calcPredictiveIndicators(
 
 export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDensity {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (b.date ?? '').localeCompare(a.date ?? '')
+    compareDateOnly(b.date ?? '', a.date ?? '')
   );
   if (sorted.length === 0) {
     return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0, agency: 0 }, recentEntryCount: 0, highlightWords: [] };
@@ -1038,7 +1045,7 @@ const interpersonalWords = [
 
 export function calcDailyPredictiveContext(entries: DiaryEntry[]): DailyPredictiveContext {
   const sorted = [...entries].filter(e => e.date).sort((a, b) =>
-    (a.date ?? '').localeCompare(b.date ?? '')
+    compareDateOnly(a.date ?? '', b.date ?? '')
   );
 
   const result: DailyPredictiveContext = {

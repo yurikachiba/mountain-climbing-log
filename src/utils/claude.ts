@@ -142,7 +142,7 @@ function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
     result.push(...sampleSliceFromArray(yearEntries, budget));
   }
 
-  return [...result, ...mustInclude].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+  return [...result, ...mustInclude].sort((a, b) => compareDateOnly(a.date ?? '', b.date ?? ''));
 }
 
 // 直近N日のエントリを確実に取得する（日数ベース）
