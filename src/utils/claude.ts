@@ -105,8 +105,8 @@ function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
 
   // 直近30日のエントリは必ず含める
   const mustInclude = getRecentEntries(sorted, 30);
-  const mustIncludeDates = new Set(mustInclude.map(e => e.date));
-  const rest = sorted.filter(e => !mustIncludeDates.has(e.date));
+  const mustIncludeIds = new Set(mustInclude.map(e => e.id));
+  const rest = sorted.filter(e => !mustIncludeIds.has(e.id));
   const remainingBudget = Math.max(0, maxCount - mustInclude.length);
 
   if (remainingBudget === 0) {
