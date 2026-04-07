@@ -962,11 +962,11 @@ export function calcExistentialDensity30d(entries: DiaryEntry[]): ExistentialDen
     return { density: 0, themes: { lifeDeath: 0, identity: 0, completion: 0, intensity: 0, dignity: 0, agency: 0 }, recentEntryCount: 0, highlightWords: [] };
   }
 
-  // 最新エントリの日付から30日遡る
+  // 最新エントリの日付から30日遡る（UTC安全）
   const latestDate = sorted[0].date!.substring(0, 10);
-  const cutoffDate = new Date(latestDate);
-  cutoffDate.setDate(cutoffDate.getDate() - 30);
-  const cutoff = cutoffDate.toISOString().substring(0, 10);
+  const cutoffD = new Date(latestDate + 'T00:00:00Z');
+  cutoffD.setUTCDate(cutoffD.getUTCDate() - 30);
+  const cutoff = cutoffD.toISOString().substring(0, 10);
 
   const recentEntries = entries.filter(e => e.date && e.date >= cutoff);
   if (recentEntries.length === 0) {

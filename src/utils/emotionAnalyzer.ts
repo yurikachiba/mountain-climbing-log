@@ -420,10 +420,10 @@ export function calcRecentStateContext(entries: DiaryEntry[]): RecentStateContex
     };
   }
 
-  // 最新の日付から3ヶ月以内をrecentとする
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const threeMonthsAgo = new Date(latestDate);
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  // 最新の日付から3ヶ月以内をrecentとする（UTC安全）
+  const latestDateStr = sorted[sorted.length - 1].date!.substring(0, 10);
+  const threeMonthsAgo = new Date(latestDateStr + 'T00:00:00Z');
+  threeMonthsAgo.setUTCMonth(threeMonthsAgo.getUTCMonth() - 3);
   const cutoffStr = threeMonthsAgo.toISOString().substring(0, 10);
 
   const recentEntries = sorted.filter(e => e.date! >= cutoffStr);
@@ -575,10 +575,10 @@ export function formatRecentEntriesHighlight(entries: DiaryEntry[], maxChars = 5
   );
   if (sorted.length === 0) return '';
 
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const cutoff = new Date(latestDate);
-  cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffStr = cutoff.toISOString().substring(0, 10);
+  const latestDateStr = sorted[sorted.length - 1].date!.substring(0, 10);
+  const cutoffD = new Date(latestDateStr + 'T00:00:00Z');
+  cutoffD.setUTCDate(cutoffD.getUTCDate() - 30);
+  const cutoffStr = cutoffD.toISOString().substring(0, 10);
 
   const recentEntries = sorted.filter(e => e.date! >= cutoffStr);
   if (recentEntries.length === 0) return '';
