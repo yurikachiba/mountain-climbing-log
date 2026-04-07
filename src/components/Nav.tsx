@@ -17,7 +17,7 @@ export function Nav() {
 
   // ページ遷移時にメニューを閉じる
   useEffect(() => {
-    setOpen(false);
+    setOpen(false); // eslint-disable-line react-hooks/set-state-in-effect -- パス変更時のメニュー閉じ
   }, [location.pathname]);
 
   const toggle = useCallback(() => {

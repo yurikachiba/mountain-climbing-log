@@ -18,7 +18,7 @@ export function useAiCache() {
   }, []);
 
   useEffect(() => {
-    load();
+    load(); // eslint-disable-line react-hooks/set-state-in-effect -- 初回マウント時の非同期データ取得
   }, [load]);
 
   // 分析結果をキャッシュに保存し、ログにも蓄積する

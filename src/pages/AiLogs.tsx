@@ -85,7 +85,7 @@ export function AiLogs() {
 
   // ページ遷移のたびに最新データを取得する
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(); // eslint-disable-line react-hooks/set-state-in-effect -- ページ遷移時の非同期データ取得
   }, [fetchLogs, location.key]);
 
   if (loading) {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DiaryEntry, Fragment } from '../types';
-import { getAllFragments, deleteFragment, addFragment, getFragmentEntryIds, getAllEntries } from '../db';
+import { getAllFragments, deleteFragment, addFragments, getFragmentEntryIds, getAllEntries } from '../db';
 import { extractFragments } from '../utils/claude';
 import { hasApiKey } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
@@ -25,8 +25,10 @@ export function Fragments() {
   const load = useCallback(async () => {
     setLoading(true);
     const all = await getAllFragments();
+    // スキップマーカー（source: 'auto-skip'）を除外して表示用のみ取得
+    const visible = all.filter(f => f.source !== 'auto-skip');
     // 日記の日付順（新しい順）でソート、日付不明は末尾
-    setFragments(all.sort((a, b) => {
+    setFragments(visible.sort((a, b) => {
       const da = a.entryDate ?? '';
       const db = b.entryDate ?? '';
       if (da && db) return db.localeCompare(da);
@@ -75,16 +77,31 @@ export function Fragments() {
 
   async function processBatch(entries: DiaryEntry[]) {
     const results = await extractFragments(entries);
-    for (const r of results) {
-      await addFragment({
-        id: crypto.randomUUID(),
-        entryId: r.entryId,
-        text: r.text,
-        savedAt: new Date().toISOString(),
-        source: 'auto',
-        entryDate: r.entryDate,
-      });
+    const foundEntryIds = new Set(results.map(r => r.entryId));
+    const now = new Date().toISOString();
+
+    // 抽出結果とスキップマーカーをまとめて1トランザクションで書き込む
+    const toSave: Fragment[] = results.map(r => ({
+      id: crypto.randomUUID(),
+      entryId: r.entryId,
+      text: r.text,
+      savedAt: now,
+      source: 'auto',
+      entryDate: r.entryDate,
+    }));
+    for (const entry of entries) {
+      if (!foundEntryIds.has(entry.id)) {
+        toSave.push({
+          id: crypto.randomUUID(),
+          entryId: entry.id,
+          text: '',
+          savedAt: now,
+          source: 'auto-skip',
+          entryDate: entry.date,
+        });
+      }
     }
+    await addFragments(toSave);
   }
 
   function handleCancel() {

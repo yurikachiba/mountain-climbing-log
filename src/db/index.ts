@@ -118,29 +118,6 @@ async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache
   return results;
 }
 
-// インデックス経由のカーソルベース全件取得
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function cursorGetAllFromIndex(
-  db: IDBPDatabase<ClimbingLogDB>,
-  storeName: 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations',
-  indexName: string,
-  query?: IDBKeyRange | IDBValidKey,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tx = db.transaction(storeName, 'readonly') as any;
-  const index = tx.store.index(indexName);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: any[] = [];
-  let cursor = await index.openCursor(query);
-  while (cursor) {
-    results.push(cursor.value);
-    cursor = await cursor.continue();
-  }
-  await tx.done;
-  return results;
-}
-
 // --- DB接続 ---
 
 let dbInstance: IDBPDatabase<ClimbingLogDB> | null = null;
@@ -232,14 +209,20 @@ export async function deleteAllEntries(): Promise<void> {
   await db.clear('fragments');
 }
 
-export async function addFragment(fragment: Fragment): Promise<void> {
+export async function addFragments(fragments: Fragment[]): Promise<void> {
+  if (fragments.length === 0) return;
   const db = await getDB();
-  await db.put('fragments', fragment);
+  const tx = db.transaction('fragments', 'readwrite');
+  for (const f of fragments) {
+    await tx.store.put(f);
+  }
+  await tx.done;
 }
 
 export async function getAllFragments(): Promise<Fragment[]> {
   const db = await getDB();
-  return cursorGetAllFromIndex(db, 'fragments', 'by-saved');
+  // インデックス経由だと savedAt が欠落したレコードを取りこぼすため、ストア直接走査で全件取得
+  return cursorGetAll(db, 'fragments');
 }
 
 export async function deleteFragment(id: string): Promise<void> {
@@ -249,8 +232,17 @@ export async function deleteFragment(id: string): Promise<void> {
 
 export async function getFragmentEntryIds(): Promise<Set<string>> {
   const db = await getDB();
-  const all = await cursorGetAll(db, 'fragments');
-  return new Set(all.map(f => f.entryId));
+  // 全フラグメントを読み込まず、by-entry インデックスのキーだけ走査して軽量に取得
+  const tx = db.transaction('fragments', 'readonly');
+  const index = tx.store.index('by-entry');
+  const ids = new Set<string>();
+  let cursor = await index.openKeyCursor();
+  while (cursor) {
+    ids.add(cursor.key);
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+  return ids;
 }
 
 export async function getEntryCount(): Promise<number> {
@@ -337,11 +329,27 @@ export async function addAiLog(log: AiLog): Promise<void> {
 
 export async function getAllAiLogs(): Promise<AiLog[]> {
   const db = await getDB();
-  return cursorGetAllFromIndex(db, 'aiLogs', 'by-analyzed');
+  const tx = db.transaction('aiLogs', 'readonly');
+  const results: AiLog[] = [];
+  let cursor = await tx.store.index('by-analyzed').openCursor();
+  while (cursor) {
+    results.push(cursor.value);
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+  return results;
 }
 
 export async function getAiLogsByType(type: string): Promise<AiLog[]> {
   const db = await getDB();
-  return cursorGetAllFromIndex(db, 'aiLogs', 'by-type', type);
+  const tx = db.transaction('aiLogs', 'readonly');
+  const results: AiLog[] = [];
+  let cursor = await tx.store.index('by-type').openCursor(type);
+  while (cursor) {
+    results.push(cursor.value);
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+  return results;
 }
 
