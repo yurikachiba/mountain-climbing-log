@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { SITE_NAME, BASE_URL, DEFAULT_KEYWORDS } from '../config';
 
 interface HeadParams {
   title?: string;
@@ -6,10 +7,6 @@ interface HeadParams {
   keywords?: string;
   path?: string;
 }
-
-const SITE_NAME = '登山ログ';
-const BASE_URL = 'https://mountain-climbing-log.com';
-const DEFAULT_KEYWORDS = '登山ログ,日記アプリ,日記管理,日記分析,プライバシーファースト,無料';
 
 export function useHead({ title, description, keywords, path }: HeadParams) {
   useEffect(() => {

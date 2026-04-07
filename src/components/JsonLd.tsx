@@ -1,4 +1,4 @@
-const BASE_URL = 'https://mountain-climbing-log.com';
+import { BASE_URL } from '../config';
 
 export function WebSiteJsonLd() {
   const data = {

@@ -66,6 +66,9 @@ function monthToNum(s: string): number | null {
   return map[s.toLowerCase()] ?? null;
 }
 
+/** 行が日付行かどうかを判定する正規表現（importer.ts と共有） */
+export const DATE_LINE_REGEX = /^(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{4}年\d{1,2}月\d{1,2}日|令和\d{1,2}年\d{1,2}月\d{1,2}日|平成\d{1,2}年\d{1,2}月\d{1,2}日)/;
+
 export function extractDate(text: string): string | null {
   // 最初の数行から日付を探す
   const lines = text.split('\n').slice(0, 5);

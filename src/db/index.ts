@@ -103,65 +103,78 @@ function runMigrations(
 // カーソル走査を基本とし、db.count() と照合して不足があれば getAll() でフォールバック。
 // さらに getAll() でも不足する場合は getAllKeys() + 個別 get() で確実に全件取得する。
 
-async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations'>(
+/** カーソル走査で全件取得 */
+async function fetchByCursor<StoreName extends 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations'>(
   db: IDBPDatabase<ClimbingLogDB>,
   storeName: StoreName,
-): Promise<ClimbingLogDB[StoreName]['value'][]> {
-  // 1. カーソル走査
+): Promise<{ records: ClimbingLogDB[StoreName]['value'][]; expectedCount: number }> {
   const tx = db.transaction(storeName, 'readonly');
   const expectedCount = await tx.store.count();
-  const results: ClimbingLogDB[StoreName]['value'][] = [];
+  const records: ClimbingLogDB[StoreName]['value'][] = [];
   let cursor = await tx.store.openCursor();
   while (cursor) {
-    results.push(cursor.value);
+    records.push(cursor.value);
     cursor = await cursor.continue();
   }
   await tx.done;
+  return { records, expectedCount };
+}
 
-  if (results.length >= expectedCount) {
-    return results;
-  }
+/** getAll() フォールバック */
+async function fetchByGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations'>(
+  db: IDBPDatabase<ClimbingLogDB>,
+  storeName: StoreName,
+): Promise<ClimbingLogDB[StoreName]['value'][]> {
+  const tx = db.transaction(storeName, 'readonly');
+  const all = await tx.store.getAll();
+  await tx.done;
+  return all;
+}
 
-  console.warn(
-    `[cursorGetAll] ${storeName}: cursor returned ${results.length} / ${expectedCount}, trying getAll fallback`,
-  );
-
-  // 2. getAll() フォールバック
-  const tx2 = db.transaction(storeName, 'readonly');
-  const all = await tx2.store.getAll();
-  await tx2.done;
-
-  if (all.length >= expectedCount) {
-    return all;
-  }
-
-  console.warn(
-    `[cursorGetAll] ${storeName}: getAll returned ${all.length} / ${expectedCount}, trying key-based fallback`,
-  );
-
-  // 3. キーカーソル走査 + 個別 get() フォールバック
-  // Safari/iOS では getAllKeys() にも件数制限があるため、openKeyCursor() で全キーを取得する
-  const tx3 = db.transaction(storeName, 'readonly');
+/** キーカーソル走査 + 個別 get() フォールバック（Safari/iOS 対策） */
+async function fetchByKeyCursor<StoreName extends 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations'>(
+  db: IDBPDatabase<ClimbingLogDB>,
+  storeName: StoreName,
+): Promise<ClimbingLogDB[StoreName]['value'][]> {
+  const tx = db.transaction(storeName, 'readonly');
   const allKeys: ClimbingLogDB[StoreName]['key'][] = [];
-  let keyCursor = await tx3.store.openKeyCursor();
+  let keyCursor = await tx.store.openKeyCursor();
   while (keyCursor) {
     allKeys.push(keyCursor.key as ClimbingLogDB[StoreName]['key']);
     keyCursor = await keyCursor.continue();
   }
-  await tx3.done;
+  await tx.done;
 
-  const keyResults: ClimbingLogDB[StoreName]['value'][] = [];
+  const results: ClimbingLogDB[StoreName]['value'][] = [];
   for (const key of allKeys) {
     const value = await db.get(storeName, key);
-    if (value) keyResults.push(value);
+    if (value) results.push(value);
   }
+  return results;
+}
+
+/**
+ * 堅牢な全件取得。3段階のフォールバックで確実に全件取得する。
+ * 1. カーソル走査 → 2. getAll() → 3. キーカーソル + 個別get()
+ */
+async function cursorGetAll<StoreName extends 'entries' | 'fragments' | 'aiCache' | 'aiLogs' | 'observations'>(
+  db: IDBPDatabase<ClimbingLogDB>,
+  storeName: StoreName,
+): Promise<ClimbingLogDB[StoreName]['value'][]> {
+  const { records: cursorResults, expectedCount } = await fetchByCursor(db, storeName);
+  if (cursorResults.length >= expectedCount) return cursorResults;
+
+  console.warn(`[cursorGetAll] ${storeName}: cursor returned ${cursorResults.length} / ${expectedCount}, trying getAll fallback`);
+  const getAllResults = await fetchByGetAll(db, storeName);
+  if (getAllResults.length >= expectedCount) return getAllResults;
+
+  console.warn(`[cursorGetAll] ${storeName}: getAll returned ${getAllResults.length} / ${expectedCount}, trying key-based fallback`);
+  const keyResults = await fetchByKeyCursor(db, storeName);
 
   // 最も多く取得できた結果を返す
-  const best = [results, all, keyResults].sort((a, b) => b.length - a.length)[0];
+  const best = [cursorResults, getAllResults, keyResults].sort((a, b) => b.length - a.length)[0];
   if (best.length < expectedCount) {
-    console.warn(
-      `[cursorGetAll] ${storeName}: best effort returned ${best.length} / ${expectedCount}`,
-    );
+    console.warn(`[cursorGetAll] ${storeName}: best effort returned ${best.length} / ${expectedCount}`);
   }
   return best;
 }
