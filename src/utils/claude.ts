@@ -14,6 +14,18 @@ import {
   OTHER_PERSON_BEHAVIOR_RULE,
 } from './promptParts';
 
+/** YYYY-MM-DD 文字列からN日前の YYYY-MM-DD を返す（UTC安全） */
+function subtractDaysISO(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().substring(0, 10);
+}
+
+/** YYYY-MM-DD 文字列を正規化（タイムスタンプが混入していても安全） */
+function toDateOnly(dateStr: string): string {
+  return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+}
+
 interface ChatMessage {
   role: 'system' | 'user';
   content: string;
@@ -129,11 +141,9 @@ function sampleUniform(entries: DiaryEntry[], maxCount: number): DiaryEntry[] {
 // 直近N日のエントリを確実に取得する（日数ベース）
 function getRecentEntries(sorted: DiaryEntry[], days: number): DiaryEntry[] {
   if (sorted.length === 0) return [];
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const cutoff = new Date(latestDate);
-  cutoff.setDate(cutoff.getDate() - days);
-  const cutoffStr = cutoff.toISOString().substring(0, 10);
-  return sorted.filter(e => e.date! >= cutoffStr);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const cutoffStr = subtractDaysISO(latestDateStr, days);
+  return sorted.filter(e => toDateOnly(e.date!) >= cutoffStr);
 }
 
 function extractVitalPointQuestions(results: string[]): string[] {
@@ -166,8 +176,8 @@ export async function analyzeVitalPoint(entries: DiaryEntry[], previousResult?: 
   if (sorted.length === 0) return '';
 
   // 最新日（今日）のエントリのみ
-  const latestDate = sorted[sorted.length - 1].date!;
-  const todayEntries = sorted.filter(e => e.date === latestDate);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
   if (todayEntries.length === 0) return '今日の日記がありません。';
 
   // 今日の全文 — ここに急所がある
@@ -547,9 +557,8 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   if (sorted.length === 0) return '';
 
   // 最新日のエントリのみを「今日」として扱う
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const latestDateStr = latestDate.toISOString().substring(0, 10);
-  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
   if (todayEntries.length === 0) return '';
 
@@ -557,15 +566,16 @@ export async function analyzeTodaysEntry(entries: DiaryEntry[]): Promise<string>
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
   // 直近14日のコンテキスト（今日を除く）— 友人の「最近の記憶」
-  const twoWeeksAgo = new Date(latestDate);
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-  const twoWeeksAgoStr = twoWeeksAgo.toISOString().substring(0, 10);
-  const recentContext = sorted.filter(e => e.date! >= twoWeeksAgoStr && e.date! < latestDateStr);
+  const twoWeeksAgoStr = subtractDaysISO(latestDateStr, 14);
+  const recentContext = sorted.filter(e => {
+    const d = toDateOnly(e.date!);
+    return d >= twoWeeksAgoStr && d < latestDateStr;
+  });
   const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 150)}`).join('\n---\n').slice(0, 3000);
 
   // より古い期間からサンプリング（友人の「長い付き合いの記憶」）
   // 背景に引っ張られすぎないよう控えめに
-  const olderEntries = sorted.filter(e => e.date! < twoWeeksAgoStr);
+  const olderEntries = sorted.filter(e => toDateOnly(e.date!) < twoWeeksAgoStr);
   const olderSampled = sampleUniform(olderEntries, 10);
   const olderTexts = olderSampled.map(e => `[${e.date}] ${e.content.slice(0, 60)}`).join('\n---\n').slice(0, 1500);
 
@@ -742,9 +752,8 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
   if (sorted.length === 0) return '';
 
   // 最新日のエントリのみを「今日」として扱う
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const latestDateStr = latestDate.toISOString().substring(0, 10);
-  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
   if (todayEntries.length === 0) return '';
 
@@ -752,14 +761,15 @@ export async function analyzeExternalStandardsMastery(entries: DiaryEntry[]): Pr
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
   // 直近14日のコンテキスト（今日を除く）— 友人の「最近の記憶」
-  const twoWeeksAgo = new Date(latestDate);
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-  const twoWeeksAgoStr = twoWeeksAgo.toISOString().substring(0, 10);
-  const recentContext = sorted.filter(e => e.date! >= twoWeeksAgoStr && e.date! < latestDateStr);
+  const twoWeeksAgoStr = subtractDaysISO(latestDateStr, 14);
+  const recentContext = sorted.filter(e => {
+    const d = toDateOnly(e.date!);
+    return d >= twoWeeksAgoStr && d < latestDateStr;
+  });
   const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 200)}`).join('\n---\n').slice(0, 4000);
 
   // より古い期間からサンプリング（友人の「長い付き合いの記憶」）
-  const olderEntries = sorted.filter(e => e.date! < twoWeeksAgoStr);
+  const olderEntries = sorted.filter(e => toDateOnly(e.date!) < twoWeeksAgoStr);
   const olderSampled = sampleUniform(olderEntries, 20);
   const olderTexts = olderSampled.map(e => `[${e.date}] ${e.content.slice(0, 80)}`).join('\n---\n').slice(0, 3000);
 
@@ -1047,9 +1057,8 @@ export async function analyzeTodaysLandscape(entries: DiaryEntry[]): Promise<str
   if (sorted.length === 0) return '';
 
   // 最新日のエントリのみを「今日」として扱う
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const latestDateStr = latestDate.toISOString().substring(0, 10);
-  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
   if (todayEntries.length === 0) return '';
 
@@ -1057,10 +1066,11 @@ export async function analyzeTodaysLandscape(entries: DiaryEntry[]): Promise<str
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
   // 直近30日のコンテキスト（今日を除く）— 「いつもの話題」との差分を見るため
-  const thirtyDaysAgo = new Date(latestDate);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().substring(0, 10);
-  const recentContext = sorted.filter(e => e.date! >= thirtyDaysAgoStr && e.date! < latestDateStr);
+  const thirtyDaysAgoStr = subtractDaysISO(latestDateStr, 30);
+  const recentContext = sorted.filter(e => {
+    const d = toDateOnly(e.date!);
+    return d >= thirtyDaysAgoStr && d < latestDateStr;
+  });
   const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 100)}`).join('\n---\n').slice(0, 3000);
 
   return callChat([
@@ -1199,9 +1209,8 @@ export async function analyzeNatureReflection(entries: DiaryEntry[]): Promise<st
   if (sorted.length === 0) return '';
 
   // 最新日のエントリのみを「今日」として扱う
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const latestDateStr = latestDate.toISOString().substring(0, 10);
-  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
   if (todayEntries.length === 0) return '';
 
@@ -1209,10 +1218,11 @@ export async function analyzeNatureReflection(entries: DiaryEntry[]): Promise<st
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
   // 直近30日のコンテキスト（今日を除く）— 比喩の変遷を見るため
-  const thirtyDaysAgo = new Date(latestDate);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().substring(0, 10);
-  const recentContext = sorted.filter(e => e.date! >= thirtyDaysAgoStr && e.date! < latestDateStr);
+  const thirtyDaysAgoStr = subtractDaysISO(latestDateStr, 30);
+  const recentContext = sorted.filter(e => {
+    const d = toDateOnly(e.date!);
+    return d >= thirtyDaysAgoStr && d < latestDateStr;
+  });
   const recentTexts = recentContext.map(e => `[${e.date}] ${e.content.slice(0, 120)}`).join('\n---\n').slice(0, 3000);
 
   return callChat([
@@ -1326,9 +1336,8 @@ export async function analyzeTimeChanges(entries: DiaryEntry[]): Promise<string>
   );
   if (sorted.length === 0) return '';
 
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const latestDateStr = latestDate.toISOString().substring(0, 10);
-  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
 
   if (todayEntries.length === 0) return '';
 
@@ -1336,15 +1345,12 @@ export async function analyzeTimeChanges(entries: DiaryEntry[]): Promise<string>
 
   // 各時点の前後±数日からエントリを拾う（ちょうどその日にエントリがない場合があるため）
   const pickEntriesAround = (daysAgo: number, windowDays: number): string => {
-    const target = new Date(latestDate);
-    target.setDate(target.getDate() - daysAgo);
-    const from = new Date(target);
-    from.setDate(from.getDate() - windowDays);
-    const to = new Date(target);
-    to.setDate(to.getDate() + windowDays);
-    const fromStr = from.toISOString().substring(0, 10);
-    const toStr = to.toISOString().substring(0, 10);
-    const found = sorted.filter(e => e.date! >= fromStr && e.date! <= toStr && e.date! !== latestDateStr);
+    const fromStr = subtractDaysISO(latestDateStr, daysAgo + windowDays);
+    const toStr = subtractDaysISO(latestDateStr, daysAgo - windowDays);
+    const found = sorted.filter(e => {
+      const d = toDateOnly(e.date!);
+      return d >= fromStr && d <= toStr && d !== latestDateStr;
+    });
     if (found.length === 0) return '';
     // 最大2エントリ、各300字まで
     return found.slice(-2).map(e => `[${e.date}] ${e.content.slice(0, 300)}`).join('\n---\n');
@@ -1487,9 +1493,8 @@ export async function analyzeCrossReading(
   );
   if (sorted.length === 0) return '';
 
-  const latestDate = new Date(sorted[sorted.length - 1].date!);
-  const latestDateStr = latestDate.toISOString().substring(0, 10);
-  const todayEntries = sorted.filter(e => e.date === latestDateStr);
+  const latestDateStr = toDateOnly(sorted[sorted.length - 1].date!);
+  const todayEntries = sorted.filter(e => toDateOnly(e.date!) === latestDateStr);
   const todayTexts = todayEntries.map(e => `[${e.date}] ${e.content}`).join('\n---\n');
 
   const typeLabels: Record<string, string> = {
