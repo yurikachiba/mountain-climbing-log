@@ -201,7 +201,7 @@ export function Analysis() {
 
     // 横断読み用に各分析結果をローカルに収集（cache のクロージャは古いため）
     const collectedResults: Record<string, string> = {};
-    let aborted = false;
+    const errors: string[] = [];
 
     for (let i = 0; i < mainTypes.length; i++) {
       const type = mainTypes[i];
@@ -221,15 +221,13 @@ export function Analysis() {
         await save(type, result, count);
         if (result) collectedResults[type] = result;
       } catch (err) {
-        setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
-        aborted = true;
-        break;
+        errors.push(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
       }
       setAllProgress({ done: i + 1, total: allTypes.length });
     }
 
     // 横断読みを最後に実行（他の分析結果を収集済み）
-    if (!aborted && lastTypes.length > 0 && Object.keys(collectedResults).length > 0) {
+    if (lastTypes.length > 0 && Object.keys(collectedResults).length > 0) {
       for (let i = 0; i < lastTypes.length; i++) {
         const type = lastTypes[i];
         setRunning(type);
@@ -239,11 +237,14 @@ export function Analysis() {
             await save(type, result, count);
           }
         } catch (err) {
-          setError(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
-          break;
+          errors.push(err instanceof Error ? err.message : `${analysisMap[type].title}の分析に失敗しました`);
         }
         setAllProgress({ done: mainTypes.length + i + 1, total: allTypes.length });
       }
+    }
+
+    if (errors.length > 0) {
+      setError(`${errors.length}件の分析でエラー: ${errors.join(' / ')}`);
     }
 
     setRunning(null);
