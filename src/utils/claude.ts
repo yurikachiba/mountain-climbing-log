@@ -43,15 +43,29 @@ interface ChatResult {
   stopReason: string;
 }
 
-/** API過負荷（529）エラー — 呼び出し元でキャッチしてバッチ単位のリトライに使う */
+/** API過負荷（529）/ レート制限（429）エラー — 呼び出し元でキャッチしてバッチ単位のリトライに使う */
 export class ApiOverloadError extends Error {
-  constructor(message: string) {
+  retryAfterMs: number;
+  constructor(message: string, retryAfterMs = 0) {
     super(message);
     this.name = 'ApiOverloadError';
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
-async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<ChatResult> {
+/** Retry-After ヘッダーからミリ秒を取得（なければ 0） */
+function parseRetryAfterMs(res: Response): number {
+  const header = res.headers.get('retry-after');
+  if (!header) return 0;
+  const seconds = Number(header);
+  return isNaN(seconds) || seconds <= 0 ? 0 : seconds * 1000;
+}
+
+async function callChatRaw(
+  messages: ChatMessage[],
+  maxTokens = 1024,
+  options?: { skipInternalRetry?: boolean },
+): Promise<ChatResult> {
   const key = getApiKey();
   if (!key) throw new Error('APIキーが設定されていません。設定ページで入力してください。');
 
@@ -62,8 +76,10 @@ async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<C
 
   const MAX_RETRIES = 3;
   const RETRY_DELAYS = [2000, 4000, 8000]; // ms — 指数バックオフ
+  // バッチ処理など呼び出し元がリトライを管理する場合、内部リトライをスキップして即座にエラーを投げる
+  const maxAttempts = options?.skipInternalRetry ? 0 : MAX_RETRIES;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxAttempts; attempt++) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -82,15 +98,20 @@ async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<C
     });
 
     if (!res.ok) {
+      const retryAfterMs = (res.status === 429 || res.status === 529) ? parseRetryAfterMs(res) : 0;
       const body = await res.text();
       if (res.status === 401) throw new Error('APIキーが無効です。設定を確認してください。');
       // 529（過負荷）または 429（レート制限）はリトライ対象
-      if ((res.status === 529 || res.status === 429) && attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+      // Retry-After ヘッダーがあればその値を使い、なければ固定バックオフ（1回あたり最大30秒）
+      if ((res.status === 529 || res.status === 429) && attempt < maxAttempts) {
+        const delay = retryAfterMs > 0
+          ? Math.min(retryAfterMs, 30_000)
+          : RETRY_DELAYS[attempt];
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
-      if (res.status === 429) throw new ApiOverloadError('リクエスト制限に達しました。しばらく待ってください。');
-      if (res.status === 529) throw new ApiOverloadError('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。');
+      if (res.status === 429) throw new ApiOverloadError('リクエスト制限に達しました。しばらく待ってください。', retryAfterMs);
+      if (res.status === 529) throw new ApiOverloadError('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。', retryAfterMs);
       throw new Error(`API呼び出しに失敗しました (${res.status}): ${body}`);
     }
 
@@ -1681,10 +1702,11 @@ export async function extractFragments(
 
   // max_tokens を十分に確保（UUID36文字+区切り+日本語テキストで1エントリ約80トークン）
   // 切り詰められた場合は倍のトークンでリトライ
+  // 429/529 の内部リトライはスキップ — バッチ側のリトライに任せることで二重待機を防ぐ
   let maxTokens = Math.max(1024, entries.length * 200);
   let result: ChatResult | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    result = await callChatRaw(messages, maxTokens);
+    result = await callChatRaw(messages, maxTokens, { skipInternalRetry: true });
     if (result.stopReason !== 'max_tokens') break;
     maxTokens *= 2;
   }

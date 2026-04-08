@@ -114,7 +114,7 @@ export function Fragments() {
 
       setProgress({ done: 0, total: unprocessed.length });
 
-      const BATCH_RETRY_DELAYS = [15_000, 30_000, 60_000]; // バッチレベルのリトライ待機（秒）
+      const BATCH_RETRY_FALLBACKS = [15_000, 30_000, 60_000]; // Retry-After がないときのフォールバック
       let skippedCount = 0;
 
       for (let i = 0; i < unprocessed.length; i += BATCH_SIZE) {
@@ -122,17 +122,21 @@ export function Fragments() {
         const batch = unprocessed.slice(i, i + BATCH_SIZE);
 
         let succeeded = false;
-        for (let retry = 0; retry <= BATCH_RETRY_DELAYS.length; retry++) {
+        for (let retry = 0; retry <= BATCH_RETRY_FALLBACKS.length; retry++) {
           try {
             await processBatch(batch);
             succeeded = true;
             break;
           } catch (e) {
-            if (!(e instanceof ApiOverloadError)) throw e; // 529以外はそのまま上に投げる
-            if (retry < BATCH_RETRY_DELAYS.length && !cancelRef.current) {
-              const waitSec = BATCH_RETRY_DELAYS[retry] / 1000;
+            if (!(e instanceof ApiOverloadError)) throw e; // 429/529以外はそのまま上に投げる
+            if (retry < BATCH_RETRY_FALLBACKS.length && !cancelRef.current) {
+              // APIの Retry-After があればそれを優先、なければフォールバック値
+              const waitMs = e.retryAfterMs > 0
+                ? Math.min(Math.max(e.retryAfterMs, 5_000), 120_000)
+                : BATCH_RETRY_FALLBACKS[retry];
+              const waitSec = Math.ceil(waitMs / 1000);
               setError(`APIが混雑中… ${waitSec}秒待ってリトライします`);
-              await new Promise(r => setTimeout(r, BATCH_RETRY_DELAYS[retry]));
+              await new Promise(r => setTimeout(r, waitMs));
               setError(null);
             }
           }
