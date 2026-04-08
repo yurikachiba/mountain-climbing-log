@@ -43,6 +43,14 @@ interface ChatResult {
   stopReason: string;
 }
 
+/** API過負荷（529）エラー — 呼び出し元でキャッチしてバッチ単位のリトライに使う */
+export class ApiOverloadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ApiOverloadError';
+  }
+}
+
 async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<ChatResult> {
   const key = getApiKey();
   if (!key) throw new Error('APIキーが設定されていません。設定ページで入力してください。');
@@ -82,7 +90,7 @@ async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<C
         continue;
       }
       if (res.status === 429) throw new Error('リクエスト制限に達しました。しばらく待ってください。');
-      if (res.status === 529) throw new Error('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。');
+      if (res.status === 529) throw new ApiOverloadError('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。');
       throw new Error(`API呼び出しに失敗しました (${res.status}): ${body}`);
     }
 
