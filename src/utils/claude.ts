@@ -43,12 +43,22 @@ interface ChatResult {
   stopReason: string;
 }
 
-/** API過負荷（529）エラー — 呼び出し元でキャッチしてバッチ単位のリトライに使う */
+/** API過負荷（529）/ レート制限（429）エラー — 呼び出し元でキャッチしてバッチ単位のリトライに使う */
 export class ApiOverloadError extends Error {
-  constructor(message: string) {
+  retryAfterMs: number;
+  constructor(message: string, retryAfterMs = 0) {
     super(message);
     this.name = 'ApiOverloadError';
+    this.retryAfterMs = retryAfterMs;
   }
+}
+
+/** Retry-After ヘッダーからミリ秒を取得（なければ 0） */
+function parseRetryAfterMs(res: Response): number {
+  const header = res.headers.get('retry-after');
+  if (!header) return 0;
+  const seconds = Number(header);
+  return isNaN(seconds) || seconds <= 0 ? 0 : seconds * 1000;
 }
 
 async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<ChatResult> {
@@ -82,15 +92,20 @@ async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<C
     });
 
     if (!res.ok) {
+      const retryAfterMs = (res.status === 429 || res.status === 529) ? parseRetryAfterMs(res) : 0;
       const body = await res.text();
       if (res.status === 401) throw new Error('APIキーが無効です。設定を確認してください。');
       // 529（過負荷）または 429（レート制限）はリトライ対象
+      // Retry-After ヘッダーがあればその値を使い、なければ固定バックオフ（1回あたり最大30秒）
       if ((res.status === 529 || res.status === 429) && attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+        const delay = retryAfterMs > 0
+          ? Math.min(retryAfterMs, 30_000)
+          : RETRY_DELAYS[attempt];
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
-      if (res.status === 429) throw new ApiOverloadError('リクエスト制限に達しました。しばらく待ってください。');
-      if (res.status === 529) throw new ApiOverloadError('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。');
+      if (res.status === 429) throw new ApiOverloadError('リクエスト制限に達しました。しばらく待ってください。', retryAfterMs);
+      if (res.status === 529) throw new ApiOverloadError('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。', retryAfterMs);
       throw new Error(`API呼び出しに失敗しました (${res.status}): ${body}`);
     }
 

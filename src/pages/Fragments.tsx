@@ -114,30 +114,18 @@ export function Fragments() {
 
       setProgress({ done: 0, total: unprocessed.length });
 
-      const BATCH_RETRY_DELAYS = [15_000, 30_000, 60_000]; // バッチレベルのリトライ待機（秒）
       let skippedCount = 0;
 
       for (let i = 0; i < unprocessed.length; i += BATCH_SIZE) {
         if (cancelRef.current) break;
         const batch = unprocessed.slice(i, i + BATCH_SIZE);
 
-        let succeeded = false;
-        for (let retry = 0; retry <= BATCH_RETRY_DELAYS.length; retry++) {
-          try {
-            await processBatch(batch);
-            succeeded = true;
-            break;
-          } catch (e) {
-            if (!(e instanceof ApiOverloadError)) throw e; // 529以外はそのまま上に投げる
-            if (retry < BATCH_RETRY_DELAYS.length && !cancelRef.current) {
-              const waitSec = BATCH_RETRY_DELAYS[retry] / 1000;
-              setError(`APIが混雑中… ${waitSec}秒待ってリトライします`);
-              await new Promise(r => setTimeout(r, BATCH_RETRY_DELAYS[retry]));
-              setError(null);
-            }
-          }
-        }
-        if (!succeeded) {
+        try {
+          await processBatch(batch);
+        } catch (e) {
+          if (!(e instanceof ApiOverloadError)) throw e; // 429/529以外はそのまま上に投げる
+          // 429/529 は callChatRaw の内部リトライ（Retry-After対応）で処理済み。
+          // それでもダメなら長時間の障害なのでスキップして先に進む。
           skippedCount += batch.length;
         }
 
