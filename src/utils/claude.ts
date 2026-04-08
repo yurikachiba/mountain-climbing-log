@@ -52,35 +52,49 @@ async function callChatRaw(messages: ChatMessage[], maxTokens = 1024): Promise<C
   const userMessages = messages.filter(m => m.role !== 'system');
   const systemPrompt = systemMessages.map(m => m.content).join('\n\n');
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: maxTokens,
-      temperature: 0.3,
-      ...(systemPrompt ? { system: systemPrompt } : {}),
-      messages: userMessages.map(m => ({ role: m.role, content: m.content })),
-    }),
-  });
+  const MAX_RETRIES = 3;
+  const RETRY_DELAYS = [2000, 4000, 8000]; // ms — 指数バックオフ
 
-  if (!res.ok) {
-    const body = await res.text();
-    if (res.status === 401) throw new Error('APIキーが無効です。設定を確認してください。');
-    if (res.status === 429) throw new Error('リクエスト制限に達しました。しばらく待ってください。');
-    throw new Error(`API呼び出しに失敗しました (${res.status}): ${body}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: maxTokens,
+        temperature: 0.3,
+        ...(systemPrompt ? { system: systemPrompt } : {}),
+        messages: userMessages.map(m => ({ role: m.role, content: m.content })),
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      if (res.status === 401) throw new Error('APIキーが無効です。設定を確認してください。');
+      // 529（過負荷）または 429（レート制限）はリトライ対象
+      if ((res.status === 529 || res.status === 429) && attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+        continue;
+      }
+      if (res.status === 429) throw new Error('リクエスト制限に達しました。しばらく待ってください。');
+      if (res.status === 529) throw new Error('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。');
+      throw new Error(`API呼び出しに失敗しました (${res.status}): ${body}`);
+    }
+
+    const data = await res.json();
+    return {
+      text: data.content?.[0]?.text ?? '',
+      stopReason: data.stop_reason ?? 'unknown',
+    };
   }
 
-  const data = await res.json();
-  return {
-    text: data.content?.[0]?.text ?? '',
-    stopReason: data.stop_reason ?? 'unknown',
-  };
+  // ここには到達しないはずだが型安全のため
+  throw new Error('APIサーバーが混雑しています。しばらく待ってからもう一度お試しください。');
 }
 
 async function callChat(messages: ChatMessage[], maxTokens = 1024): Promise<string> {
