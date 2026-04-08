@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DiaryEntry, Fragment } from '../types';
 import { getAllFragments, addFragments, getFragmentEntryIds, getAllEntries, getEntryCount } from '../db';
-import { extractFragments } from '../utils/claude';
+import { extractFragments, ApiOverloadError } from '../utils/claude';
 import { hasApiKey } from '../utils/apiKey';
 import { useHead } from '../hooks/useHead';
 
@@ -114,14 +114,41 @@ export function Fragments() {
 
       setProgress({ done: 0, total: unprocessed.length });
 
+      const BATCH_RETRY_DELAYS = [15_000, 30_000, 60_000]; // バッチレベルのリトライ待機（秒）
+      let skippedCount = 0;
+
       for (let i = 0; i < unprocessed.length; i += BATCH_SIZE) {
         if (cancelRef.current) break;
         const batch = unprocessed.slice(i, i + BATCH_SIZE);
-        await processBatch(batch);
+
+        let succeeded = false;
+        for (let retry = 0; retry <= BATCH_RETRY_DELAYS.length; retry++) {
+          try {
+            await processBatch(batch);
+            succeeded = true;
+            break;
+          } catch (e) {
+            if (!(e instanceof ApiOverloadError)) throw e; // 529以外はそのまま上に投げる
+            if (retry < BATCH_RETRY_DELAYS.length && !cancelRef.current) {
+              const waitSec = BATCH_RETRY_DELAYS[retry] / 1000;
+              setError(`APIが混雑中… ${waitSec}秒待ってリトライします`);
+              await new Promise(r => setTimeout(r, BATCH_RETRY_DELAYS[retry]));
+              setError(null);
+            }
+          }
+        }
+        if (!succeeded) {
+          skippedCount += batch.length;
+        }
+
         setProgress({ done: Math.min(i + BATCH_SIZE, unprocessed.length), total: unprocessed.length });
       }
 
       await load();
+
+      if (skippedCount > 0) {
+        setError(`APIの混雑により${skippedCount}件の日記をスキップしました。時間を置いて再度お試しください。`);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'エラーが発生しました');
     } finally {
